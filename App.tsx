@@ -24,9 +24,9 @@ import {
   AlertTriangle,
   Upload
 } from 'lucide-react';
-import { storage } from './lib/storage';
-import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster } from './types';
-import Login from './components/Login';
+import { storage } from './storage';
+import { Party, Booking, ... } from './types';
+import Login from './Login';
 
 // Initial Party Database
 const INITIAL_PARTIES: Record<string, { name: string; address: string }> = {
