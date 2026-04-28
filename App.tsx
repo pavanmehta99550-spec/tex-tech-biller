@@ -25,7 +25,7 @@ import {
   Upload
 } from 'lucide-react';
 import { storage } from './storage';
-import { Party, Booking, ... } from './types';
+import { Party, Booking, Item, SaleBill, PurchaseBill, CreditNote, DebitNote, Settings } from './types';
 import Login from './Login';
 
 // Initial Party Database
