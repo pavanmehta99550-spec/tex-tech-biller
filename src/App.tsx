@@ -1148,6 +1148,21 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
           }
         }
       }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      const form = (e.currentTarget as any).form;
+      if (!form) return;
+      const elements = Array.from(form.elements) as HTMLElement[];
+      const index = elements.indexOf(e.currentTarget as any);
+      if (index > -1) {
+        for (let i = index - 1; i >= 0; i--) {
+          const el = elements[i];
+          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
+            el.focus();
+            break;
+          }
+        }
+      }
     }
   };
   const [formData, setFormData] = useState(() => {
@@ -1319,6 +1334,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               disabled={isLocked}
               value={formData.taxRate}
               onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+              onKeyDown={handleEnter}
               className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all appearance-none ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               <option value="18">Item (18%)</option>
@@ -1630,6 +1646,39 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
   const [invoiceError, setInvoiceError] = useState('');
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
+  const handleEnter = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const form = (e.currentTarget as any).form;
+      if (!form) return;
+      const elements = Array.from(form.elements) as HTMLElement[];
+      const index = elements.indexOf(e.currentTarget as any);
+      if (index > -1) {
+        for (let i = index + 1; i < elements.length; i++) {
+          const el = elements[i];
+          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
+            el.focus();
+            break;
+          }
+        }
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      const form = (e.currentTarget as any).form;
+      if (!form) return;
+      const elements = Array.from(form.elements) as HTMLElement[];
+      const index = elements.indexOf(e.currentTarget as any);
+      if (index > -1) {
+        for (let i = index - 1; i >= 0; i--) {
+          const el = elements[i];
+          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
+            el.focus();
+            break;
+          }
+        }
+      }
+    }
+  };
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = (debitNotes || []).reduce((max: number, b: any) => Math.max(max, b.noteNumber || 0), 0) + 1;
     return {
@@ -1775,6 +1824,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
             <select 
               value={formData.taxRate}
               onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+              onKeyDown={handleEnter}
               className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-red-500 transition-all appearance-none"
             >
               <option value="5">Cloth/Textile (5%)</option>
@@ -1788,6 +1838,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
               type="date" 
               value={formData.date.split('T')[0]} 
               onChange={e => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })} 
+              onKeyDown={handleEnter}
               className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-red-500 transition-all" 
             />
           </div>
@@ -1802,6 +1853,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                 type="text" 
                 value={formData.partyGstin}
                 onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-red-500 transition-all shadow-sm"
                 placeholder="24AAAA..."
               />
@@ -1812,6 +1864,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                 type="text" 
                 value={formData.partyName} 
                 onChange={e => setFormData({ ...formData, partyName: e.target.value })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-red-500 transition-all shadow-sm"
               />
             </div>
@@ -1824,6 +1877,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                   type="text" 
                   value={formData.purchaseBillNumber} 
                   onChange={e => setFormData({ ...formData, purchaseBillNumber: e.target.value })}
+                  onKeyDown={handleEnter}
                   className={`flex-1 px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-red-500 transition-all shadow-sm ${invoiceError ? 'border-red-500' : ''}`}
                   placeholder="e.g. 501"
                 />
@@ -1843,6 +1897,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                 type="text" 
                 value={formData.reason} 
                 onChange={e => setFormData({ ...formData, reason: e.target.value })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-red-500 transition-all shadow-sm"
                 placeholder="e.g. Damaged Goods"
               />
@@ -1855,6 +1910,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                 type="text" 
                 value={formData.partyAddress} 
                 onChange={e => setFormData({ ...formData, partyAddress: e.target.value })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-red-500 transition-all shadow-sm"
                 placeholder="Address"
               />
@@ -1865,6 +1921,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                 type="text" 
                 value={formData.partyMobile} 
                 onChange={e => setFormData({ ...formData, partyMobile: e.target.value })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-red-500 transition-all shadow-sm"
                 placeholder="Mobile Number"
               />
@@ -1894,6 +1951,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                     list="master-items-dn"
                     value={item.name} 
                     onChange={e => updateItem(item.id, 'name', e.target.value)} 
+                    onKeyDown={handleEnter}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                   />
                   <datalist id="master-items-dn">
@@ -1910,6 +1968,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                       value={item.quantity || ''} 
                       onChange={e => updateItem(item.id, 'quantity', e.target.value)} 
                       onFocus={() => setActiveCalcId(item.id)}
+                      onKeyDown={handleEnter}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-red-500" 
                     />
                     <button 
@@ -1936,6 +1995,10 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                     value={item.rate || ''} 
                     onChange={e => updateItem(item.id, 'rate', e.target.value)} 
                     onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === 'Escape') {
+                        handleEnter(e);
+                        return;
+                      }
                       if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
                         e.preventDefault();
                         addItem();
@@ -2247,6 +2310,21 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
           }
         }
       }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      const form = (e.currentTarget as any).form;
+      if (!form) return;
+      const elements = Array.from(form.elements) as HTMLElement[];
+      const index = elements.indexOf(e.currentTarget as any);
+      if (index > -1) {
+        for (let i = index - 1; i >= 0; i--) {
+          const el = elements[i];
+          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
+            el.focus();
+            break;
+          }
+        }
+      }
     }
   };
 
@@ -2283,6 +2361,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
               disabled={isLocked}
               value={formData.taxRate}
               onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+              onKeyDown={handleEnter}
               className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all appearance-none ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               <option value="5">GST 5%</option>
@@ -2758,6 +2837,39 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
   const [invoiceError, setInvoiceError] = useState('');
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
+  const handleEnter = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const form = (e.currentTarget as any).form;
+      if (!form) return;
+      const elements = Array.from(form.elements) as HTMLElement[];
+      const index = elements.indexOf(e.currentTarget as any);
+      if (index > -1) {
+        for (let i = index + 1; i < elements.length; i++) {
+          const el = elements[i];
+          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
+            el.focus();
+            break;
+          }
+        }
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      const form = (e.currentTarget as any).form;
+      if (!form) return;
+      const elements = Array.from(form.elements) as HTMLElement[];
+      const index = elements.indexOf(e.currentTarget as any);
+      if (index > -1) {
+        for (let i = index - 1; i >= 0; i--) {
+          const el = elements[i];
+          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
+            el.focus();
+            break;
+          }
+        }
+      }
+    }
+  };
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = (creditNotes || []).reduce((max: number, b: any) => Math.max(max, b.noteNumber || 0), 0) + 1;
     return {
@@ -2903,6 +3015,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
             <select 
               value={formData.taxRate}
               onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+              onKeyDown={handleEnter}
               className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-green-500 transition-all appearance-none"
             >
               <option value="5">Cloth/Textile (5%)</option>
@@ -2916,6 +3029,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
               type="date" 
               value={formData.date.split('T')[0]} 
               onChange={e => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })} 
+              onKeyDown={handleEnter}
               className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-green-500 transition-all" 
             />
           </div>
@@ -2930,6 +3044,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                 type="text" 
                 value={formData.partyGstin}
                 onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm"
                 placeholder="24AAAA..."
               />
@@ -2940,6 +3055,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                 type="text" 
                 value={formData.partyName} 
                 onChange={e => setFormData({ ...formData, partyName: e.target.value })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm"
               />
             </div>
@@ -2952,6 +3068,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                   type="text" 
                   value={formData.salesBillNumber} 
                   onChange={e => setFormData({ ...formData, salesBillNumber: e.target.value })}
+                  onKeyDown={handleEnter}
                   className={`flex-1 px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm ${invoiceError ? 'border-red-500' : ''}`}
                   placeholder="e.g. 101"
                 />
@@ -2971,6 +3088,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                 type="text" 
                 value={formData.reason} 
                 onChange={e => setFormData({ ...formData, reason: e.target.value })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm"
                 placeholder="e.g. Quality Issue"
               />
@@ -2983,6 +3101,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                 type="text" 
                 value={formData.partyAddress} 
                 onChange={e => setFormData({ ...formData, partyAddress: e.target.value })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm"
                 placeholder="Address"
               />
@@ -2993,6 +3112,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                 type="text" 
                 value={formData.partyMobile} 
                 onChange={e => setFormData({ ...formData, partyMobile: e.target.value })}
+                onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm"
                 placeholder="Mobile Number"
               />
@@ -3022,6 +3142,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                     list="master-items-cn"
                     value={item.name} 
                     onChange={e => updateItem(item.id, 'name', e.target.value)} 
+                    onKeyDown={handleEnter}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                   />
                   <datalist id="master-items-cn">
@@ -3038,6 +3159,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                       value={item.quantity || ''} 
                       onChange={e => updateItem(item.id, 'quantity', e.target.value)} 
                       onFocus={() => setActiveCalcId(item.id)}
+                      onKeyDown={handleEnter}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-green-500" 
                     />
                     <button 
@@ -3064,6 +3186,10 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                     value={item.rate || ''} 
                     onChange={e => updateItem(item.id, 'rate', e.target.value)} 
                     onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === 'Escape') {
+                        handleEnter(e);
+                        return;
+                      }
                       if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
                         e.preventDefault();
                         addItem();
