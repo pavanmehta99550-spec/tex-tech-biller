@@ -7,6 +7,7 @@ import {
   BookText, 
   TrendingUp,
   Truck,
+  Calculator,
   AlertCircle,
   LogOut,
   ChevronLeft,
@@ -1129,6 +1130,8 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
 
 function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
+  const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+  const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -1474,9 +1477,37 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                     <option value="PCS">PCS</option>
                   </select>
                 </div>
-                <div className="md:col-span-1 space-y-1">
+                <div className="md:col-span-1 space-y-1 relative">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
-                  <input type="number" readOnly={isLocked} value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} onKeyDown={handleEnter} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
+                  <div className="relative group">
+                    <input 
+                      type="number" 
+                      readOnly={isLocked} 
+                      value={item.quantity || ''} 
+                      onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} 
+                      onFocus={() => !isLocked && setActiveCalcId(item.id)}
+                      onKeyDown={handleEnter} 
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-indigo-500" 
+                    />
+                    {!isLocked && (
+                      <button 
+                        type="button"
+                        onClick={() => setActiveCalcId(item.id)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-indigo-500 transition-all"
+                      >
+                        <Calculator size={12} />
+                      </button>
+                    )}
+                    {activeCalcId === item.id && (
+                      <QtyCalculator 
+                        value={calcValues[item.id] || ''}
+                        onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
+                        onApply={(sum) => updateItem(item.id, 'quantity', sum)}
+                        onBlur={() => setActiveCalcId(null)}
+                        isLocked={isLocked}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
@@ -1597,6 +1628,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
 function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, itemsMaster = [], editingDebitNote, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [invoiceError, setInvoiceError] = useState('');
+  const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+  const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = (debitNotes || []).reduce((max: number, b: any) => Math.max(max, b.noteNumber || 0), 0) + 1;
     return {
@@ -1869,9 +1902,32 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                     ))}
                   </datalist>
                 </div>
-                <div className="md:col-span-2 space-y-1">
+                <div className="md:col-span-2 space-y-1 relative">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
-                  <input type="number" value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
+                  <div className="relative group">
+                    <input 
+                      type="number" 
+                      value={item.quantity || ''} 
+                      onChange={e => updateItem(item.id, 'quantity', e.target.value)} 
+                      onFocus={() => setActiveCalcId(item.id)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-red-500" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setActiveCalcId(item.id)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-red-500 transition-all"
+                    >
+                      <Calculator size={12} />
+                    </button>
+                    {activeCalcId === item.id && (
+                      <QtyCalculator 
+                        value={calcValues[item.id] || ''}
+                        onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
+                        onApply={(sum) => updateItem(item.id, 'quantity', sum)}
+                        onBlur={() => setActiveCalcId(null)}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="md:col-span-3 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
@@ -1943,9 +1999,37 @@ function PurchaseViewWrapper({ onSave, parties, purchases, editingPurchase, onCa
   return <PurchaseView onSave={onSave} parties={parties} purchases={purchases} editingPurchase={editingPurchase} onCancel={onCancel} />;
 }
 
+function QtyCalculator({ value, onChange, onApply, onBlur, isLocked }: { value: string, onChange: (v: string) => void, onApply: (sum: number) => void, onBlur: () => void, isLocked?: boolean }) {
+  const sum = value.split(/[+,\s]+/).map(v => parseFloat(v) || 0).reduce((a, b) => a + b, 0);
+
+  return (
+    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border-2 border-slate-900 rounded-xl shadow-2xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Multi-Qty Calculator</span>
+        <span className="text-xs font-black text-[#00cec9]">Sum: {sum.toLocaleString()}</span>
+      </div>
+      <textarea
+        autoFocus
+        readOnly={isLocked}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => {
+          onApply(sum);
+          setTimeout(onBlur, 200);
+        }}
+        className="w-full bg-slate-50 border-2 border-slate-100 rounded-lg p-2 text-sm font-bold h-24 outline-none focus:border-[#00cec9] transition-all resize-none"
+        placeholder="Enter values: 10+20+5..."
+      />
+      <div className="text-[8px] text-slate-400 mt-1 font-bold italic">* Use space, comma or '+' to separate values</div>
+    </div>
+  );
+}
+
 function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], transports = [], editingBooking, onViewHistory, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [navigatedBillLocked, setNavigatedBillLocked] = useState(false);
+  const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+  const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = bookings.reduce((max: number, b: any) => Math.max(max, b.billNumber || 0), 0) + 1;
     return {
@@ -2392,9 +2476,39 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
                     <option value="TH">TH (Thaan)</option>
                   </select>
                 </div>
-                <div className="md:col-span-1 space-y-1 text-slate-900">
+                <div className="md:col-span-1 space-y-1 text-slate-900 relative">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
-                  <input type="number" readOnly={isLocked} step="any" value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="0.0" />
+                  <div className="relative group">
+                    <input 
+                      type="number" 
+                      readOnly={isLocked} 
+                      step="any" 
+                      value={item.quantity || ''} 
+                      onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} 
+                      onFocus={() => !isLocked && setActiveCalcId(item.id)}
+                      onKeyDown={handleEnter} 
+                      className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
+                      placeholder="0.0" 
+                    />
+                    {!isLocked && (
+                      <button 
+                        type="button"
+                        onClick={() => setActiveCalcId(item.id)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-[#00cec9] transition-all"
+                      >
+                        <Calculator size={12} />
+                      </button>
+                    )}
+                    {activeCalcId === item.id && (
+                      <QtyCalculator 
+                        value={calcValues[item.id] || ''}
+                        onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
+                        onApply={(sum) => updateItem(item.id, 'quantity', sum)}
+                        onBlur={() => setActiveCalcId(null)}
+                        isLocked={isLocked}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="md:col-span-1.5 space-y-1 text-slate-900">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
@@ -2642,6 +2756,8 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
 function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, itemsMaster = [], editingCreditNote, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [invoiceError, setInvoiceError] = useState('');
+  const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+  const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = (creditNotes || []).reduce((max: number, b: any) => Math.max(max, b.noteNumber || 0), 0) + 1;
     return {
@@ -2914,9 +3030,32 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                     ))}
                   </datalist>
                 </div>
-                <div className="md:col-span-2 space-y-1">
+                <div className="md:col-span-2 space-y-1 relative">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
-                  <input type="number" value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
+                  <div className="relative group">
+                    <input 
+                      type="number" 
+                      value={item.quantity || ''} 
+                      onChange={e => updateItem(item.id, 'quantity', e.target.value)} 
+                      onFocus={() => setActiveCalcId(item.id)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-green-500" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setActiveCalcId(item.id)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-green-500 transition-all"
+                    >
+                      <Calculator size={12} />
+                    </button>
+                    {activeCalcId === item.id && (
+                      <QtyCalculator 
+                        value={calcValues[item.id] || ''}
+                        onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
+                        onApply={(sum) => updateItem(item.id, 'quantity', sum)}
+                        onBlur={() => setActiveCalcId(null)}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="md:col-span-3 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
