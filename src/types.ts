@@ -45,6 +45,9 @@ export interface Booking {
   globalDiscount: number;
   taxRate: number;
   taxAmount: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   grandTotal: number;
   date: string;
   billNumber: number;
@@ -84,6 +87,9 @@ export interface Purchase {
   globalDiscount: number;
   taxRate: number;
   taxAmount: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   grandTotal: number;
   notes?: string;
 }

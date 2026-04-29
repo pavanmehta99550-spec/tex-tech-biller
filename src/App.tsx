@@ -26,6 +26,9 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { storage } from './lib/storage';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster } from './types';
 import Login from './components/Login';
 
@@ -38,7 +41,20 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }> = {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory';
+type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'gstreport';
+
+const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
+  const cState = (consignorGstin || '').substring(0, 2);
+  const rState = (consigneeGstin || '').substring(0, 2);
+  const isInterstate = cState && rState && cState !== rState;
+  
+  return {
+    cgst: isInterstate ? 0 : taxTotal / 2,
+    sgst: isInterstate ? 0 : taxTotal / 2,
+    igst: isInterstate ? taxTotal : 0,
+    isInterstate
+  };
+};
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => storage.get('auth', false));
@@ -169,6 +185,8 @@ export default function App() {
       updatedSaleParties.push(consignee);
     }
 
+    const split = calculateGstSplit(data.taxAmount || 0, data.consignorGstin || '', data.consigneeGstin || '');
+
     const newBooking: Booking = {
       id: data.id || Math.random().toString(36).substr(2, 9),
       billNumber: nextBillNum,
@@ -191,6 +209,9 @@ export default function App() {
       globalDiscount: data.globalDiscount || 0,
       taxRate: data.taxRate || 18,
       taxAmount: data.taxAmount || 0,
+      cgstAmount: split.cgst,
+      sgstAmount: split.sgst,
+      igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
       date: data.date || new Date().toISOString()
     };
@@ -271,6 +292,8 @@ export default function App() {
 
     const isUpdate = !!data.id && purchases.some(b => b.id === data.id);
 
+    const split = calculateGstSplit(data.taxAmount || 0, settings?.gstin || '', data.partyGstin || '');
+
     const newPurchase: Purchase = {
       id: data.id || Math.random().toString(36).substr(2, 9),
       billNumber: nextBillNum,
@@ -286,6 +309,9 @@ export default function App() {
       globalDiscount: data.globalDiscount || 0,
       taxRate: data.taxRate || 18,
       taxAmount: data.taxAmount || 0,
+      cgstAmount: split.cgst,
+      sgstAmount: split.sgst,
+      igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
       date: data.date || new Date().toISOString()
     };
@@ -508,6 +534,7 @@ export default function App() {
           <NavBtn active={currentView === 'items'} onClick={() => setCurrentView('items')} icon={Package} label="Items Master" />
           <NavBtn active={currentView === 'pay'} onClick={() => setCurrentView('pay')} icon={CreditCard} label="Receive Payment" />
           <NavBtn active={currentView === 'ledg'} onClick={() => setCurrentView('ledg')} icon={BookText} label="Party Ledger" />
+          <NavBtn active={currentView === 'gstreport'} onClick={() => setCurrentView('gstreport')} icon={TrendingUp} label="GST Reports" />
           <NavBtn active={currentView === 'backup'} onClick={() => setCurrentView('backup')} icon={Download} label="Data Backup" />
           <NavBtn active={currentView === 'settings'} onClick={() => setCurrentView('settings')} icon={Settings} label="Settings" />
           <button 
@@ -675,6 +702,14 @@ export default function App() {
               payments={payments}
               debitNotes={debitNotes} 
               creditNotes={creditNotes} 
+              settings={settings}
+            />}
+            {currentView === 'gstreport' && <GstReportView 
+              key="gstreport"
+              bookings={bookings}
+              purchases={purchases}
+              creditNotes={creditNotes}
+              debitNotes={debitNotes}
               settings={settings}
             />}
             {currentView === 'settings' && <SettingsView key="settings" settings={settings} onSave={setSettings} />}
@@ -1203,8 +1238,18 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
     const effectiveGlobalDiscount = hasItemDiscount ? 0 : (formData.globalDiscount || 0);
     const taxableValue = Math.max(0, basicAmount - effectiveGlobalDiscount);
     const tax = taxableValue * (formData.taxRate / 100);
-    return { basicAmount, taxableValue, tax, total: taxableValue + tax, effectiveGlobalDiscount };
-  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount]);
+    
+    // Determine CGST/SGST vs IGST
+    const buyerStateCode = formData.buyerGstin?.substring(0, 2);
+    const supplierStateCode = formData.partyGstin?.substring(0, 2);
+    const isInterstate = buyerStateCode && supplierStateCode && buyerStateCode !== supplierStateCode;
+    
+    const cgst = isInterstate ? 0 : tax / 2;
+    const sgst = isInterstate ? 0 : tax / 2;
+    const igst = isInterstate ? tax : 0;
+    
+    return { basicAmount, taxableValue, tax, cgst, sgst, igst, isInterstate, total: taxableValue + tax, effectiveGlobalDiscount };
+  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.buyerGstin, formData.partyGstin]);
 
   useEffect(() => {
     setFormData(prev => ({ ...prev, basicAmount: calc.basicAmount }));
@@ -1485,8 +1530,18 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
         </div>
 
         <div className="bg-indigo-50/50 p-8 rounded-3xl border-2 border-dashed border-indigo-200 text-right space-y-2">
+          {calc.effectiveGlobalDiscount > 0 && (
+            <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{calc.effectiveGlobalDiscount.toFixed(2)}</span></div>
+          )}
           <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{calc.taxableValue.toFixed(2)}</span></div>
-          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.tax.toFixed(2)}</span></div>
+          {calc.isInterstate ? (
+            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.igst.toFixed(2)}</span></div>
+          ) : (
+            <>
+              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{calc.cgst.toFixed(2)}</span></div>
+              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{calc.sgst.toFixed(2)}</span></div>
+            </>
+          )}
           <div className="text-4xl font-black text-slate-900 tracking-tighter">Grand Total: <span className="text-indigo-600">₹{calc.total.toFixed(2)}</span></div>
         </div>
 
@@ -1988,12 +2043,21 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
 
   const calc = useMemo(() => {
     const basicAmount = formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
-    // If item-level discount exists, global discount is ignored (forced to 0)
     const effectiveGlobalDiscount = hasItemDiscount ? 0 : (formData.globalDiscount || 0);
     const taxableValue = Math.max(0, basicAmount - effectiveGlobalDiscount);
     const tax = taxableValue * (formData.taxRate / 100);
-    return { basicAmount, taxableValue, tax, total: taxableValue + tax, effectiveGlobalDiscount };
-  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount]);
+    
+    // Determine CGST/SGST vs IGST
+    const consignorStateCode = formData.consignorGstin?.substring(0, 2);
+    const consigneeStateCode = formData.consigneeGstin?.substring(0, 2);
+    const isInterstate = consignorStateCode && consigneeStateCode && consignorStateCode !== consigneeStateCode;
+    
+    const cgst = isInterstate ? 0 : tax / 2;
+    const sgst = isInterstate ? 0 : tax / 2;
+    const igst = isInterstate ? tax : 0;
+    
+    return { basicAmount, taxableValue, tax, cgst, sgst, igst, isInterstate, total: taxableValue + tax, effectiveGlobalDiscount };
+  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.consignorGstin, formData.consigneeGstin]);
 
   useEffect(() => {
     setFormData(prev => ({ ...prev, basicAmount: calc.basicAmount }));
@@ -2117,8 +2181,10 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
               onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
               className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all appearance-none ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
             >
-              <option value="18">General Item (18%)</option>
-              <option value="5">Cloth (5%)</option>
+              <option value="5">GST 5%</option>
+              <option value="12">GST 12%</option>
+              <option value="18">GST 18%</option>
+              <option value="28">GST 28%</option>
             </select>
           </div>
           <div className="space-y-4">
@@ -2463,13 +2529,13 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
             <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{calc.effectiveGlobalDiscount.toFixed(2)}</span></div>
           )}
           <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{calc.taxableValue.toFixed(2)}</span></div>
-          {formData.taxRate === 5 ? (
-            <>
-              <div className="text-slate-500 font-bold text-sm">CGST (2.5%): <span className="text-slate-900">₹{(calc.tax / 2).toFixed(2)}</span></div>
-              <div className="text-slate-500 font-bold text-sm">SGST (2.5%): <span className="text-slate-900">₹{(calc.tax / 2).toFixed(2)}</span></div>
-            </>
+          {calc.isInterstate ? (
+            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.igst.toFixed(2)}</span></div>
           ) : (
-            <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.tax.toFixed(2)}</span></div>
+            <>
+              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{calc.cgst.toFixed(2)}</span></div>
+              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{calc.sgst.toFixed(2)}</span></div>
+            </>
           )}
           <div className="text-4xl font-black text-slate-900 tracking-tighter">Grand Total: <span className="text-[#00cec9]">₹{calc.total.toFixed(2)}</span></div>
         </div>
@@ -4266,6 +4332,296 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           >
             Close
           </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings }: any) {
+  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const filteredSales = useMemo(() => {
+    return bookings.filter((b: any) => {
+      const d = b.date.split('T')[0];
+      return d >= startDate && d <= endDate;
+    });
+  }, [bookings, startDate, endDate]);
+
+  const filteredPurchases = useMemo(() => {
+    return (purchases || []).filter((p: any) => {
+      const d = p.date.split('T')[0];
+      return d >= startDate && d <= endDate;
+    });
+  }, [purchases, startDate, endDate]);
+
+  const gstr1Data = useMemo(() => {
+    return filteredSales.map((b: any) => {
+      const taxable = b.basicAmount - (b.globalDiscount || 0);
+      return {
+        invoiceNo: b.billNumber,
+        date: b.date.split('T')[0],
+        customer: b.consigneeName,
+        gstin: b.consigneeGstin,
+        taxableValue: taxable,
+        taxRate: b.taxRate,
+        cgst: b.cgstAmount || 0,
+        sgst: b.sgstAmount || 0,
+        igst: b.igstAmount || 0,
+        totalTax: b.taxAmount,
+        grandTotal: b.grandTotal
+      };
+    });
+  }, [filteredSales]);
+
+  const summary = useMemo(() => {
+    const salesTax = filteredSales.reduce((acc: any, b: any) => {
+      acc.cgst += (b.cgstAmount || 0);
+      acc.sgst += (b.sgstAmount || 0);
+      acc.igst += (b.igstAmount || 0);
+      acc.total += b.taxAmount;
+      acc.taxable += (b.basicAmount - (b.globalDiscount || 0));
+      return acc;
+    }, { cgst: 0, sgst: 0, igst: 0, total: 0, taxable: 0 });
+
+    const cnTax = (creditNotes || []).filter((cn: any) => {
+      const d = cn.date.split('T')[0];
+      return d >= startDate && d <= endDate;
+    }).reduce((acc: any, cn: any) => {
+      acc.total += cn.taxAmount;
+      return acc;
+    }, { total: 0 });
+
+    const purchaseTax = filteredPurchases.reduce((acc: any, p: any) => {
+      acc.cgst += (p.cgstAmount || 0);
+      acc.sgst += (p.sgstAmount || 0);
+      acc.igst += (p.igstAmount || 0);
+      acc.total += p.taxAmount;
+      acc.taxable += (p.basicAmount - (p.globalDiscount || 0));
+      return acc;
+    }, { cgst: 0, sgst: 0, igst: 0, total: 0, taxable: 0 });
+
+    const dnTax = (debitNotes || []).filter((dn: any) => {
+      const d = dn.date.split('T')[0];
+      return d >= startDate && d <= endDate;
+    }).reduce((acc: any, dn: any) => {
+      acc.total += dn.taxAmount;
+      return acc;
+    }, { total: 0 });
+
+    const salesNet = salesTax.total - cnTax.total;
+    const purchaseNet = purchaseTax.total - dnTax.total;
+
+    return {
+      output: salesTax,
+      input: purchaseTax,
+      salesNet,
+      purchaseNet,
+      net: {
+        cgst: salesTax.cgst - purchaseTax.cgst, // Simplified, usually split correctly
+        sgst: salesTax.sgst - purchaseTax.sgst,
+        igst: salesTax.igst - purchaseTax.igst,
+        total: salesNet - purchaseNet
+      }
+    };
+  }, [filteredSales, filteredPurchases, creditNotes, debitNotes, startDate, endDate]);
+
+  const exportExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(gstr1Data);
+    XLSX.utils.book_append_sheet(wb, ws1, "GSTR-1 Details");
+    
+    const summaryData = [
+      ["Summary", "Output (Sales)", "Input (Purchase)", "Net Balance"],
+      ["Taxable Value", summary.output.taxable, summary.input.taxable, ""],
+      ["CGST", summary.output.cgst, summary.input.cgst, summary.net.cgst],
+      ["SGST", summary.output.sgst, summary.input.sgst, summary.net.sgst],
+      ["IGST", summary.output.igst, summary.input.igst, summary.net.igst],
+      ["Total GST", summary.output.total, summary.input.total, summary.net.total]
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws2, "GSTR-3B Summary");
+    
+    XLSX.writeFile(wb, `GST_Report_${startDate}_to_${endDate}.xlsx`);
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("GST Report", 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Period: ${startDate} to ${endDate}`, 14, 30);
+    doc.text(`Company: ${settings?.companyName || 'N/A'}`, 14, 37);
+    doc.text(`GSTIN: ${settings?.gstin || 'N/A'}`, 14, 44);
+
+    doc.setFontSize(14);
+    doc.text("GSTR-3B Summary", 14, 55);
+    
+    autoTable(doc, {
+      startY: 60,
+      head: [["Type", "Output (Sales)", "Input (Purchase)", "Net Payable"]],
+      body: [
+        ["Taxable Value", summary.output.taxable.toFixed(2), summary.input.taxable.toFixed(2), "-"],
+        ["CGST", summary.output.cgst.toFixed(2), summary.input.cgst.toFixed(2), summary.net.cgst.toFixed(2)],
+        ["SGST", summary.output.sgst.toFixed(2), summary.input.sgst.toFixed(2), summary.net.sgst.toFixed(2)],
+        ["IGST", summary.output.igst.toFixed(2), summary.input.igst.toFixed(2), summary.net.igst.toFixed(2)],
+        ["Total GST", summary.output.total.toFixed(2), summary.input.total.toFixed(2), summary.net.total.toFixed(2)],
+      ],
+    });
+
+    doc.addPage();
+    doc.text("GSTR-1 Sales Details", 14, 22);
+    autoTable(doc, {
+      startY: 30,
+      head: [["Inv No", "Date", "Customer", "GSTIN", "Taxable", "GST %", "Total Tax", "Total Bill"]],
+      body: gstr1Data.map(d => [
+        d.invoiceNo, d.date, d.customer, d.gstin,
+        d.taxableValue.toFixed(2), d.taxRate + "%", d.totalTax.toFixed(2), d.grandTotal.toFixed(2)
+      ]),
+    });
+
+    doc.save(`GST_Report_${startDate}_to_${endDate}.pdf`);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20">
+      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">GST Reports</h2>
+          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-1">Taxation & GSTR Analysis</p>
+        </div>
+        <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-200">
+          <div className="flex flex-col">
+            <span className="text-[9px] font-black text-slate-400 uppercase ml-1">Start Date</span>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent font-bold text-sm px-2 outline-none" />
+          </div>
+          <div className="h-8 w-px bg-slate-200" />
+          <div className="flex flex-col">
+            <span className="text-[9px] font-black text-slate-400 uppercase ml-1">End Date</span>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent font-bold text-sm px-2 outline-none" />
+          </div>
+          <div className="flex gap-2 ml-4">
+             <button onClick={exportExcel} className="p-3 bg-green-500 text-white rounded-xl hover:bg-green-600 shadow-lg transition-all" title="Export Excel"><Download size={20} /></button>
+             <button onClick={exportPDF} className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg transition-all" title="Export PDF"><Printer size={20} /></button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+            <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Receipt size={16} className="text-[#00cec9]" /> GSTR-1 (Sales Details)</h3>
+              <span className="text-[10px] font-bold bg-white/10 px-3 py-1 rounded-full">{filteredSales.length} Records</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="px-6 py-4">Inv #</th>
+                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4">Customer</th>
+                    <th className="px-6 py-4 text-right">Taxable</th>
+                    <th className="px-6 py-4 text-right">GST %</th>
+                    <th className="px-6 py-4 text-right">CGST</th>
+                    <th className="px-6 py-4 text-right">SGST</th>
+                    <th className="px-6 py-4 text-right">IGST</th>
+                    <th className="px-6 py-4 text-right font-black text-slate-900">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {gstr1Data.map((d, i) => (
+                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-black text-sm">#{d.invoiceNo}</td>
+                      <td className="px-6 py-4 font-bold text-slate-500 text-xs">{d.date}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-900 text-sm">{d.customer}</div>
+                        <div className="text-[9px] font-black text-slate-400 uppercase">{d.gstin || 'NO GSTIN'}</div>
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.taxableValue.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-500 text-xs">{d.taxRate}%</td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.cgst.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.sgst.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.igst.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-right font-black text-slate-900 text-sm">₹{d.grandTotal.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  {gstr1Data.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="px-6 py-12 text-center text-slate-400 font-bold italic">No sales found for this period.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden sticky top-8">
+            <div className="p-6 bg-indigo-900 text-white">
+              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><TrendingUp size={16} className="text-indigo-400" /> GSTR-3B Summary</h3>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="space-y-3">
+                <div className="flex justify-between items-end border-b border-slate-100 pb-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Output (Sales)</span>
+                  <span className="text-xl font-black text-slate-900">₹{summary.output.total.toFixed(2)}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-slate-50 p-2 rounded-xl text-center">
+                    <span className="text-[8px] font-black text-slate-400 uppercase block">CGST</span>
+                    <span className="text-xs font-bold font-mono">₹{summary.output.cgst.toFixed(0)}</span>
+                  </div>
+                  <div className="bg-slate-50 p-2 rounded-xl text-center">
+                    <span className="text-[8px] font-black text-slate-400 uppercase block">SGST</span>
+                    <span className="text-xs font-bold font-mono">₹{summary.output.sgst.toFixed(0)}</span>
+                  </div>
+                  <div className="bg-slate-50 p-2 rounded-xl text-center">
+                    <span className="text-[8px] font-black text-slate-400 uppercase block">IGST</span>
+                    <span className="text-xs font-bold font-mono">₹{summary.output.igst.toFixed(0)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-end border-b border-slate-100 pb-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Input (Purchase)</span>
+                  <span className="text-xl font-black text-slate-900">₹{summary.input.total.toFixed(2)}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-indigo-50 p-2 rounded-xl text-center">
+                    <span className="text-[8px] font-black text-slate-400 uppercase block">CGST</span>
+                    <span className="text-xs font-bold font-mono text-indigo-600">₹{summary.input.cgst.toFixed(0)}</span>
+                  </div>
+                  <div className="bg-indigo-50 p-2 rounded-xl text-center">
+                    <span className="text-[8px] font-black text-slate-400 uppercase block">SGST</span>
+                    <span className="text-xs font-bold font-mono text-indigo-600">₹{summary.input.sgst.toFixed(0)}</span>
+                  </div>
+                  <div className="bg-indigo-50 p-2 rounded-xl text-center">
+                    <span className="text-[8px] font-black text-slate-400 uppercase block">IGST</span>
+                    <span className="text-xs font-bold font-mono text-indigo-600">₹{summary.input.igst.toFixed(0)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t-2 border-dashed border-slate-100 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-black text-slate-900 uppercase">Net GST Payable</h4>
+                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${summary.net.total > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                    {summary.net.total > 0 ? 'To Be Paid' : 'ITC Balance'}
+                  </div>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-2xl text-white">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">Total Net Balance</span>
+                    <span className={`text-2xl font-black ${summary.net.total > 0 ? 'text-red-400' : 'text-[#00cec9]'}`}>₹{Math.abs(summary.net.total).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </motion.div>
