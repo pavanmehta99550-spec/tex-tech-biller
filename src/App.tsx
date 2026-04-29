@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, 
@@ -30,6 +30,7 @@ import {
 import { storage } from './lib/storage';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport } from './types';
 import Login from './components/Login';
@@ -3250,6 +3251,41 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
 }
 
 function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote: CreditNote, settings: AppSettings | null, onClose: () => void }) {
+  const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'Enter') {
+        window.print();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handleDownloadPDF = async () => {
+    if (!printRef.current) return;
+    try {
+      const canvas = await html2canvas(printRef.current, { 
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`CreditNote_${creditNote.noteNumber}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      alert("Failed to generate PDF. You can use Print -> Save as PDF instead.");
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -3265,7 +3301,7 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
           <ChevronLeft size={24} />
         </button>
 
-        <div className="space-y-8">
+        <div ref={printRef} className="space-y-8 p-1">
           <div className="flex justify-between items-start border-b-4 border-green-700 pb-6">
             <div>
               <h1 className="text-3xl font-black text-green-700 uppercase">CREDIT NOTE</h1>
@@ -3341,8 +3377,19 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
         </div>
 
         <div className="mt-12 flex gap-4 print:hidden">
-          <button onClick={() => window.print()} className="flex-1 bg-green-700 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2">
-            <Printer size={20} /> Print Note
+          <button 
+            onClick={() => window.print()}
+            className="flex-1 bg-green-700 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
+          >
+            <Printer size={20} /> 
+            Print
+          </button>
+          <button 
+            onClick={handleDownloadPDF}
+            className="flex-1 bg-green-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
+          >
+            <Download size={20} />
+            Download PDF
           </button>
           <button onClick={onClose} className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl">Close</button>
         </div>
@@ -3547,6 +3594,41 @@ function PaymentView({ onSave, parties, bookings }: any) {
 }
 
 function PaymentPrintPreview({ payment, settings, onClose }: any) {
+  const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'Enter') {
+        window.print();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handleDownloadPDF = async () => {
+    if (!printRef.current) return;
+    try {
+      const canvas = await html2canvas(printRef.current, { 
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Payment_${payment.id}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      alert("Failed to generate PDF. You can use Print -> Save as PDF instead.");
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl">
@@ -3554,11 +3636,12 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
           <h3 className="text-white font-black uppercase tracking-widest text-sm">Payment Voucher</h3>
           <div className="flex gap-4">
             <button onClick={() => window.print()} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all"><Printer size={14} className="inline mr-2" /> Print</button>
+            <button onClick={handleDownloadPDF} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all"><Download size={14} className="inline mr-2" /> PDF</button>
             <button onClick={onClose} className="bg-white/10 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-white/20 transition-all">Close</button>
           </div>
         </div>
 
-        <div className="p-12 bg-white text-slate-800" id="payment-voucher">
+        <div ref={printRef} className="p-12 bg-white text-slate-800">
           <header className="flex justify-between items-start mb-12 border-b-4 border-slate-900 pb-8">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">{settings?.companyName}</h1>
@@ -4221,6 +4304,41 @@ interface SettingsViewProps {
 }
 
 function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purchase, settings: AppSettings | null, onClose: () => void }) {
+  const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'Enter') {
+        window.print();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handleDownloadPDF = async () => {
+    if (!printRef.current) return;
+    try {
+      const canvas = await html2canvas(printRef.current, { 
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Purchase_${purchase.billNumber}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      alert("Failed to generate PDF. You can use Print -> Save as PDF instead.");
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -4236,7 +4354,7 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
           <ChevronLeft size={24} />
         </button>
 
-        <div className="space-y-8">
+        <div ref={printRef} className="space-y-8 p-1">
           <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-6">
             <div>
               <h1 className="text-3xl font-black text-indigo-900 uppercase">PURCHASE VOUCHER</h1>
@@ -4330,7 +4448,14 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
             className="flex-1 bg-indigo-900 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
           >
             <Printer size={20} />
-            Print Voucher
+            Print
+          </button>
+          <button 
+            onClick={handleDownloadPDF}
+            className="flex-1 bg-indigo-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
+          >
+            <Download size={20} />
+            Download PDF
           </button>
           <button 
             onClick={onClose}
@@ -4345,6 +4470,41 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
 }
 
 function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: DebitNote, settings: AppSettings | null, onClose: () => void }) {
+  const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'Enter') {
+        window.print();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handleDownloadPDF = async () => {
+    if (!printRef.current) return;
+    try {
+      const canvas = await html2canvas(printRef.current, { 
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`DebitNote_${debitNote.noteNumber}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      alert("Failed to generate PDF. You can use Print -> Save as PDF instead.");
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -4360,7 +4520,7 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
           <ChevronLeft size={24} />
         </button>
 
-        <div className="space-y-8">
+        <div ref={printRef} className="space-y-8 p-1">
           <div className="flex justify-between items-start border-b-4 border-red-700 pb-6">
             <div>
               <h1 className="text-3xl font-black text-red-700 uppercase">DEBIT NOTE</h1>
@@ -4441,10 +4601,26 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
         </div>
 
         <div className="mt-12 flex gap-4 print:hidden">
-          <button onClick={() => window.print()} className="flex-1 bg-red-700 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2">
-            <Printer size={20} /> Print Note
+          <button 
+            onClick={() => window.print()}
+            className="flex-1 bg-red-700 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
+          >
+            <Printer size={20} />
+            Print
           </button>
-          <button onClick={onClose} className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl">Close</button>
+          <button 
+            onClick={handleDownloadPDF}
+            className="flex-1 bg-red-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
+          >
+            <Download size={20} />
+            Download PDF
+          </button>
+          <button 
+            onClick={onClose} 
+            className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl"
+          >
+            Close
+          </button>
         </div>
       </div>
     </motion.div>
@@ -4452,6 +4628,41 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
 }
 
 function PrintPreview({ booking, settings, onClose }: { booking: Booking, settings: AppSettings | null, onClose: () => void }) {
+  const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'Enter') {
+        window.print();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handleDownloadPDF = async () => {
+    if (!printRef.current) return;
+    try {
+      const canvas = await html2canvas(printRef.current, { 
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Bill_${booking.billNumber}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+      alert("Failed to generate PDF. You can use Print -> Save as PDF instead.");
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -4467,7 +4678,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           <ChevronLeft size={24} />
         </button>
 
-        <div className="space-y-8">
+        <div ref={printRef} className="space-y-8 p-1">
           <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6">
             <div>
               <h1 className="text-3xl font-black text-slate-900 uppercase">{settings?.companyName || "PRO BILLER"}</h1>
@@ -4615,7 +4826,14 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
             className="flex-1 bg-black text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
           >
             <Printer size={20} />
-            Print Invoice
+            Print
+          </button>
+          <button 
+            onClick={handleDownloadPDF}
+            className="flex-1 bg-blue-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
+          >
+            <Download size={20} />
+            Download PDF
           </button>
           <button 
             onClick={onClose}
