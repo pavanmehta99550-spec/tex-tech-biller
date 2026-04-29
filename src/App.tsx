@@ -643,6 +643,16 @@ export default function App() {
             {currentView === 'dn' && <DebitNoteView 
               key={`dn-${editingDebitNote?.id || 'new'}-${debitNotes.length}`} 
               onSave={handleSaveDebitNote} 
+              onEdit={(dn: DebitNote) => {
+                setEditingDebitNote(dn);
+                // No need to change view as we are already in 'dn'
+              }}
+              onDelete={(id: string) => {
+                if (window.confirm("Are you sure you want to delete this Debit Note?")) {
+                  setDebitNotes(debitNotes.filter(dn => dn.id !== id));
+                }
+              }}
+              onPreview={(dn: DebitNote) => setPreviewDebitNote(dn)}
               parties={purchaseParties} 
               settings={settings}
               debitNotes={debitNotes}
@@ -657,6 +667,15 @@ export default function App() {
             {currentView === 'cn' && <CreditNoteView 
               key={`cn-${editingCreditNote?.id || 'new'}-${creditNotes.length}`} 
               onSave={handleSaveCreditNote} 
+              onEdit={(cn: CreditNote) => {
+                setEditingCreditNote(cn);
+              }}
+              onDelete={(id: string) => {
+                if (window.confirm("Are you sure you want to delete this Credit Note?")) {
+                  setCreditNotes(creditNotes.filter(cn => cn.id !== id));
+                }
+              }}
+              onPreview={(cn: CreditNote) => setPreviewCreditNote(cn)}
               parties={saleParties} 
               settings={settings}
               creditNotes={creditNotes}
@@ -1642,11 +1661,21 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
   );
 }
 
-function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, itemsMaster = [], editingDebitNote, onCancel }: any) {
+function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings, debitNotes, purchases, itemsMaster = [], editingDebitNote, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [invoiceError, setInvoiceError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
+
+  const filteredDebitNotes = useMemo(() => {
+    return (debitNotes || []).filter((dn: DebitNote) => 
+      dn.noteNumber?.toString().includes(searchTerm) || 
+      dn.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dn.partyGstin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dn.purchaseBillNumber?.toString().includes(searchTerm)
+    );
+  }, [debitNotes, searchTerm]);
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -2055,6 +2084,79 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
           onClose={() => setShowPreview(false)} 
         />
       )}
+
+      {/* Debit Note History Section */}
+      <div className="mt-12 bg-white border-t border-slate-100 p-8 lg:p-12">
+        <header className="flex justify-between items-center mb-8">
+          <div>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Debit Note History</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Search and manage previous notes</p>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search Party, GST or Note No..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-red-500 w-64 transition-all"
+            />
+          </div>
+        </header>
+
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">
+                <th className="px-6 py-4">Date</th>
+                <th className="px-6 py-4">Note No.</th>
+                <th className="px-6 py-4">Party Details</th>
+                <th className="px-6 py-4 text-right">Amount</th>
+                <th className="px-6 py-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredDebitNotes.map((dn: DebitNote) => (
+                <tr key={dn.id} className="hover:bg-white transition-colors group">
+                  <td className="px-6 py-4 text-xs font-bold text-slate-500">
+                    {new Date(dn.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="bg-red-50 text-red-700 px-2 py-1 rounded-md font-black text-[10px]">#{dn.noteNumber}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-black text-slate-900 uppercase text-[10px]">{dn.partyName}</div>
+                    <div className="text-[9px] text-slate-400 font-bold">{dn.partyGstin}</div>
+                  </td>
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
+                    <span className="font-black text-red-700 tracking-tighter">₹ {dn.grandTotal.toLocaleString()}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => onPreview(dn)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="View/Print">
+                        <Printer size={16} />
+                      </button>
+                      <button onClick={() => onEdit(dn)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Edit">
+                        <Plus size={16} className="rotate-45" />
+                      </button>
+                      <button onClick={() => onDelete(dn.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                        <AlertCircle size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredDebitNotes.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-300 font-black uppercase text-[10px] tracking-widest">
+                    No matching records found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -2833,11 +2935,21 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
   );
 }
 
-function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, itemsMaster = [], editingCreditNote, onCancel }: any) {
+function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings, creditNotes, bookings, itemsMaster = [], editingCreditNote, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [invoiceError, setInvoiceError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
+
+  const filteredCreditNotes = useMemo(() => {
+    return (creditNotes || []).filter((cn: CreditNote) => 
+      cn.noteNumber?.toString().includes(searchTerm) || 
+      cn.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cn.partyGstin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cn.salesBillNumber?.toString().includes(searchTerm)
+    );
+  }, [creditNotes, searchTerm]);
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -3246,6 +3358,79 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
           onClose={() => setShowPreview(false)} 
         />
       )}
+
+      {/* Credit Note History Section */}
+      <div className="mt-12 bg-white border-t border-slate-100 p-8 lg:p-12">
+        <header className="flex justify-between items-center mb-8">
+          <div>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Credit Note History</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Search and manage previous notes</p>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search Party, GST or Note No..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-green-500 w-64 transition-all"
+            />
+          </div>
+        </header>
+
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">
+                <th className="px-6 py-4">Date</th>
+                <th className="px-6 py-4">Note No.</th>
+                <th className="px-6 py-4">Party Details</th>
+                <th className="px-6 py-4 text-right">Amount</th>
+                <th className="px-6 py-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredCreditNotes.map((cn: CreditNote) => (
+                <tr key={cn.id} className="hover:bg-white transition-colors group">
+                  <td className="px-6 py-4 text-xs font-bold text-slate-500">
+                    {new Date(cn.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="bg-green-50 text-green-700 px-2 py-1 rounded-md font-black text-[10px]">#{cn.noteNumber}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-black text-slate-900 uppercase text-[10px]">{cn.partyName}</div>
+                    <div className="text-[9px] text-slate-400 font-bold">{cn.partyGstin}</div>
+                  </td>
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
+                    <span className="font-black text-green-700 tracking-tighter">₹ {cn.grandTotal.toLocaleString()}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-2">
+                       <button onClick={() => onPreview(cn)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="View/Print">
+                        <Printer size={16} />
+                      </button>
+                      <button onClick={() => onEdit(cn)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Edit">
+                        <Plus size={16} className="rotate-45" />
+                      </button>
+                      <button onClick={() => onDelete(cn.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                        <AlertCircle size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredCreditNotes.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-300 font-black uppercase text-[10px] tracking-widest">
+                    No matching records found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </motion.div>
   );
 }
