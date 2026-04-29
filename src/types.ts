@@ -65,6 +65,7 @@ export interface AppSettings {
   address: string;
   mobile: string;
   adminPassword?: string;
+  signature?: string;
 }
 
 export interface Payment {

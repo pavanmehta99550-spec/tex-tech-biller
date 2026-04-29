@@ -27,6 +27,8 @@ import {
   AlertTriangle,
   Upload,
   RefreshCw,
+  FileText,
+  PenTool,
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import jsPDF from 'jspdf';
@@ -45,7 +47,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }> = {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'gstreport' | 'transports';
+type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'gstreport' | 'transports' | 'signature';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -542,6 +544,7 @@ export default function App() {
           <NavBtn active={currentView === 'ledg'} onClick={() => setCurrentView('ledg')} icon={BookText} label="Party Ledger" />
           <NavBtn active={currentView === 'transports'} onClick={() => setCurrentView('transports')} icon={Truck} label="Transports" />
           <NavBtn active={currentView === 'gstreport'} onClick={() => setCurrentView('gstreport')} icon={TrendingUp} label="GST Reports" />
+          <NavBtn active={currentView === 'signature'} onClick={() => setCurrentView('signature')} icon={PenTool} label="Upload Signature" />
           <NavBtn active={currentView === 'backup'} onClick={() => setCurrentView('backup')} icon={Download} label="Data Backup" />
           <NavBtn active={currentView === 'settings'} onClick={() => setCurrentView('settings')} icon={Settings} label="Settings" />
           <button 
@@ -764,6 +767,11 @@ export default function App() {
               key="transports"
               transports={transports}
               onSave={setTransports}
+            />}
+            {currentView === 'signature' && <SignatureUploadView 
+              key="signature"
+              settings={settings}
+              onUpdateSettings={setSettings}
             />}
             {currentView === 'settings' && <SettingsView key="settings" settings={settings} onSave={setSettings} />}
           </AnimatePresence>
@@ -3575,7 +3583,10 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
 
           <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Sales Return Voucher I</div>
-            <div className="text-center border-t border-green-700 pt-2 w-48">
+            <div className="text-center border-t border-green-700 pt-2 w-48 relative">
+              {settings?.signature && !settings.signature.startsWith('data:application/pdf') && (
+                <img src={settings.signature} alt="Sign" className="h-12 absolute bottom-[100%] left-1/2 -translate-x-1/2 mb-1 object-contain" />
+              )}
               <div className="text-[10px] font-black uppercase tracking-widest">Authorized Entry</div>
               <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
             </div>
@@ -3902,6 +3913,13 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
           <footer className="mt-20 pt-10 border-t border-slate-100 flex justify-between items-end">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">System Generated Voucher</div>
             <div className="text-center">
+              {settings?.signature && (
+                <div className="mb-[-15px] relative z-10">
+                   {!settings.signature.startsWith('data:application/pdf') && (
+                     <img src={settings.signature} alt="Sign" className="h-16 mx-auto object-contain" />
+                   )}
+                </div>
+              )}
               <div className="h-16 w-40 border-b-2 border-slate-900 mb-2"></div>
               <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Signatory</p>
             </div>
@@ -4641,7 +4659,10 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
 
           <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Entry Logged I</div>
-             <div className="text-center border-t border-indigo-900 pt-2 w-48">
+             <div className="text-center border-t border-indigo-900 pt-2 w-48 relative">
+               {settings?.signature && !settings.signature.startsWith('data:application/pdf') && (
+                 <img src={settings.signature} alt="Sign" className="h-12 absolute bottom-[100%] left-1/2 -translate-x-1/2 mb-1 object-contain" />
+               )}
                <div className="text-[10px] font-black uppercase tracking-widest">Authorized Entry</div>
                <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Purchase</div>
              </div>
@@ -4799,7 +4820,10 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
 
           <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Return Voucher I</div>
-            <div className="text-center border-t border-red-700 pt-2 w-48">
+            <div className="text-center border-t border-red-700 pt-2 w-48 relative">
+              {settings?.signature && !settings.signature.startsWith('data:application/pdf') && (
+                <img src={settings.signature} alt="Sign" className="h-12 absolute bottom-[100%] left-1/2 -translate-x-1/2 mb-1 object-contain" />
+              )}
               <div className="text-[10px] font-black uppercase tracking-widest">Authorized Entry</div>
               <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
             </div>
@@ -5019,7 +5043,10 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
 
           <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Generated via Pro Biller I</div>
-            <div className="text-center border-t border-slate-900 pt-2 w-48">
+            <div className="text-center border-t border-slate-900 pt-2 w-48 relative">
+              {settings?.signature && !settings.signature.startsWith('data:application/pdf') && (
+                <img src={settings.signature} alt="Sign" className="h-12 absolute bottom-[100%] left-1/2 -translate-x-1/2 mb-1 object-contain" />
+              )}
               <div className="text-[10px] font-black uppercase tracking-widest">Authorized Signatory</div>
               <div className="text-[9px] text-slate-400 mt-1 cursor-default select-none">E-Signature Verfied</div>
             </div>
@@ -5339,6 +5366,122 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings 
           </div>
         </div>
       </div>
+    </motion.div>
+  );
+}
+
+function SignatureUploadView({ settings, onUpdateSettings }: any) {
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File) => {
+    if (!file) return;
+    
+    // Check if it's an image or PDF
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      alert("Please upload an image (JPG/PNG) or a PDF file.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      onUpdateSettings({ ...(settings || {}), signature: base64 });
+      alert("Signature uploaded successfully!");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto mt-12 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-8">
+      <header className="mb-8 text-center">
+        <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Upload size={32} />
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Upload Signature</h2>
+        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">This will appear on your bill print-outs</p>
+      </header>
+
+      <div 
+        className={`relative border-2 border-dashed rounded-3xl p-12 transition-all flex flex-col items-center justify-center gap-4 ${dragActive ? 'border-indigo-500 bg-indigo-50 scale-105' : 'border-slate-200 bg-slate-50'}`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+      >
+        <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-400">
+          <FileText size={32} />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-black text-slate-900 mb-1">Drag and drop your signature here</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Or click to browse (JPG, PNG, PDF)</p>
+        </div>
+        <input 
+          ref={fileInputRef}
+          type="file" 
+          className="hidden" 
+          accept="image/*,application/pdf"
+          onChange={handleChange}
+        />
+        <button 
+          onClick={() => fileInputRef.current?.click()}
+          className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-xl shadow-indigo-900/40 hover:bg-indigo-700 transition-all"
+        >
+          Select File
+        </button>
+      </div>
+
+      {settings?.signature && (
+        <div className="mt-8 border-t border-slate-100 pt-8">
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Current Signature Preview</h3>
+          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-center min-h-[100px]">
+            {settings.signature.startsWith('data:application/pdf') ? (
+              <div className="flex flex-col items-center gap-2 text-slate-500">
+                <FileText size={48} />
+                <span className="text-[10px] font-black uppercase">PDF Uploaded</span>
+              </div>
+            ) : (
+              <img src={settings.signature} alt="Signature" className="max-h-24 object-contain" />
+            )}
+          </div>
+          <button 
+            onClick={() => {
+              if(confirm("Are you sure you want to remove the signature?")) {
+                onUpdateSettings({...(settings || {}), signature: undefined});
+              }
+            }}
+            className="mt-4 text-xs font-black text-red-500 uppercase tracking-widest hover:underline"
+          >
+            Remove Signature
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }
