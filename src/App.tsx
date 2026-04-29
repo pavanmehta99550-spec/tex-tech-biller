@@ -22,6 +22,7 @@ import {
   Settings,
   Search,
   Download,
+  Trash2,
   Mail,
   AlertTriangle,
   Upload,
@@ -625,7 +626,17 @@ export default function App() {
               onDeleteSale={handleDeleteBooking}
               onPreviewSale={(b: Booking) => setPreviewBooking(b)}
             />}
-            {currentView === 'saleparty' && <PartyMasterView key="saleparty" parties={saleParties} title="Sale Party Entry" onUpdateParties={setSaleParties} />}
+            {currentView === 'saleparty' && (
+              <PartyMasterView 
+                key="saleparty" 
+                parties={saleParties} 
+                title="Sale Party Entry" 
+                onUpdateParties={setSaleParties}
+                bookings={bookings}
+                creditNotes={creditNotes}
+                payments={payments}
+              />
+            )}
             {currentView === 'pur' && <PurchaseView 
               key={`pur-${editingPurchase?.id || 'new'}-${purchases.length}`} 
               onSave={handleSavePurchase} 
@@ -719,7 +730,17 @@ export default function App() {
               }}
             />}
             {currentView === 'pay' && <PaymentView key="pay" onSave={handleSavePayment} parties={saleParties} bookings={bookings} />}
-            {currentView === 'purchaseparty' && <PartyMasterView key="purchaseparty" parties={purchaseParties} title="Purchase Party Entry" onUpdateParties={setPurchaseParties} />}
+            {currentView === 'purchaseparty' && (
+              <PartyMasterView 
+                key="purchaseparty" 
+                parties={purchaseParties} 
+                title="Purchase Party Entry" 
+                onUpdateParties={setPurchaseParties}
+                purchases={purchases}
+                debitNotes={debitNotes}
+                payments={payments}
+              />
+            )}
             {currentView === 'ledg' && <LedgerView 
               key="ledg" 
               parties={saleParties} 
@@ -5501,7 +5522,7 @@ function SettingsView({ settings, onSave }: any) {
   );
 }
 
-function PartyMasterView({ parties, title, onUpdateParties }: any) {
+function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purchases = [], creditNotes = [], debitNotes = [], payments = [] }: any) {
   const [partyForm, setPartyForm] = useState({
     name: '',
     gstin: '',
@@ -5531,6 +5552,24 @@ function PartyMasterView({ parties, title, onUpdateParties }: any) {
     onUpdateParties([newParty, ...parties]);
     setPartyForm({ name: '', gstin: '', address: '', mobile: '' });
     alert(`${title} Added Successfully!`);
+  };
+
+  const handleDeleteParty = (party: Party) => {
+    // Check if the party has any transactions
+    const hasBookings = bookings.some((b: any) => b.consigneeGstin === party.gstin);
+    const hasPurchases = purchases.some((p: any) => p.partyGstin === party.gstin);
+    const hasCreditNotes = creditNotes.some((cn: any) => cn.partyGstin === party.gstin);
+    const hasDebitNotes = debitNotes.some((dn: any) => dn.partyGstin === party.gstin);
+    const hasPayments = payments.some((pay: any) => pay.partyGstin === party.gstin || pay.partyId === party.id);
+
+    if (hasBookings || hasPurchases || hasCreditNotes || hasDebitNotes || hasPayments) {
+      alert("Cannot delete this party because it has existing bills or payments in the system.");
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to delete ${party.name}?`)) {
+      onUpdateParties(parties.filter((p: any) => p.id !== party.id));
+    }
   };
 
   return (
@@ -5608,15 +5647,24 @@ function PartyMasterView({ parties, title, onUpdateParties }: any) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {parties.map((p: any) => (
               <div key={p.id} className="p-5 bg-white border border-slate-100 rounded-2xl flex justify-between items-center group hover:border-[#00cec9] transition-all shadow-sm hover:shadow-md">
-                <div>
+                <div className="flex-1">
                   <div className="font-black text-slate-900 uppercase text-sm">{p.name}</div>
                   <div className="text-[10px] font-bold text-[#00cec9] mb-1">{p.gstin}</div>
                   <div className="text-[10px] text-slate-400 font-medium line-clamp-1">{p.address}</div>
                   {p.mobile && <div className="text-[10px] text-slate-500 font-bold mt-1">{p.mobile}</div>}
                 </div>
-                <div className="text-right">
-                  <div className="text-[9px] font-black text-slate-400 uppercase">{title === 'Sale Party Entry' ? 'Total Sales' : 'Total Purchases'}</div>
-                  <div className="text-lg font-black text-slate-900">₹{(title === 'Sale Party Entry' ? p.totalSales : (p.totalPurchases || 0)).toLocaleString()}</div>
+                <div className="text-right flex flex-col items-end gap-3">
+                  <div>
+                    <div className="text-[9px] font-black text-slate-400 uppercase">{title === 'Sale Party Entry' ? 'Total Sales' : 'Total Purchases'}</div>
+                    <div className="text-lg font-black text-slate-900">₹{(title === 'Sale Party Entry' ? p.totalSales : (p.totalPurchases || 0)).toLocaleString()}</div>
+                  </div>
+                  <button 
+                    onClick={() => handleDeleteParty(p)}
+                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                    title="Delete Party"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
             ))}
