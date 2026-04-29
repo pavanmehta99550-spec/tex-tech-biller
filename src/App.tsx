@@ -600,7 +600,7 @@ export default function App() {
               onPreviewPurchase={(p: Purchase) => setPreviewPurchase(p)}
             />}
             {currentView === 'inv' && <BookingView 
-              key="inv" 
+              key={`inv-${editingBooking?.id || 'new'}-${bookings.length}`} 
               onSave={handleSaveBooking} 
               parties={saleParties} 
               settings={settings} 
@@ -626,7 +626,7 @@ export default function App() {
             />}
             {currentView === 'saleparty' && <PartyMasterView key="saleparty" parties={saleParties} title="Sale Party Entry" onUpdateParties={setSaleParties} />}
             {currentView === 'pur' && <PurchaseView 
-              key="pur" 
+              key={`pur-${editingPurchase?.id || 'new'}-${purchases.length}`} 
               onSave={handleSavePurchase} 
               parties={purchaseParties} 
               settings={settings}
@@ -640,7 +640,7 @@ export default function App() {
               }}
             />}
             {currentView === 'dn' && <DebitNoteView 
-              key="dn" 
+              key={`dn-${editingDebitNote?.id || 'new'}-${debitNotes.length}`} 
               onSave={handleSaveDebitNote} 
               parties={purchaseParties} 
               settings={settings}
@@ -654,7 +654,7 @@ export default function App() {
               }}
             />}
             {currentView === 'cn' && <CreditNoteView 
-              key="cn" 
+              key={`cn-${editingCreditNote?.id || 'new'}-${creditNotes.length}`} 
               onSave={handleSaveCreditNote} 
               parties={saleParties} 
               settings={settings}
