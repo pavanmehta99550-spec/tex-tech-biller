@@ -3,11 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <meta name="theme-color" content="#3b82f6" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/icon.png" />
+    <title>Vyapaar Pro GST - Billing & Accounting</title>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="main.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && window.self === window.top) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => {
+            console.log('Service Worker registration skipped or failed:', err.message);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
 
