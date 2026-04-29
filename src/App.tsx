@@ -5,7 +5,8 @@ import {
   Receipt, 
   CreditCard, 
   BookText, 
-  TrendingUp, 
+  TrendingUp,
+  Truck,
   AlertCircle,
   LogOut,
   ChevronLeft,
@@ -29,7 +30,7 @@ import { storage } from './lib/storage';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster } from './types';
+import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport } from './types';
 import Login from './components/Login';
 
 // Initial Party Database
@@ -41,7 +42,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }> = {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'gstreport';
+type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'gstreport' | 'transports';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -81,6 +82,7 @@ export default function App() {
 
   const [saleParties, setSaleParties] = useState<Party[]>(() => storage.get('saleParties', []));
   const [itemsMaster, setItemsMaster] = useState<ItemMaster[]>(() => storage.get('itemsMaster', []));
+  const [transports, setTransports] = useState<Transport[]>(() => storage.get('transports', []));
 
   const [bookings, setBookings] = useState<Booking[]>(() => storage.get('bookings', []));
   const [purchases, setPurchases] = useState<Purchase[]>(() => storage.get('purchases', []));
@@ -101,6 +103,7 @@ export default function App() {
   useEffect(() => storage.set('purchaseParties', purchaseParties), [purchaseParties]);
   useEffect(() => storage.set('saleParties', saleParties), [saleParties]);
   useEffect(() => storage.set('itemsMaster', itemsMaster), [itemsMaster]);
+  useEffect(() => storage.set('transports', transports), [transports]);
   useEffect(() => storage.set('bookings', bookings), [bookings]);
   useEffect(() => storage.set('purchases', purchases), [purchases]);
   useEffect(() => storage.set('debit-notes', debitNotes), [debitNotes]);
@@ -534,6 +537,7 @@ export default function App() {
           <NavBtn active={currentView === 'items'} onClick={() => setCurrentView('items')} icon={Package} label="Items Master" />
           <NavBtn active={currentView === 'pay'} onClick={() => setCurrentView('pay')} icon={CreditCard} label="Receive Payment" />
           <NavBtn active={currentView === 'ledg'} onClick={() => setCurrentView('ledg')} icon={BookText} label="Party Ledger" />
+          <NavBtn active={currentView === 'transports'} onClick={() => setCurrentView('transports')} icon={Truck} label="Transports" />
           <NavBtn active={currentView === 'gstreport'} onClick={() => setCurrentView('gstreport')} icon={TrendingUp} label="GST Reports" />
           <NavBtn active={currentView === 'backup'} onClick={() => setCurrentView('backup')} icon={Download} label="Data Backup" />
           <NavBtn active={currentView === 'settings'} onClick={() => setCurrentView('settings')} icon={Settings} label="Settings" />
@@ -601,6 +605,7 @@ export default function App() {
               settings={settings} 
               bookings={bookings}
               itemsMaster={itemsMaster}
+              transports={transports}
               editingBooking={editingBooking}
               onViewHistory={() => setCurrentView('salehistory')}
               onCancel={() => {
@@ -626,6 +631,7 @@ export default function App() {
               settings={settings}
               purchases={purchases}
               itemsMaster={itemsMaster}
+              transports={transports}
               editingPurchase={editingPurchase}
               onCancel={() => {
                 setEditingPurchase(null);
@@ -711,6 +717,11 @@ export default function App() {
               creditNotes={creditNotes}
               debitNotes={debitNotes}
               settings={settings}
+            />}
+            {currentView === 'transports' && <TransportMasterView 
+              key="transports"
+              transports={transports}
+              onSave={setTransports}
             />}
             {currentView === 'settings' && <SettingsView key="settings" settings={settings} onSave={setSettings} />}
           </AnimatePresence>
@@ -1932,7 +1943,7 @@ function PurchaseViewWrapper({ onSave, parties, purchases, editingPurchase, onCa
   return <PurchaseView onSave={onSave} parties={parties} purchases={purchases} editingPurchase={editingPurchase} onCancel={onCancel} />;
 }
 
-function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], editingBooking, onViewHistory, onCancel }: any) {
+function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], transports = [], editingBooking, onViewHistory, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [navigatedBillLocked, setNavigatedBillLocked] = useState(false);
   const [formData, setFormData] = useState(() => {
@@ -2086,6 +2097,15 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
       }));
     } else {
       setFormData(prev => ({ ...prev, consigneeName: val }));
+    }
+  };
+
+  const handleTransportNameChange = (name: string) => {
+    const transport = transports.find((t: any) => t.name === name);
+    if (transport) {
+      setFormData(prev => ({ ...prev, transportName: name, transportGstin: transport.gstin }));
+    } else {
+      setFormData(prev => ({ ...prev, transportName: name }));
     }
   };
 
@@ -2475,13 +2495,19 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
             <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Transport Name</label>
             <input 
               type="text" 
+              list="transport-list"
               value={formData.transportName} 
               readOnly={isLocked}
-              onChange={e => setFormData({ ...formData, transportName: e.target.value })} 
+              onChange={e => handleTransportNameChange(e.target.value)} 
               onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
               placeholder="e.g. VRL Logistics" 
             />
+            <datalist id="transport-list">
+              {transports.map((t: any) => (
+                <option key={t.id} value={t.name}>{t.gstin}</option>
+              ))}
+            </datalist>
           </div>
           <div className="space-y-1">
             <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Transport GST</label>
@@ -4928,6 +4954,129 @@ function PartyMasterView({ parties, title, onUpdateParties }: any) {
             ))}
           </div>
         </div>
+      </div>
+
+    </motion.div>
+  );
+}
+
+function TransportMasterView({ transports, onSave }: any) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [formData, setFormData] = useState<Partial<Transport>>({ name: '', gstin: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingId) {
+      onSave(transports.map(t => t.id === editingId ? { ...t, ...formData } as Transport : t));
+    } else {
+      const newTransport: Transport = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: formData.name || '',
+        gstin: formData.gstin?.toUpperCase() || ''
+      };
+      onSave([newTransport, ...transports]);
+    }
+    setShowAdd(false);
+    setEditingId(null);
+    setFormData({ name: '', gstin: '' });
+  };
+
+  const deleteTransport = (id: string) => {
+    if (confirm('Delete this transport?')) {
+      onSave(transports.filter(t => t.id !== id));
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20">
+      <div className="flex justify-between items-center bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Transport Master</h2>
+          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-1">Manage Transporters & GST Details</p>
+        </div>
+        <button 
+          onClick={() => { setShowAdd(true); setEditingId(null); setFormData({ name: '', gstin: '' }); }}
+          className="flex items-center gap-2 bg-[#1e272e] text-white px-6 py-3 rounded-2xl font-black hover:bg-black transition-all shadow-lg active:scale-95"
+        >
+          <Plus size={20} /> Add Transporter
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showAdd && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <form onSubmit={handleSubmit} className="bg-white p-8 rounded-3xl border-2 border-dashed border-slate-200 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Transporter Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
+                    placeholder="Enter Transport Name"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">GST Number</label>
+                  <input 
+                    type="text" 
+                    value={formData.gstin}
+                    onChange={e => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
+                    placeholder="24AAAA..."
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <button type="submit" className="flex-1 bg-[#00cec9] text-white font-black py-4 rounded-2xl hover:bg-[#00b5b5] transition-all shadow-lg active:scale-[0.99]">
+                  {editingId ? 'Update Transporter' : 'Save Transporter'}
+                </button>
+                <button type="button" onClick={() => setShowAdd(false)} className="px-8 bg-slate-100 text-slate-500 font-black py-4 rounded-2xl hover:bg-slate-200 transition-all">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {transports.map(t => (
+          <div key={t.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all group relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-slate-50 rounded-2xl text-slate-400 group-hover:bg-[#00cec9] group-hover:text-white transition-all shadow-inner">
+                <Truck size={24} />
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => { setEditingId(t.id); setFormData(t); setShowAdd(true); }}
+                  className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
+                >
+                  <Search size={18} />
+                </button>
+                <button 
+                  onClick={() => deleteTransport(t.id)}
+                  className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                >
+                  <RefreshCw size={18} />
+                </button>
+              </div>
+            </div>
+            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">{t.name}</h4>
+            <div className="mt-2 inline-block px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:bg-[#00cec9]/10 group-hover:text-[#00cec9] transition-all">
+              GST: {t.gstin || 'NOT PROVIDED'}
+            </div>
+          </div>
+        ))}
+        {transports.length === 0 && !showAdd && (
+          <div className="md:col-span-3 py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+            <div className="text-slate-300 font-black uppercase text-xl mb-2">No Transporters Found</div>
+            <p className="text-slate-400 font-bold text-sm">Add your first transporter to get started</p>
+          </div>
+        )}
       </div>
     </motion.div>
   );

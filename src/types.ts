@@ -53,6 +53,12 @@ export interface Booking {
   billNumber: number;
 }
 
+export interface Transport {
+  id: string;
+  name: string;
+  gstin: string;
+}
+
 export interface AppSettings {
   companyName: string;
   gstin: string;
