@@ -23,7 +23,9 @@ import {
   Mail,
   AlertTriangle,
   Upload,
-  RefreshCw
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster } from './types';
@@ -575,6 +577,7 @@ export default function App() {
               bookings={bookings}
               itemsMaster={itemsMaster}
               editingBooking={editingBooking}
+              onViewHistory={() => setCurrentView('salehistory')}
               onCancel={() => {
                 setEditingBooking(null);
                 setCurrentView('dash');
@@ -1363,7 +1366,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
           </div>
           
           <div className="space-y-4">
-            {formData.items.map((item) => (
+            {formData.items.map((item, index) => (
               <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-indigo-50/20 border border-indigo-100 rounded-2xl relative group items-end">
                 <div className="md:col-span-3 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Item Name</label>
@@ -1399,7 +1402,19 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
-                  <input type="number" readOnly={isLocked} value={item.rate || ''} onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
+                  <input 
+                    type="number" 
+                    readOnly={isLocked} 
+                    value={item.rate || ''} 
+                    onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} 
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
+                        e.preventDefault();
+                        addItem();
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
+                  />
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider text-right block">Total</label>
@@ -1745,7 +1760,7 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
           </div>
           
           <div className="space-y-4">
-            {formData.items.map((item) => (
+            {formData.items.map((item, index) => (
               <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-red-50/20 border border-red-100 rounded-2xl items-end relative group">
                 <div className="md:col-span-4 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Item Name</label>
@@ -1768,7 +1783,18 @@ function DebitNoteView({ onSave, parties, settings, debitNotes, purchases, items
                 </div>
                 <div className="md:col-span-3 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
-                  <input type="number" value={item.rate || ''} onChange={e => updateItem(item.id, 'rate', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
+                  <input 
+                    type="number" 
+                    value={item.rate || ''} 
+                    onChange={e => updateItem(item.id, 'rate', e.target.value)} 
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
+                        e.preventDefault();
+                        addItem();
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
+                  />
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Total</label>
@@ -1825,7 +1851,7 @@ function PurchaseViewWrapper({ onSave, parties, purchases, editingPurchase, onCa
   return <PurchaseView onSave={onSave} parties={parties} purchases={purchases} editingPurchase={editingPurchase} onCancel={onCancel} />;
 }
 
-function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], editingBooking, onCancel }: any) {
+function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], editingBooking, onViewHistory, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = bookings.reduce((max: number, b: any) => Math.max(max, b.billNumber || 0), 0) + 1;
@@ -1984,6 +2010,28 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
       }));
     } else {
       setFormData(prev => ({ ...prev, consigneeGstin: upperVal }));
+    }
+  };
+
+    const navigateBill = (direction: 'prev' | 'next') => {
+    const currentNum = parseInt(formData.billNumber);
+    const sorted = [...bookings].sort((a, b) => (a.billNumber || 0) - (b.billNumber || 0));
+    
+    let target;
+    if (direction === 'prev') {
+      target = [...sorted].reverse().find(b => (b.billNumber || 0) < currentNum);
+    } else {
+      target = sorted.find(b => (b.billNumber || 0) > currentNum);
+    }
+
+    if (target) {
+      setFormData({
+        ...target,
+        items: target.items.map((it: any) => ({ ...it, id: Math.random().toString(36).substr(2, 9) }))
+      });
+      setIsLocked(true);
+    } else {
+      alert(`No ${direction === 'prev' ? 'previous' : 'next'} bill found.`);
     }
   };
 
@@ -2213,7 +2261,21 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                 </div>
                 <div className="md:col-span-1.5 space-y-1 text-slate-900">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Disc.</label>
-                  <input type="number" readOnly={isLocked} step="any" value={item.discount || ''} onChange={e => updateItem(item.id, 'discount', parseFloat(e.target.value) || 0)} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="0.00" />
+                  <input 
+                    type="number" 
+                    readOnly={isLocked} 
+                    step="any" 
+                    value={item.discount || ''} 
+                    onChange={e => updateItem(item.id, 'discount', parseFloat(e.target.value) || 0)} 
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
+                        e.preventDefault();
+                        addItem();
+                      }
+                    }}
+                    className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
+                    placeholder="0.00" 
+                  />
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider text-right block">Total</label>
@@ -2350,12 +2412,40 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
         </div>
 
         <div className="flex gap-4 flex-col sm:flex-row print:hidden">
+          <div className="flex gap-2 flex-1">
+            <button 
+              type="button"
+              onClick={() => navigateBill('prev')}
+              className="px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-2xl transition-all flex items-center justify-center gap-2 border border-slate-200"
+              title="Previous Bill"
+            >
+              <ChevronLeft size={20} />
+              <span>Prev</span>
+            </button>
+            <button 
+              type="button"
+              onClick={() => setShowPreview(true)}
+              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-900 font-black py-5 rounded-2xl text-xl transition-all flex items-center justify-center gap-3 border border-slate-200"
+            >
+              Show Preview
+            </button>
+            <button 
+              type="button"
+              onClick={() => navigateBill('next')}
+              className="px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-2xl transition-all flex items-center justify-center gap-2 border border-slate-200"
+              title="Next Bill"
+            >
+              <span>Next</span>
+              <ChevronRight size={20} />
+            </button>
+          </div>
           <button 
             type="button"
-            onClick={() => setShowPreview(true)}
-            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-900 font-black py-5 rounded-2xl text-xl transition-all flex items-center justify-center gap-3 border border-slate-200"
+            onClick={onViewHistory}
+            className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black py-5 rounded-2xl text-xl transition-all flex items-center justify-center gap-3 border border-indigo-100"
           >
-            Show Preview
+            <BookText size={24} />
+            History
           </button>
           {editingBooking && (
             <button 
@@ -2652,7 +2742,7 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
           </div>
           
           <div className="space-y-4">
-            {formData.items.map((item) => (
+            {formData.items.map((item, index) => (
               <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-green-50/20 border border-green-100 rounded-2xl items-end relative group">
                 <div className="md:col-span-4 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Item Name</label>
@@ -2675,7 +2765,18 @@ function CreditNoteView({ onSave, parties, settings, creditNotes, bookings, item
                 </div>
                 <div className="md:col-span-3 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
-                  <input type="number" value={item.rate || ''} onChange={e => updateItem(item.id, 'rate', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
+                  <input 
+                    type="number" 
+                    value={item.rate || ''} 
+                    onChange={e => updateItem(item.id, 'rate', e.target.value)} 
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
+                        e.preventDefault();
+                        addItem();
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
+                  />
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Total</label>
