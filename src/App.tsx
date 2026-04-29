@@ -37,7 +37,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }> = {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup';
+type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => storage.get('auth', false));
@@ -140,6 +140,15 @@ export default function App() {
   const handleSaveBooking = (data: Partial<Booking>) => {
     let updatedSaleParties = [...saleParties];
     
+    const isUpdate = !!data.id && bookings.some(b => b.id === data.id);
+    const duplicate = bookings.find(b => b.billNumber === data.billNumber && b.id !== data.id);
+    
+    if (duplicate) {
+      if (!confirm(`Warning: Bill Number #${data.billNumber} already exists for ${duplicate.consigneeName}. Do you still want to save?`)) {
+        return;
+      }
+    }
+
     // Auto-increment logic for billNumber
     const maxBillNum = bookings.reduce((max, b) => Math.max(max, b.billNumber || 0), 0);
     const nextBillNum = data.billNumber || (maxBillNum + 1);
@@ -158,8 +167,6 @@ export default function App() {
       };
       updatedSaleParties.push(consignee);
     }
-
-    const isUpdate = !!data.id && bookings.some(b => b.id === data.id);
 
     const newBooking: Booking = {
       id: data.id || Math.random().toString(36).substr(2, 9),
@@ -220,6 +227,24 @@ export default function App() {
 
     setPreviewBooking(newBooking);
     alert(isUpdate ? "Sale Bill Updated Successfully!" : "Sale Bill Saved Successfully!");
+  };
+
+  const handleDeleteBooking = (id: string) => {
+    if (!confirm("Are you sure you want to delete this Sale Bill? This will also revert the party balance.")) return;
+    
+    const bookingToDelete = bookings.find(b => b.id === id);
+    if (!bookingToDelete) return;
+
+    // Update sale party balance
+    setSaleParties(prev => prev.map(p => 
+      p.gstin === bookingToDelete.consigneeGstin 
+        ? { ...p, totalSales: p.totalSales - bookingToDelete.grandTotal } 
+        : p
+    ));
+
+    // Remove booking
+    setBookings(prev => prev.filter(b => b.id !== id));
+    alert("Sale Bill Deleted Successfully!");
   };
 
   const handleSavePurchase = (data: Partial<Purchase>) => {
@@ -473,6 +498,7 @@ export default function App() {
         <nav className="flex-1 p-4 space-y-1">
           <NavBtn active={currentView === 'dash'} onClick={() => setCurrentView('dash')} icon={LayoutDashboard} label="Dashboard" />
           <NavBtn active={currentView === 'inv'} onClick={() => setCurrentView('inv')} icon={Receipt} label="Sale Bill" />
+          <NavBtn active={currentView === 'salehistory'} onClick={() => setCurrentView('salehistory')} icon={BookText} label="Sale History" />
           <NavBtn active={currentView === 'saleparty'} onClick={() => setCurrentView('saleparty')} icon={Users} label="Sale Party Entry" />
           <NavBtn active={currentView === 'pur'} onClick={() => setCurrentView('pur')} icon={ShoppingBag} label="Purchase Bill" />
           <NavBtn active={currentView === 'purchaseparty'} onClick={() => setCurrentView('purchaseparty')} icon={Users} label="Purchase Party Entry" />
@@ -525,6 +551,8 @@ export default function App() {
                 setEditingBooking(b);
                 setCurrentView('inv');
               }}
+              onDeleteSale={handleDeleteBooking}
+              onPreviewSale={(b: Booking) => setPreviewBooking(b)}
               onEditPurchase={(p: Purchase) => {
                 setEditingPurchase(p);
                 setCurrentView('pur');
@@ -543,6 +571,16 @@ export default function App() {
                 setEditingBooking(null);
                 setCurrentView('dash');
               }}
+            />}
+            {currentView === 'salehistory' && <SaleHistoryView 
+              key="salehistory"
+              bookings={bookings}
+              onEditSale={(b: Booking) => {
+                setEditingBooking(b);
+                setCurrentView('inv');
+              }}
+              onDeleteSale={handleDeleteBooking}
+              onPreviewSale={(b: Booking) => setPreviewBooking(b)}
             />}
             {currentView === 'saleparty' && <PartyMasterView key="saleparty" parties={saleParties} title="Sale Party Entry" onUpdateParties={setSaleParties} />}
             {currentView === 'pur' && <PurchaseView 
@@ -753,6 +791,103 @@ export default function App() {
   );
 }
 
+function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale }: any) {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((b: Booking) => 
+      b.billNumber?.toString().includes(searchTerm) || 
+      b.consigneeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.consigneeGstin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.lrNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [bookings, searchTerm]);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+      <header className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Sale History</h2>
+          <p className="text-slate-500 font-bold text-sm">View, Search and Manage all past invoices</p>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search by Bill No, Party or GST..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-600 shadow-sm w-80 transition-all"
+          />
+        </div>
+      </header>
+
+      <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                <th className="px-8 py-5">Date</th>
+                <th className="px-8 py-5">Bill No.</th>
+                <th className="px-8 py-5">Customer (GSTIN)</th>
+                <th className="px-8 py-5">E-Way / LR</th>
+                <th className="px-8 py-5 text-right">Amount</th>
+                <th className="px-8 py-5 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filteredBookings.map((b: Booking) => (
+                <tr key={b.id} className="hover:bg-slate-50/50 transition-colors group">
+                  <td className="px-8 py-5 font-bold text-slate-600">
+                    {new Date(b.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-8 py-5">
+                    <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg font-black text-xs">#{b.billNumber}</span>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="font-black text-slate-900 uppercase text-xs">{b.consigneeName}</div>
+                    <div className="text-[10px] text-slate-400 font-bold tracking-wider">{b.consigneeGstin}</div>
+                  </td>
+                  <td className="px-8 py-5">
+                     <div className="text-[10px] font-black text-slate-500">LR: {b.lrNumber || '-'}</div>
+                     <div className="text-[9px] font-bold text-slate-400 uppercase">EWB: {b.ewbNumber || '-'}</div>
+                  </td>
+                  <td className="px-8 py-5 text-right whitespace-nowrap">
+                    <span className="font-black text-indigo-600 tracking-tighter text-lg">₹ {b.grandTotal.toLocaleString()}</span>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => onPreviewSale(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="View/Print">
+                        <Printer size={18} />
+                      </button>
+                      <button onClick={() => onEditSale(b)} className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title="Edit Bill">
+                        <Plus size={18} className="rotate-45" />
+                      </button>
+                      <button onClick={() => onDeleteSale(b.id)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete">
+                        <AlertCircle size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredBookings.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-8 py-20 text-center">
+                    <div className="flex flex-col items-center gap-4 text-slate-300">
+                      <Receipt size={64} opacity={0.2} />
+                      <p className="font-black uppercase tracking-widest text-xs">No records found matching search</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function NavBtn({ active, onClick, icon: Icon, label }: any) {
   return (
     <button 
@@ -769,7 +904,9 @@ function NavBtn({ active, onClick, icon: Icon, label }: any) {
   );
 }
 
-function DashboardView({ stats, bookings, purchases, onEditSale, onEditPurchase, onPreviewPurchase }: any) {
+function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, onPreviewSale, onEditPurchase, onPreviewPurchase }: any) {
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const financialYear = useMemo(() => {
     const today = new Date();
     const curYear = today.getFullYear();
@@ -777,6 +914,14 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onEditPurchase,
     if (curMonth >= 4) return `${curYear}-${(curYear + 1).toString().slice(-2)}`;
     return `${curYear - 1}-${curYear.toString().slice(-2)}`;
   }, []);
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((b: Booking) => 
+      b.billNumber?.toString().includes(searchTerm) || 
+      b.consigneeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.consigneeGstin.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [bookings, searchTerm]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
@@ -787,6 +932,16 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onEditPurchase,
           </div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Vyapaar Summary</h2>
           <p className="text-slate-500 font-medium italic">Overview of all transactions and returns</p>
+        </div>
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search Bills..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-600 shadow-sm w-64 transition-all"
+          />
         </div>
       </header>
 
@@ -822,10 +977,10 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onEditPurchase,
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Sale Bills */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-             <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Recent Sale Bills</h3>
-             <span className="bg-slate-50 text-slate-400 px-3 py-1 rounded text-[10px] font-bold tracking-tighter">Latest Invoices</span>
+             <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Sale Bills History</h3>
+             <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">{searchTerm ? 'Search Results' : 'Recent Invoices'}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -834,26 +989,40 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onEditPurchase,
                   <th className="px-8 py-4">Bill Details</th>
                   <th className="px-8 py-4">Customer</th>
                   <th className="px-8 py-4 text-right">Amount</th>
+                  <th className="px-8 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {bookings.slice(0, 5).map((b: Booking) => (
+                {filteredBookings.slice(0, searchTerm ? 50 : 10).map((b: Booking) => (
                   <tr key={b.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="font-bold text-slate-900"># {b.billNumber}</div>
                       <div className="text-[10px] text-slate-400 uppercase font-black">{new Date(b.date).toLocaleDateString()}</div>
                     </td>
                     <td className="px-8 py-5">
-                      <div className="font-black text-slate-700 uppercase tracking-tight truncate max-w-[200px]">{b.consigneeName}</div>
+                      <div className="font-black text-slate-700 uppercase tracking-tight truncate max-w-[150px]">{b.consigneeName}</div>
                       <div className="text-[10px] text-slate-400 font-bold uppercase">{b.consigneeGstin}</div>
                     </td>
                     <td className="px-8 py-5 text-right whitespace-nowrap">
                       <span className="font-black text-indigo-600 tracking-tighter">₹ {b.grandTotal.toLocaleString()}</span>
                     </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => onPreviewSale(b)} title="Print" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
+                          <Printer size={16} />
+                        </button>
+                        <button onClick={() => onEditSale(b)} title="Edit" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all">
+                          <Plus size={16} className="rotate-45" /> {/* Using Plus as a generic icon or could use Settings */}
+                        </button>
+                        <button onClick={() => onDeleteSale(b.id)} title="Delete" className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                          <AlertCircle size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
-                {bookings.length === 0 && (
-                  <tr><td colSpan={3} className="px-8 py-12 text-center text-slate-400 italic font-medium">No sales recorded.</td></tr>
+                {filteredBookings.length === 0 && (
+                  <tr><td colSpan={4} className="px-8 py-12 text-center text-slate-400 italic font-medium">No sales recorded matching your search.</td></tr>
                 )}
               </tbody>
             </table>
@@ -861,7 +1030,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onEditPurchase,
         </div>
 
         {/* Recent Purchase Bills */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest text-red-600">Recent Purchase Bills</h3>
              <span className="bg-slate-50 text-slate-400 px-3 py-1 rounded text-[10px] font-bold tracking-tighter">Latest Inward</span>
@@ -1776,36 +1945,39 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
         consignorName: settings.companyName,
         consignorAddress: settings.address
       }));
-      return;
     }
+  }, [isConsignorLocked, settings]);
 
-    const searchGst = formData.consignorGstin.trim().toUpperCase();
-    const party = parties.find((p: any) => p.gstin.trim().toUpperCase() === searchGst);
-    if (party) {
-      setFormData(prev => ({ ...prev, consignorName: party.name, consignorAddress: party.address }));
-    } else if (searchGst.length > 2) {
-      setFormData(prev => ({ ...prev, consignorName: 'New Party', consignorAddress: '' }));
-    } else {
-      setFormData(prev => ({ ...prev, consignorName: '', consignorAddress: '' }));
-    }
-  }, [formData.consignorGstin, parties, isConsignorLocked, settings]);
-
-  useEffect(() => {
-    const searchGst = formData.consigneeGstin.trim().toUpperCase();
-    const party = parties.find((p: any) => p.gstin.trim().toUpperCase() === searchGst);
+  const handleConsigneeNameChange = (val: string) => {
+    const party = parties.find((p: any) => p.name.toLowerCase() === val.toLowerCase());
     if (party) {
       setFormData(prev => ({ 
         ...prev, 
         consigneeName: party.name, 
+        consigneeGstin: party.gstin,
         consigneeAddress: party.address,
         consigneeMobile: party.mobile || ''
       }));
-    } else if (searchGst.length > 2) {
-      setFormData(prev => ({ ...prev, consigneeName: 'New Party', consigneeAddress: '', consigneeMobile: '' }));
     } else {
-      setFormData(prev => ({ ...prev, consigneeName: '', consigneeAddress: '', consigneeMobile: '' }));
+      setFormData(prev => ({ ...prev, consigneeName: val }));
     }
-  }, [formData.consigneeGstin, parties]);
+  };
+
+  const handleConsigneeGstinChange = (val: string) => {
+    const upperVal = val.toUpperCase();
+    const party = parties.find((p: any) => p.gstin.toUpperCase() === upperVal);
+    if (party) {
+      setFormData(prev => ({ 
+        ...prev, 
+        consigneeName: party.name, 
+        consigneeGstin: party.gstin,
+        consigneeAddress: party.address,
+        consigneeMobile: party.mobile || ''
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, consigneeGstin: upperVal }));
+    }
+  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden print:shadow-none print:border-none">
@@ -1897,25 +2069,43 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
             <div className="space-y-4">
               <div>
                 <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">GST Number</label>
-                <input 
-                  type="text" 
-                  value={formData.consigneeGstin}
-                  readOnly={isLocked}
-                  onChange={e => setFormData({ ...formData, consigneeGstin: e.target.value.toUpperCase() })}
-                  className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
-                  placeholder="24BBBB..."
-                />
+                <div className="relative group">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                  <input 
+                    type="text" 
+                    list="party-gstins"
+                    value={formData.consigneeGstin}
+                    readOnly={isLocked}
+                    onChange={e => handleConsigneeGstinChange(e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
+                    placeholder="24BBBB..."
+                  />
+                  <datalist id="party-gstins">
+                    {parties.map((p: any) => (
+                      <option key={p.id} value={p.gstin}>{p.name}</option>
+                    ))}
+                  </datalist>
+                </div>
               </div>
               <div>
                 <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Full Name</label>
-                <input 
-                  type="text" 
-                  value={formData.consigneeName} 
-                  readOnly={isLocked}
-                  onChange={e => setFormData({ ...formData, consigneeName: e.target.value })}
-                  className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
-                  placeholder="Enter Party Name"
-                />
+                <div className="relative group">
+                  <Plus size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                  <input 
+                    type="text" 
+                    list="party-names"
+                    value={formData.consigneeName} 
+                    readOnly={isLocked}
+                    onChange={e => handleConsigneeNameChange(e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
+                    placeholder="Enter Party Name"
+                  />
+                  <datalist id="party-names">
+                    {parties.map((p: any) => (
+                      <option key={p.id} value={p.name}>{p.gstin}</option>
+                    ))}
+                  </datalist>
+                </div>
               </div>
               <div>
                 <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Address</label>
