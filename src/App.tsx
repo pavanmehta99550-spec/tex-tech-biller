@@ -22,7 +22,8 @@ import {
   Download,
   Mail,
   AlertTriangle,
-  Upload
+  Upload,
+  RefreshCw
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster } from './types';
@@ -509,6 +510,13 @@ export default function App() {
           <NavBtn active={currentView === 'ledg'} onClick={() => setCurrentView('ledg')} icon={BookText} label="Party Ledger" />
           <NavBtn active={currentView === 'backup'} onClick={() => setCurrentView('backup')} icon={Download} label="Data Backup" />
           <NavBtn active={currentView === 'settings'} onClick={() => setCurrentView('settings')} icon={Settings} label="Settings" />
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm bg-indigo-600/10 text-indigo-600 hover:bg-indigo-600 hover:text-white"
+          >
+            <RefreshCw size={18} />
+            Update App
+          </button>
         </nav>
 
         <div className="p-4 border-t border-slate-700 space-y-2">
