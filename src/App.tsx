@@ -2330,7 +2330,14 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
             <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{calc.effectiveGlobalDiscount.toFixed(2)}</span></div>
           )}
           <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{calc.taxableValue.toFixed(2)}</span></div>
-          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.tax.toFixed(2)}</span></div>
+          {formData.taxRate === 5 ? (
+            <>
+              <div className="text-slate-500 font-bold text-sm">CGST (2.5%): <span className="text-slate-900">₹{(calc.tax / 2).toFixed(2)}</span></div>
+              <div className="text-slate-500 font-bold text-sm">SGST (2.5%): <span className="text-slate-900">₹{(calc.tax / 2).toFixed(2)}</span></div>
+            </>
+          ) : (
+            <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.tax.toFixed(2)}</span></div>
+          )}
           <div className="text-4xl font-black text-slate-900 tracking-tighter">Grand Total: <span className="text-[#00cec9]">₹{calc.total.toFixed(2)}</span></div>
         </div>
 
@@ -4038,12 +4045,25 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
               )}
               <div className="flex justify-between text-slate-500 font-bold text-sm">
                 <span>Taxable Value:</span>
-                <span>₹{(booking.basicAmount - (booking.globalDiscount || 0)).toLocaleString()}</span>
+                <span>₹{(booking.basicAmount - (booking.globalDiscount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
               </div>
-              <div className="flex justify-between text-slate-500 font-bold text-sm">
-                <span>GST ({booking.taxRate}%):</span>
-                <span>₹{booking.taxAmount.toLocaleString()}</span>
-              </div>
+              {booking.taxRate === 5 ? (
+                <>
+                  <div className="flex justify-between text-slate-500 font-bold text-sm">
+                    <span>CGST (2.5%):</span>
+                    <span>₹{(booking.taxAmount / 2).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 font-bold text-sm">
+                    <span>SGST (2.5%):</span>
+                    <span>₹{(booking.taxAmount / 2).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between text-slate-500 font-bold text-sm">
+                  <span>GST ({booking.taxRate}%):</span>
+                  <span>₹{booking.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-900 font-black text-xl pt-2 border-t border-slate-100">
                 <span>Grand Total:</span>
                 <span className="text-[#00cec9]">₹{booking.grandTotal.toLocaleString()}</span>
