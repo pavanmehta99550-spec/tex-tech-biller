@@ -24,8 +24,6 @@ import {
   AlertTriangle,
   Upload,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster } from './types';
@@ -1085,6 +1083,24 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
 
 function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
+  const handleEnter = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const form = (e.currentTarget as any).form;
+      if (!form) return;
+      const elements = Array.from(form.elements) as HTMLElement[];
+      const index = elements.indexOf(e.currentTarget as any);
+      if (index > -1) {
+        for (let i = index + 1; i < elements.length; i++) {
+          const el = elements[i];
+          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
+            el.focus();
+            break;
+          }
+        }
+      }
+    }
+  };
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = (purchases || []).reduce((max: number, b: any) => Math.max(max, b.billNumber || 0), 0) + 1;
     return {
@@ -1258,6 +1274,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               value={formData.date.split('T')[0]} 
               readOnly={isLocked}
               onChange={e => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })} 
+              onKeyDown={handleEnter}
               className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`} 
             />
           </div>
@@ -1309,6 +1326,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 value={formData.partyGstin}
                 readOnly={isLocked}
                 onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
+                onKeyDown={handleEnter}
                 className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
                 placeholder="24AAAA..."
               />
@@ -1320,6 +1338,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 value={formData.partyName} 
                 readOnly={isLocked}
                 onChange={e => setFormData({ ...formData, partyName: e.target.value })}
+                onKeyDown={handleEnter}
                 className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
                 placeholder="Enter Supplier Name"
               />
@@ -1333,6 +1352,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 value={formData.partyAddress} 
                 readOnly={isLocked}
                 onChange={e => setFormData({ ...formData, partyAddress: e.target.value })}
+                onKeyDown={handleEnter}
                 className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
                 placeholder="Enter Address"
               />
@@ -1344,6 +1364,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 value={formData.partyMobile} 
                 readOnly={isLocked}
                 onChange={e => setFormData({ ...formData, partyMobile: e.target.value })}
+                onKeyDown={handleEnter}
                 className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
                 placeholder="Enter Mobile"
               />
@@ -1376,6 +1397,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                     readOnly={isLocked} 
                     value={item.name} 
                     onChange={e => updateItem(item.id, 'name', e.target.value)} 
+                    onKeyDown={handleEnter}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                     placeholder="Saree/Cloth" 
                   />
@@ -1387,18 +1409,18 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">HSN</label>
-                  <input type="text" readOnly={isLocked} value={item.hsnCode} onChange={e => updateItem(item.id, 'hsnCode', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
+                  <input type="text" readOnly={isLocked} value={item.hsnCode} onChange={e => updateItem(item.id, 'hsnCode', e.target.value)} onKeyDown={handleEnter} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Unit</label>
-                  <select disabled={isLocked} value={item.unit} onChange={e => updateItem(item.id, 'unit', e.target.value as any)} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white">
+                  <select disabled={isLocked} value={item.unit} onChange={e => updateItem(item.id, 'unit', e.target.value as any)} onKeyDown={handleEnter} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white">
                     <option value="MTR">MTR</option>
                     <option value="PCS">PCS</option>
                   </select>
                 </div>
                 <div className="md:col-span-1 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
-                  <input type="number" readOnly={isLocked} value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
+                  <input type="number" readOnly={isLocked} value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} onKeyDown={handleEnter} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
@@ -1411,6 +1433,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                       if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
                         e.preventDefault();
                         addItem();
+                      } else if (e.key === 'Enter') {
+                        handleEnter(e);
                       }
                     }}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
@@ -1437,6 +1461,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               value={formData.billNumber || ''} 
               readOnly={isLocked}
               onChange={handleBillNumberChange} 
+              onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50' : 'focus:border-indigo-500'}`} 
             />
           </div>
@@ -1452,6 +1477,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 const val = parseFloat(e.target.value) || 0;
                 setFormData({ ...formData, globalDiscount: Math.max(0, val) });
               }} 
+              onKeyDown={handleEnter}
               className="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none focus:border-indigo-500 transition-all"
               placeholder="₹ 0.00" 
             />
@@ -1853,6 +1879,7 @@ function PurchaseViewWrapper({ onSave, parties, purchases, editingPurchase, onCa
 
 function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], editingBooking, onViewHistory, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
+  const [navigatedBillLocked, setNavigatedBillLocked] = useState(false);
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = bookings.reduce((max: number, b: any) => Math.max(max, b.billNumber || 0), 0) + 1;
     return {
@@ -1878,13 +1905,14 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
   });
 
   const isLocked = useMemo(() => {
+    if (navigatedBillLocked) return true;
     if (!editingBooking) return false;
     const bookingDate = new Date(editingBooking.date);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - bookingDate.getTime());
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
     return diffDays > 30;
-  }, [editingBooking]);
+  }, [editingBooking, navigatedBillLocked]);
 
   const canEditLr = !isLocked || !editingBooking?.lrNumber;
   const isAllDisabled = isLocked;
@@ -2029,9 +2057,28 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
         ...target,
         items: target.items.map((it: any) => ({ ...it, id: Math.random().toString(36).substr(2, 9) }))
       });
-      setIsLocked(true);
+      setNavigatedBillLocked(true);
     } else {
       alert(`No ${direction === 'prev' ? 'previous' : 'next'} bill found.`);
+    }
+  };
+
+  const handleEnter = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const form = (e.currentTarget as any).form;
+      if (!form) return;
+      const elements = Array.from(form.elements) as HTMLElement[];
+      const index = elements.indexOf(e.currentTarget as any);
+      if (index > -1) {
+        for (let i = index + 1; i < elements.length; i++) {
+          const el = elements[i];
+          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
+            el.focus();
+            break;
+          }
+        }
+      }
     }
   };
 
@@ -2096,6 +2143,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                   type="text" 
                   value={formData.consignorGstin}
                   onChange={e => setFormData({ ...formData, consignorGstin: e.target.value.toUpperCase() })}
+                  onKeyDown={handleEnter}
                   readOnly={isConsignorLocked}
                   className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isConsignorLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
                   placeholder="24AAAA..."
@@ -2111,6 +2159,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                   type="text" 
                   value={formData.consignorAddress} 
                   onChange={e => setFormData({ ...formData, consignorAddress: e.target.value })}
+                  onKeyDown={handleEnter}
                   readOnly={isConsignorLocked}
                   className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isConsignorLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
                   placeholder="Enter Address"
@@ -2133,6 +2182,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                     value={formData.consigneeGstin}
                     readOnly={isLocked}
                     onChange={e => handleConsigneeGstinChange(e.target.value)}
+                    onKeyDown={handleEnter}
                     className={`w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
                     placeholder="24BBBB..."
                   />
@@ -2153,6 +2203,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                     value={formData.consigneeName} 
                     readOnly={isLocked}
                     onChange={e => handleConsigneeNameChange(e.target.value)}
+                    onKeyDown={handleEnter}
                     className={`w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
                     placeholder="Enter Party Name"
                   />
@@ -2170,6 +2221,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                   value={formData.consigneeAddress} 
                   readOnly={isLocked}
                   onChange={e => setFormData({ ...formData, consigneeAddress: e.target.value })}
+                  onKeyDown={handleEnter}
                   className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
                   placeholder="Enter Address"
                 />
@@ -2181,6 +2233,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                   value={formData.consigneeMobile} 
                   readOnly={isLocked}
                   onChange={e => setFormData({ ...formData, consigneeMobile: e.target.value })}
+                  onKeyDown={handleEnter}
                   className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
                   placeholder="Enter Mobile"
                 />
@@ -2214,6 +2267,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                     readOnly={isLocked} 
                     value={item.name} 
                     onChange={e => updateItem(item.id, 'name', e.target.value)} 
+                    onKeyDown={handleEnter}
                     className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
                     placeholder="Search Item..." 
                   />
@@ -2225,15 +2279,15 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                 </div>
                 <div className="md:col-span-1 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">HSN</label>
-                  <input type="text" readOnly={isLocked} value={item.hsnCode} onChange={e => updateItem(item.id, 'hsnCode', e.target.value)} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="HSN" />
+                  <input type="text" readOnly={isLocked} value={item.hsnCode} onChange={e => updateItem(item.id, 'hsnCode', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="HSN" />
                 </div>
                 <div className="md:col-span-1 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Taka/Pics</label>
-                  <input type="text" readOnly={isLocked} value={item.taka} onChange={e => updateItem(item.id, 'taka', e.target.value)} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="No." />
+                  <input type="text" readOnly={isLocked} value={item.taka} onChange={e => updateItem(item.id, 'taka', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="No." />
                 </div>
                 <div className="md:col-span-1 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Color</label>
-                  <input type="text" readOnly={isLocked} value={item.color} onChange={e => updateItem(item.id, 'color', e.target.value)} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="Red" />
+                  <input type="text" readOnly={isLocked} value={item.color} onChange={e => updateItem(item.id, 'color', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="Red" />
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Unit</label>
@@ -2241,6 +2295,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                     disabled={isLocked}
                     value={item.unit} 
                     onChange={e => updateItem(item.id, 'unit', e.target.value)}
+                    onKeyDown={handleEnter}
                     className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm appearance-none cursor-pointer ${isLocked ? 'bg-slate-50 text-slate-400 opacity-70' : ''}`}
                   >
                     <option value="MTR">MTR (Meter)</option>
@@ -2253,11 +2308,11 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                 </div>
                 <div className="md:col-span-1 space-y-1 text-slate-900">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
-                  <input type="number" readOnly={isLocked} step="any" value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="0.0" />
+                  <input type="number" readOnly={isLocked} step="any" value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="0.0" />
                 </div>
                 <div className="md:col-span-1.5 space-y-1 text-slate-900">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
-                  <input type="number" readOnly={isLocked} step="any" value={item.rate || ''} onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="0.00" />
+                  <input type="number" readOnly={isLocked} step="any" value={item.rate || ''} onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="0.00" />
                 </div>
                 <div className="md:col-span-1.5 space-y-1 text-slate-900">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Disc.</label>
@@ -2271,6 +2326,8 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
                       if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
                         e.preventDefault();
                         addItem();
+                      } else if (e.key === 'Enter') {
+                        handleEnter(e);
                       }
                     }}
                     className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
@@ -2302,6 +2359,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
               value={formData.date.split('T')[0]} 
               readOnly={isLocked}
               onChange={e => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })} 
+              onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
             />
           </div>
@@ -2313,6 +2371,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
               value={formData.billNumber || ''} 
               readOnly={isLocked}
               onChange={handleBillNumberChange} 
+              onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
             />
             {formData.billNumber <= 0 && !isLocked && (
@@ -2326,6 +2385,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
               value={formData.lrNumber} 
               readOnly={!canEditLr}
               onChange={e => setFormData({ ...formData, lrNumber: e.target.value })} 
+              onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${!canEditLr ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
               placeholder={!canEditLr ? "Locked" : "Enter LR No."}
             />
@@ -2340,6 +2400,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
               value={formData.ewbNumber} 
               readOnly={isLocked}
               onChange={e => setFormData({ ...formData, ewbNumber: e.target.value })} 
+              onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
               placeholder="Enter EWB" 
             />
@@ -2351,6 +2412,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
               value={formData.transportName} 
               readOnly={isLocked}
               onChange={e => setFormData({ ...formData, transportName: e.target.value })} 
+              onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
               placeholder="e.g. VRL Logistics" 
             />
@@ -2362,6 +2424,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], ed
               value={formData.transportGstin} 
               readOnly={isLocked}
               onChange={e => setFormData({ ...formData, transportGstin: e.target.value.toUpperCase() })} 
+              onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
               placeholder="GSTIN" 
             />
