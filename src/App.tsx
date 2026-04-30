@@ -110,6 +110,7 @@ export default function App() {
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [editingDebitNote, setEditingDebitNote] = useState<DebitNote | null>(null);
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
 
   useEffect(() => storage.set('purchaseParties', purchaseParties), [purchaseParties]);
   useEffect(() => storage.set('saleParties', saleParties), [saleParties]);
@@ -614,22 +615,45 @@ export default function App() {
     const party = saleParties.find(p => p.id === data.partyId);
     if (!party) return;
 
+    const isUpdate = !!data.id && payments.some(p => p.id === data.id);
+
     const newPayment: Payment = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: data.id || Math.random().toString(36).substr(2, 9),
       partyId: party.id,
       partyName: party.name,
       partyGstin: party.gstin,
       amount: data.amount,
-      date: new Date().toISOString(),
+      date: data.date || new Date().toISOString(),
       chequeNumber: data.chequeNumber,
       chequeDate: data.chequeDate,
       notes: data.notes,
       billAdjustments: data.billAdjustments
     };
 
-    setPayments([newPayment, ...payments]);
-    setSaleParties(saleParties.map(p => p.id === data.partyId ? { ...p, totalPaid: p.totalPaid + data.amount } : p));
-    alert("Payment Record Saved Successfully!");
+    if (isUpdate) {
+      const oldPayment = payments.find(p => p.id === data.id)!;
+      // Revert old party balance
+      const revertedParties = saleParties.map(p => 
+        p.id === oldPayment.partyId 
+          ? { ...p, totalPaid: (p.totalPaid || 0) - oldPayment.amount } 
+          : p
+      );
+      
+      setPayments(payments.map(p => p.id === data.id ? newPayment : p));
+      
+      // Apply new party balance
+      setSaleParties(revertedParties.map(p => 
+        p.id === data.partyId 
+          ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } 
+          : p
+      ));
+      setEditingPayment(null);
+    } else {
+      setPayments([newPayment, ...payments]);
+      setSaleParties(saleParties.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
+    }
+
+    alert(isUpdate ? "Payment Record Updated Successfully!" : "Payment Record Saved Successfully!");
     setCurrentView('ledg');
   };
 
@@ -911,7 +935,19 @@ export default function App() {
                 setCurrentView('dash');
               }}
             />}
-            {currentView === 'pay' && <PaymentView key="pay" onSave={handleSavePayment} parties={saleParties} bookings={bookings} />}
+            {currentView === 'pay' && (
+              <PaymentView 
+                key={`pay-${editingPayment?.id || 'new'}`} 
+                onSave={handleSavePayment} 
+                parties={saleParties} 
+                bookings={bookings} 
+                editingPayment={editingPayment}
+                onCancel={() => {
+                  setEditingPayment(null);
+                  setCurrentView('ledg');
+                }}
+              />
+            )}
             {currentView === 'purchaseparty' && (
               <PartyMasterView 
                 key="purchaseparty" 
@@ -923,18 +959,24 @@ export default function App() {
                 payments={payments}
               />
             )}
-            {currentView === 'ledg' && <LedgerView 
-              key="ledg" 
-              parties={saleParties} 
-              purchaseParties={purchaseParties} 
-              bookings={bookings}
-              purchases={purchases}
-              payments={payments}
-              debitNotes={debitNotes} 
-              creditNotes={creditNotes} 
-              settings={settings}
-              onDeletePayment={handleDeletePayment}
-            />}
+            {currentView === 'ledg' && (
+              <LedgerView 
+                key="ledg" 
+                parties={saleParties} 
+                purchaseParties={purchaseParties} 
+                bookings={bookings}
+                purchases={purchases}
+                payments={payments}
+                debitNotes={debitNotes} 
+                creditNotes={creditNotes} 
+                settings={settings}
+                onDeletePayment={handleDeletePayment}
+                onEditPayment={(p: any) => {
+                  setEditingPayment(p);
+                  setCurrentView('pay');
+                }}
+              />
+            )}
             {currentView === 'gstreport' && <GstReportView 
               key="gstreport"
               bookings={bookings}
@@ -3938,13 +3980,14 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
   );
 }
 
-function PaymentView({ onSave, parties, bookings }: any) {
-  const [selectedId, setSelectedId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [chequeNumber, setChequeNumber] = useState('');
-  const [chequeDate, setChequeDate] = useState('');
-  const [notes, setNotes] = useState('');
-  const [billAdjustments, setBillAdjustments] = useState<any[]>([]);
+function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: any) {
+  const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
+  const [amount, setAmount] = useState(editingPayment?.amount?.toString() || '');
+  const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
+  const [chequeDate, setChequeDate] = useState(editingPayment?.chequeDate || '');
+  const [notes, setNotes] = useState(editingPayment?.notes || '');
+  const [billAdjustments, setBillAdjustments] = useState<any[]>(editingPayment?.billAdjustments || []);
+  const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
 
   const selectedParty = parties.find((p: any) => p.id === selectedId);
   const partyBookings = useMemo(() => {
@@ -3953,6 +3996,7 @@ function PaymentView({ onSave, parties, bookings }: any) {
   }, [selectedParty, bookings]);
 
   useEffect(() => {
+    if (editingPayment) return; // Don't auto-calculate if editing
     if (selectedParty) {
       setBillAdjustments(partyBookings.map((b: any) => ({
         billId: b.id,
@@ -3991,8 +4035,10 @@ function PaymentView({ onSave, parties, bookings }: any) {
           return;
         }
         onSave({ 
+          id: editingPayment?.id,
           partyId: selectedId, 
           amount: totalAdjusted,
+          date: new Date(date).toISOString(),
           chequeNumber,
           chequeDate,
           notes,
@@ -4010,14 +4056,25 @@ function PaymentView({ onSave, parties, bookings }: any) {
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Select Sale Party</label>
             <select 
               value={selectedId} 
+              disabled={!!editingPayment}
               onChange={e => setSelectedId(e.target.value)}
-              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer"
+              className={`w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
             >
               <option value="">-- Choose Party --</option>
               {parties.map((p: any) => (
                 <option key={p.id} value={p.id}>{p.name} ({p.gstin})</option>
               ))}
             </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Payment Date</label>
+            <input 
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all"
+            />
           </div>
           
           {selectedParty && (
@@ -4652,7 +4709,7 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
   );
 }
 
-function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings, onDeletePayment }: any) {
+function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment }: any) {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedParty, setSelectedParty] = useState<any>(null);
@@ -4752,16 +4809,28 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
                           {t.type.replace('_', ' ')}
                         </span>
                         {t.type === 'PAYMENT' && (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeletePayment(t);
-                            }}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                            title="Delete Payment"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditPayment(t);
+                              }}
+                              className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all font-bold text-[10px] uppercase flex items-center gap-1"
+                              title="Edit Payment"
+                            >
+                              <Plus size={14} className="rotate-45" /> Edit
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeletePayment(t);
+                              }}
+                              className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                              title="Delete Payment"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         )}
                       </div>
                     </td>

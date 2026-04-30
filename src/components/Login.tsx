@@ -34,8 +34,9 @@ export default function Login({
     try {
       const user = await signInWithGoogle();
       onLogin(user);
-    } catch (err) {
-      setError('Google Sign-In Failed');
+    } catch (err: any) {
+      console.error(err);
+      setError(`Google Sign-In Failed: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
