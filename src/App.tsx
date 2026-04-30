@@ -494,6 +494,15 @@ export default function App() {
     setCurrentView('ledg');
   };
 
+  const handleDeletePayment = (payment: any) => {
+    if (confirm("Are you sure you want to delete this payment record? This action cannot be undone.")) {
+      setPayments(payments.filter((p: any) => p.id !== payment.id));
+      // Update party totalPaid if necessary (assuming totalPaid exists on party)
+      setSaleParties(saleParties.map(p => p.id === payment.partyId ? { ...p, totalPaid: (p.totalPaid || 0) - payment.amount } : p));
+      alert("Payment Deleted Successfully!");
+    }
+  };
+
   const expectedPassword = useMemo(() => {
     if (settings?.adminPassword) return settings.adminPassword;
     if (!settings?.companyName || !settings?.gstin) return '1234';
@@ -756,6 +765,7 @@ export default function App() {
               debitNotes={debitNotes} 
               creditNotes={creditNotes} 
               settings={settings}
+              onDeletePayment={handleDeletePayment}
             />}
             {currentView === 'gstreport' && <GstReportView 
               key="gstreport"
@@ -770,12 +780,12 @@ export default function App() {
               transports={transports}
               onSave={setTransports}
             />}
-            {currentView === 'signature' && <SignatureUploadView 
+            {currentView === 'signature' && <SignatureAndBankView 
               key="signature"
               settings={settings}
               onUpdateSettings={setSettings}
             />}
-            {currentView === 'bankdetails' && <BankDetailsView 
+            {currentView === 'bankdetails' && <SignatureAndBankView 
               key="bankdetails"
               settings={settings}
               onUpdateSettings={setSettings}
@@ -3938,8 +3948,26 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
             </div>
           )}
 
-          <footer className="mt-20 pt-10 border-t border-slate-100 flex justify-between items-end">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">System Generated Voucher</div>
+          <footer className="mt-12 pt-8 border-t border-slate-100 flex justify-between items-start">
+            <div className="flex-1 pr-8">
+              {settings?.bankName && (
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <Landmark size={12} className="text-indigo-600" /> Bank Details
+                  </h4>
+                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
+                    <span className="font-bold text-slate-500 uppercase">Bank:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.bankName}</span>
+                    <span className="font-bold text-slate-500 uppercase">A/c No:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.accountNumber}</span>
+                    <span className="font-bold text-slate-500 uppercase">IFSC:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.ifscCode}</span>
+                    <span className="font-bold text-slate-500 uppercase">Branch:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.branchName}</span>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="text-center">
               {settings?.signature && (
                 <div className="mb-[-15px] relative z-10">
@@ -4339,7 +4367,7 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
   );
 }
 
-function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings }: any) {
+function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings, onDeletePayment }: any) {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedParty, setSelectedParty] = useState<any>(null);
@@ -4429,14 +4457,28 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
                       {new Date(t.date).toLocaleDateString()}
                     </td>
                     <td className="px-8 py-5">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        t.type === 'SALE' ? 'bg-indigo-100 text-indigo-600' :
-                        t.type === 'PURCHASE' ? 'bg-orange-100 text-orange-600' :
-                        t.type === 'PAYMENT' ? 'bg-green-100 text-green-600' :
-                        t.type === 'CREDIT_NOTE' ? 'bg-pink-100 text-pink-600' : 'bg-red-100 text-red-600'
-                      }`}>
-                        {t.type.replace('_', ' ')}
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                          t.type === 'SALE' ? 'bg-indigo-100 text-indigo-600' :
+                          t.type === 'PURCHASE' ? 'bg-orange-100 text-orange-600' :
+                          t.type === 'PAYMENT' ? 'bg-green-100 text-green-600' :
+                          t.type === 'CREDIT_NOTE' ? 'bg-pink-100 text-pink-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                          {t.type.replace('_', ' ')}
+                        </span>
+                        {t.type === 'PAYMENT' && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeletePayment(t);
+                            }}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                            title="Delete Payment"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-8 py-5 font-black text-slate-900">
                       {t.billNumber || t.invoiceNumber || t.noteNumber || t.id.slice(0, 8) || '-'}
@@ -5455,7 +5497,7 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings 
   );
 }
 
-function SignatureUploadView({ settings, onUpdateSettings }: any) {
+function SignatureAndBankView({ settings, onUpdateSettings }: any) {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -5504,70 +5546,74 @@ function SignatureUploadView({ settings, onUpdateSettings }: any) {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto mt-12 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-8">
-      <header className="mb-8 text-center">
-        <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Upload size={32} />
-        </div>
-        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Upload Signature</h2>
-        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">This will appear on your bill print-outs</p>
-      </header>
-
-      <div 
-        className={`relative border-2 border-dashed rounded-3xl p-12 transition-all flex flex-col items-center justify-center gap-4 ${dragActive ? 'border-indigo-500 bg-indigo-50 scale-105' : 'border-slate-200 bg-slate-50'}`}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-      >
-        <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-400">
-          <FileText size={32} />
-        </div>
-        <div className="text-center">
-          <p className="text-sm font-black text-slate-900 mb-1">Drag and drop your signature here</p>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Or click to browse (JPG, PNG, PDF)</p>
-        </div>
-        <input 
-          ref={fileInputRef}
-          type="file" 
-          className="hidden" 
-          accept="image/*,application/pdf"
-          onChange={handleChange}
-        />
-        <button 
-          onClick={() => fileInputRef.current?.click()}
-          className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-xl shadow-indigo-900/40 hover:bg-indigo-700 transition-all"
-        >
-          Select File
-        </button>
-      </div>
-
-      {settings?.signature && (
-        <div className="mt-8 border-t border-slate-100 pt-8">
-          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Current Signature Preview</h3>
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-center min-h-[100px]">
-            {settings.signature.startsWith('data:application/pdf') ? (
-              <div className="flex flex-col items-center gap-2 text-slate-500">
-                <FileText size={48} />
-                <span className="text-[10px] font-black uppercase">PDF Uploaded</span>
-              </div>
-            ) : (
-              <img src={settings.signature} alt="Signature" className="max-h-24 object-contain" />
-            )}
+    <div className="space-y-12 pb-20">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto mt-12 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-8">
+        <header className="mb-8 text-center">
+          <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Upload size={32} />
           </div>
+          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Upload Signature</h2>
+          <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">This will appear on your bill print-outs</p>
+        </header>
+
+        <div 
+          className={`relative border-2 border-dashed rounded-3xl p-12 transition-all flex flex-col items-center justify-center gap-4 ${dragActive ? 'border-indigo-500 bg-indigo-50 scale-105' : 'border-slate-200 bg-slate-50'}`}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+        >
+          <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-400">
+            <FileText size={32} />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-black text-slate-900 mb-1">Drag and drop your signature here</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Or click to browse (JPG, PNG, PDF)</p>
+          </div>
+          <input 
+            ref={fileInputRef}
+            type="file" 
+            className="hidden" 
+            accept="image/*,application/pdf"
+            onChange={handleChange}
+          />
           <button 
-            onClick={() => {
-              if(confirm("Are you sure you want to remove the signature?")) {
-                onUpdateSettings({...(settings || {}), signature: undefined});
-              }
-            }}
-            className="mt-4 text-xs font-black text-red-500 uppercase tracking-widest hover:underline"
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-xl shadow-indigo-900/40 hover:bg-indigo-700 transition-all"
           >
-            Remove Signature
+            Select File
           </button>
         </div>
-      )}
-    </motion.div>
+
+        {settings?.signature && (
+          <div className="mt-8 border-t border-slate-100 pt-8">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Current Signature Preview</h3>
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-center min-h-[100px]">
+              {settings.signature.startsWith('data:application/pdf') ? (
+                <div className="flex flex-col items-center gap-2 text-slate-500">
+                  <FileText size={48} />
+                  <span className="text-[10px] font-black uppercase">PDF Uploaded</span>
+                </div>
+              ) : (
+                <img src={settings.signature} alt="Signature" className="max-h-24 object-contain" />
+              )}
+            </div>
+            <button 
+              onClick={() => {
+                if(confirm("Are you sure you want to remove the signature?")) {
+                  onUpdateSettings({...(settings || {}), signature: undefined});
+                }
+              }}
+              className="mt-4 text-xs font-black text-red-500 uppercase tracking-widest hover:underline"
+            >
+              Remove Signature
+            </button>
+          </div>
+        )}
+      </motion.div>
+
+      <BankDetailsView settings={settings} onUpdateSettings={onUpdateSettings} />
+    </div>
   );
 }
 
