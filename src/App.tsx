@@ -44,7 +44,7 @@ import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, 
 import Login from './components/Login';
 
 // Initial Party Database
-const INITIAL_PARTIES: Record<string, { name: string; address: string }>  = {
+const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
   "24AAAA": { name: "Kinnari Textiles", address: "Surat, Gujarat" },
   "24BBBB": { name: "Kottex Industries", address: "Sachin GIDC, Surat" },
   "24AADCR6455L1Z2": { name: "Pavan Silk Mills (Surat)", address: "Ring Road, Surat, Gujarat" },
