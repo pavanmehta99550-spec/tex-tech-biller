@@ -26,17 +26,68 @@ export default function Login({
   const [username, setUsername] = useState(user ? expectedUsername : '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSignup, setIsSignup] = useState(false);
+  const [email, setEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    const { createUserWithEmailAndPassword } = await import('firebase/auth');
+    const { auth } = await import('../lib/firebase');
+    
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, signupPassword);
+      onLogin(userCredential.user);
+    } catch (err: any) {
+      console.error(err);
+      setError(`Signup Failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleManualLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    const { auth } = await import('../lib/firebase');
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, signupPassword);
+      onLogin(userCredential.user);
+    } catch (err: any) {
+      console.error(err);
+      setError(`Login Failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const [showForgot, setShowForgot] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setError('');
+    console.log("Initiating Google Sign-In...");
     try {
       const user = await signInWithGoogle();
+      console.log("Google Sign-In Successful:", user?.email);
       onLogin(user);
     } catch (err: any) {
-      console.error(err);
-      setError(`Google Sign-In Failed: ${err.message || 'Unknown error'}`);
+      console.error("Google Sign-In Detailed Error:", err);
+      let msg = err.message || 'Unknown error';
+      if (err.code === 'auth/popup-blocked') {
+        msg = 'Sign-in popup was blocked by your browser. Please allow popups for this site and try again.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        msg = 'Google Sign-in is not enabled in the Firebase Console. Please enable it in Auth -> Sign-in method.';
+      } else if (err.code === 'auth/unauthorized-domain') {
+        msg = 'This domain is not authorized for Google Sign-in. Please add it in Firebase Console -> Auth -> Settings -> Authorized domains.';
+      }
+      setError(`Google Sign-In Failed: ${msg} (Code: ${err.code || 'N/A'})`);
     } finally {
       setLoading(false);
     }
@@ -228,8 +279,29 @@ export default function Login({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold border-dashed text-center">
-              {error}
+            <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold border-dashed text-center space-y-2">
+              <p>{error}</p>
+              {error.includes('auth/unauthorized-domain') && (
+                <div className="pt-2 border-t border-red-100 mt-2 space-y-2">
+                  <p className="text-[10px] uppercase font-black">Helpful Hint:</p>
+                  <p className="text-[10px] font-medium leading-relaxed">
+                    Go to Firebase Console &gt; Auth &gt; Settings &gt; Authorized domains and add:
+                  </p>
+                  <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-red-100">
+                    <code className="text-[10px] flex-1 break-all">{window.location.hostname}</code>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(window.location.hostname);
+                        alert('Domain copied to clipboard!');
+                      }}
+                      className="p-1 hover:bg-slate-100 rounded text-blue-600"
+                    >
+                      <CheckCircle2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -281,6 +353,78 @@ export default function Login({
           >
             Login
           </button>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-100"></span>
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-black">
+              <span className="bg-white px-4 text-slate-400">OR CLOUD SIGN-IN/UP</span>
+            </div>
+          </div>
+
+          {!isSignup && !email ? (
+            <button
+              type="button"
+              onClick={() => setIsSignup(true)}
+              className="w-full flex items-center justify-center gap-3 bg-indigo-50 border-2 border-indigo-100 hover:border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold py-4 rounded-2xl transition-all shadow-sm group text-sm uppercase tracking-widest"
+            >
+              Sign up with Email
+            </button>
+          ) : (
+            <div className="space-y-4 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cloud Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-semibold"
+                    placeholder="user@example.com"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cloud Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-semibold"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={isSignup ? handleSignup : handleManualLogin}
+                  disabled={loading}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl transition-all uppercase text-xs tracking-widest"
+                >
+                  {loading ? 'Processing...' : (isSignup ? 'Complete Signup' : 'Sign In')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSignup(!isSignup)}
+                  className="px-4 border-2 border-slate-200 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-widest py-3"
+                >
+                  {isSignup ? 'To Login' : 'To Signup'}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setEmail(''); setIsSignup(false); }}
+                className="w-full text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-2"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
 
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
