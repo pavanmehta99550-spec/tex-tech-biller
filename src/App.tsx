@@ -74,6 +74,12 @@ export default function App() {
   const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentView, setCurrentView] = useState<View>('dash');
+  const [focusedIdx, setFocusedIdx] = useState<number>(-1);
+  const views: View[] = [
+    'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
+    'dn', 'cn', 'items', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
+    'signature', 'bankdetails', 'backup', 'settings'
+  ];
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -130,14 +136,50 @@ export default function App() {
   // Firebase Auth Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Avoid interference when typing in inputs/textareas
+      const activeElement = document.activeElement;
+      const isInput = activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName);
+      
       if (e.key === 'F5') {
         e.preventDefault();
         window.location.reload();
       }
+
+      if (e.key === 'Escape') {
+        if (focusedIdx === -1) {
+          // If not focused on sidebar, focus it
+          setFocusedIdx(views.indexOf(currentView));
+          // Scroll to top
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          // If already in navigation, confirm logout
+          if (confirm("Are you sure you want to logout?")) {
+            auth.signOut();
+            window.location.reload();
+          }
+        }
+        return;
+      }
+
+      if (isInput) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIdx(prev => (prev < views.length - 1 ? prev + 1 : 0));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIdx(prev => (prev > 0 ? prev - 1 : views.length - 1));
+      } else if (e.key === 'Enter') {
+        if (focusedIdx !== -1) {
+          e.preventDefault();
+          setCurrentView(views[focusedIdx]);
+          setFocusedIdx(-1); // Reset focus after selection
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [currentView, focusedIdx, views]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -813,25 +855,55 @@ export default function App() {
         </div>
         
         <nav className="flex-1 p-4 space-y-1">
-          <NavBtn active={currentView === 'dash'} onClick={() => setCurrentView('dash')} icon={LayoutDashboard} label="Dashboard" />
-          <NavBtn active={currentView === 'inv'} onClick={() => setCurrentView('inv')} icon={Receipt} label="Sale Bill" />
-          <NavBtn active={currentView === 'salehistory'} onClick={() => setCurrentView('salehistory')} icon={BookText} label="Sale History" />
-          <NavBtn active={currentView === 'saleparty'} onClick={() => setCurrentView('saleparty')} icon={Users} label="Sale Party Entry" />
-          <NavBtn active={currentView === 'pur'} onClick={() => setCurrentView('pur')} icon={ShoppingBag} label="Purchase Bill" />
-          <NavBtn active={currentView === 'purchasehistory'} onClick={() => setCurrentView('purchasehistory')} icon={BookText} label="Purchase History" />
-          <NavBtn active={currentView === 'purchaseparty'} onClick={() => setCurrentView('purchaseparty')} icon={Users} label="Purchase Party Entry" />
-          <NavBtn active={currentView === 'dn'} onClick={() => setCurrentView('dn')} icon={AlertCircle} label="Debit Note" />
-          <NavBtn active={currentView === 'cn'} onClick={() => setCurrentView('cn')} icon={TrendingUp} label="Credit Note" />
-          <NavBtn active={currentView === 'items'} onClick={() => setCurrentView('items')} icon={Package} label="Items Master" />
-          <NavBtn active={currentView === 'pay'} onClick={() => setCurrentView('pay')} icon={CreditCard} label="Receive Payment" />
-          <NavBtn active={currentView === 'sendpay'} onClick={() => setCurrentView('sendpay')} icon={CreditCard} label="Send Payment" />
-          <NavBtn active={currentView === 'ledg'} onClick={() => setCurrentView('ledg')} icon={BookText} label="Party Ledger" />
-          <NavBtn active={currentView === 'transports'} onClick={() => setCurrentView('transports')} icon={Truck} label="Transports" />
-          <NavBtn active={currentView === 'gstreport'} onClick={() => setCurrentView('gstreport')} icon={TrendingUp} label="GST Reports" />
-          <NavBtn active={currentView === 'signature'} onClick={() => setCurrentView('signature')} icon={PenTool} label="Upload Signature" />
-          <NavBtn active={currentView === 'bankdetails'} onClick={() => setCurrentView('bankdetails')} icon={Landmark} label="Bank Details" />
-          <NavBtn active={currentView === 'backup'} onClick={() => setCurrentView('backup')} icon={Download} label="Data Backup" />
-          <NavBtn active={currentView === 'settings'} onClick={() => setCurrentView('settings')} icon={Settings} label="Settings" />
+          {views.map((v, idx) => (
+            <NavBtn 
+              key={v}
+              active={currentView === v} 
+              focused={focusedIdx === idx}
+              onClick={() => {
+                setCurrentView(v);
+                setFocusedIdx(-1);
+              }} 
+              icon={
+                v === 'dash' ? LayoutDashboard :
+                v === 'inv' ? Receipt :
+                v === 'salehistory' || v === 'purchasehistory' || v === 'ledg' ? BookText :
+                v === 'saleparty' || v === 'purchaseparty' ? Users :
+                v === 'pur' ? ShoppingBag :
+                v === 'dn' ? AlertCircle :
+                v === 'cn' ? TrendingUp :
+                v === 'items' ? Package :
+                v === 'pay' || v === 'sendpay' ? CreditCard :
+                v === 'transports' ? Truck :
+                v === 'gstreport' ? TrendingUp :
+                v === 'signature' ? PenTool :
+                v === 'bankdetails' ? Landmark :
+                v === 'backup' ? Download :
+                Settings
+              } 
+              label={
+                v === 'dash' ? "Dashboard" :
+                v === 'inv' ? "Sale Bill" :
+                v === 'salehistory' ? "Sale History" :
+                v === 'saleparty' ? "Sale Party Entry" :
+                v === 'pur' ? "Purchase Bill" :
+                v === 'purchasehistory' ? "Purchase History" :
+                v === 'purchaseparty' ? "Purchase Party Entry" :
+                v === 'dn' ? "Debit Note" :
+                v === 'cn' ? "Credit Note" :
+                v === 'items' ? "Items Master" :
+                v === 'pay' ? "Receive Payment" :
+                v === 'sendpay' ? "Send Payment" :
+                v === 'ledg' ? "Party Ledger" :
+                v === 'transports' ? "Transports" :
+                v === 'gstreport' ? "GST Reports" :
+                v === 'signature' ? "Upload Signature" :
+                v === 'bankdetails' ? "Bank Details" :
+                v === 'backup' ? "Data Backup" :
+                "Settings"
+              } 
+            />
+          ))}
           <button 
             onClick={() => window.location.reload()}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm bg-indigo-600/10 text-indigo-600 hover:bg-indigo-600 hover:text-white"
@@ -1425,17 +1497,19 @@ function PurchaseHistoryView({ purchases, onEditPurchase, onDeletePurchase, onPr
   );
 }
 
-function NavBtn({ active, onClick, icon: Icon, label }: any) {
+function NavBtn({ active, onClick, icon: Icon, label, focused }: any) {
   return (
     <button 
       onClick={onClick}
       className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${
         active 
           ? "bg-[#00cec9] text-[#1e272e] shadow-xl shadow-[#00cec9]/10 scale-[1.02]" 
+          : focused
+          ? "bg-slate-700/80 text-white border border-slate-600 outline-none"
           : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
       }`}
     >
-      <Icon className={`flex-shrink-0 ${active ? "text-[#1e272e]" : "text-slate-500"}`} size={20} />
+      <Icon className={`flex-shrink-0 ${active ? "text-[#1e272e]" : (focused ? "text-white" : "text-slate-500")}`} size={20} />
       {label}
     </button>
   );
