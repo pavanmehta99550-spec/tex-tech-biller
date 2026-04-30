@@ -5,7 +5,7 @@ import { signInWithGoogle } from '../lib/firebase';
 import { FcGoogle } from 'react-icons/fc';
 
 interface LoginProps {
-  onLogin: (user?: any) => void;
+  onLogin: (user?: any, customId?: string) => void;
   expectedPassword?: string;
   expectedUsername?: string;
   user?: any;
@@ -100,17 +100,51 @@ export default function Login({
   const [recoveryError, setRecoveryError] = useState('');
   const [recoverySuccess, setRecoverySuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // If we have a cloud user, we only check the password
-    const isUsernameValid = user ? true : (username.toLowerCase() === expectedUsername.toLowerCase() || username === expectedPassword || username === 'ANGAD99' || username === '1234');
-    const isPasswordValid = (password === expectedPassword || password === 'ANGAD99' || password === '1234');
-    
-    if (isUsernameValid && isPasswordValid) {
-      onLogin();
-    } else {
-      setError('Invalid Username or Password!');
+    setLoading(true);
+    setError('');
+
+    try {
+      const { doc, getDoc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('../lib/firebase');
+
+      // 1. Check Global Cloud Credentials first
+      const credRef = doc(db, 'custom_credentials', username);
+      const credSnap = await getDoc(credRef);
+
+      if (credSnap.exists()) {
+        const data = credSnap.data();
+        if (data.password === password) {
+          onLogin(null, username);
+          return;
+        } else {
+          setError('Invalid Password for this User ID!');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Fallback to Local/Default check or Setup new Cloud ID
+      const isLocalUsernameValid = (username.toLowerCase() === expectedUsername.toLowerCase() || username === expectedPassword || username === 'ANGAD99' || username === '1234');
+      const isLocalPasswordValid = (password === expectedPassword || password === 'ANGAD99' || password === '1234');
+      
+      if (isLocalUsernameValid && isLocalPasswordValid) {
+        // If it's valid locally, we register it to the Cloud for future cross-device sync
+        await setDoc(credRef, {
+          username: username,
+          password: password,
+          createdAt: new Date().toISOString()
+        });
+        onLogin(null, username);
+      } else {
+        setError('Invalid User ID or Password! If this is a new device, check your details.');
+      }
+    } catch (err: any) {
+      console.error("Login Error:", err);
+      setError(`Auth Error: ${err.message || 'Server connection failed'}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -351,9 +385,10 @@ export default function Login({
 
           <button
             type="submit"
-            className="w-full bg-[#1E293B] hover:bg-[#334155] text-white font-black py-4 rounded-2xl text-lg shadow-xl shadow-slate-200 transition-all active:scale-[0.98] uppercase"
+            disabled={loading}
+            className="w-full bg-[#1E293B] hover:bg-[#334155] text-white font-black py-4 rounded-2xl text-lg shadow-xl shadow-slate-200 transition-all active:scale-[0.98] uppercase disabled:opacity-50"
           >
-            Login
+            {loading ? 'Verifying...' : 'Login'}
           </button>
 
           <div className="relative my-8">

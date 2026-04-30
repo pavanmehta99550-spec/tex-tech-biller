@@ -69,6 +69,7 @@ const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGs
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [customLoginId, setCustomLoginId] = useState<string | null>(() => storage.get('customLoginId', null));
   const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentView, setCurrentView] = useState<View>('dash');
@@ -147,7 +148,8 @@ export default function App() {
 
   // Firebase Data Loader & Syncer
   useEffect(() => {
-    if (!user) return;
+    const activeId = user?.uid || customLoginId;
+    if (!activeId) return;
 
     const dataCollections = [
       { key: 'purchaseParties', setter: setPurchaseParties },
@@ -164,14 +166,17 @@ export default function App() {
     ];
 
     const unsubscribers = dataCollections.map(({ key, setter }) => {
-      return onSnapshot(doc(db, 'users', user.uid, 'appData', key), (docSnap) => {
+      const docPath = user ? `users/${user.uid}/appData/${key}` : `custom_accounts/${customLoginId}/appData/${key}`;
+      const [col, docId, subCol, subDocId, ...rest] = docPath.split('/');
+      
+      return onSnapshot(doc(db, col, docId, subCol, subDocId), (docSnap) => {
         if (docSnap.exists()) {
           setter(docSnap.data().value);
         } else {
           // If Firestore is empty but we have local data, upload it (Migration)
           const localData = storage.get(key, null);
           if (localData !== null) {
-            setDoc(doc(db, 'users', user.uid, 'appData', key), { value: localData });
+            setDoc(doc(db, col, docId, subCol, subDocId), { value: localData });
           }
         }
       });
@@ -182,7 +187,9 @@ export default function App() {
 
   // Sync to Firebase on changes
   useEffect(() => {
-    if (!user) return;
+    const activeId = user?.uid || customLoginId;
+    if (!activeId) return;
+    
     const syncData = async () => {
       setIsSyncing(true);
       try {
@@ -202,8 +209,19 @@ export default function App() {
 
         for (const [key, value] of Object.entries(batch)) {
           if (value !== undefined) {
-             await setDoc(doc(db, 'users', user.uid, 'appData', key), { value });
+             const docPath = user ? `users/${user.uid}/appData/${key}` : `custom_accounts/${customLoginId}/appData/${key}`;
+             const [col, docId, subCol, subDocId] = docPath.split('/');
+             await setDoc(doc(db, col, docId, subCol, subDocId), { value });
           }
+        }
+        
+        // Also ensure current password is synced if using custom ID
+        if (customLoginId && settings?.adminPassword) {
+           await setDoc(doc(db, 'custom_credentials', customLoginId), { 
+             password: settings.adminPassword,
+             username: settings.adminUsername || customLoginId,
+             updatedAt: new Date().toISOString()
+           });
         }
       } catch (err) {
         console.error("Sync failed", err);
@@ -687,14 +705,20 @@ export default function App() {
     </div>
   );
 
-  if (!isAuthenticated) return (
+  if (!isAuthenticated && !customLoginId) return (
     <Login 
       user={user}
-      onLogin={(u) => {
+      onLogin={(u, customId) => {
         if (u) {
           setUser(u);
+          setIsAuthenticated(true);
+        } else if (customId) {
+          setCustomLoginId(customId);
+          storage.set('customLoginId', customId);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(true);
         }
-        setIsAuthenticated(true);
       }} 
       expectedPassword={expectedPassword} 
       expectedUsername={expectedUsername}
@@ -1106,6 +1130,8 @@ export default function App() {
                       auth.signOut();
                       setIsAuthenticated(false);
                       setUser(null);
+                      setCustomLoginId(null);
+                      storage.remove('customLoginId');
                       setShowLogoutConfirm(false);
                     }}
                     className="flex-1 py-5 bg-red-600 text-white rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all"
