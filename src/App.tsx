@@ -32,6 +32,9 @@ import {
   Landmark,
 } from 'lucide-react';
 import { storage } from './lib/storage';
+import { auth, db } from './lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
@@ -65,6 +68,9 @@ const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGs
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => storage.get('auth', false));
+  const [user, setUser] = useState<any>(null);
+  const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [currentView, setCurrentView] = useState<View>('dash');
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
@@ -117,6 +123,89 @@ export default function App() {
   useEffect(() => storage.set('payments', payments), [payments]);
   useEffect(() => storage.set('settings', settings), [settings]);
   useEffect(() => storage.set('lastBackupDate', lastBackupDate), [lastBackupDate]);
+
+  // Firebase Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (u) {
+        setIsAuthenticated(true);
+      }
+      setIsFirebaseLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Firebase Data Loader & Syncer
+  useEffect(() => {
+    if (!user) return;
+
+    const dataCollections = [
+      { key: 'purchaseParties', setter: setPurchaseParties },
+      { key: 'saleParties', setter: setSaleParties },
+      { key: 'itemsMaster', setter: setItemsMaster },
+      { key: 'transports', setter: setTransports },
+      { key: 'bookings', setter: setBookings },
+      { key: 'purchases', setter: setPurchases },
+      { key: 'debit-notes', setter: setDebitNotes },
+      { key: 'credit-notes', setter: setCreditNotes },
+      { key: 'payments', setter: setPayments },
+      { key: 'settings', setter: setSettings },
+      { key: 'lastBackupDate', setter: setLastBackupDate },
+    ];
+
+    const unsubscribers = dataCollections.map(({ key, setter }) => {
+      return onSnapshot(doc(db, 'users', user.uid, 'appData', key), (docSnap) => {
+        if (docSnap.exists()) {
+          setter(docSnap.data().value);
+        } else {
+          // If Firestore is empty but we have local data, upload it (Migration)
+          const localData = storage.get(key, null);
+          if (localData !== null) {
+            setDoc(doc(db, 'users', user.uid, 'appData', key), { value: localData });
+          }
+        }
+      });
+    });
+
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, [user]);
+
+  // Sync to Firebase on changes
+  useEffect(() => {
+    if (!user) return;
+    const syncData = async () => {
+      setIsSyncing(true);
+      try {
+        const batch: any = {
+          purchaseParties,
+          saleParties,
+          itemsMaster,
+          transports,
+          bookings,
+          purchases,
+          'debit-notes': debitNotes,
+          'credit-notes': creditNotes,
+          payments,
+          settings,
+          lastBackupDate
+        };
+
+        for (const [key, value] of Object.entries(batch)) {
+          if (value !== undefined) {
+             await setDoc(doc(db, 'users', user.uid, 'appData', key), { value });
+          }
+        }
+      } catch (err) {
+        console.error("Sync failed", err);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    const timer = setTimeout(syncData, 2000); // Debounce sync
+    return () => clearTimeout(timer);
+  }, [user, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, settings, lastBackupDate]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -511,9 +600,24 @@ export default function App() {
     return prefix + suffix;
   }, [settings]);
 
-  if (!isAuthenticated) return (
+  if (isFirebaseLoading) return (
+    <div className="fixed inset-0 bg-[#1E272E] flex flex-col items-center justify-center text-white">
+      <RefreshCw size={48} className="animate-spin text-blue-400 mb-4" />
+      <h2 className="text-xl font-bold uppercase tracking-widest">Loading Secure App...</h2>
+      <p className="text-slate-400 text-xs mt-2 font-mono">Syncing with encrypted cloud backup</p>
+    </div>
+  );
+
+  if (!isAuthenticated && !user) return (
     <Login 
-      onLogin={() => setIsAuthenticated(true)} 
+      onLogin={(u) => {
+        if (u) {
+          setUser(u);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(true);
+        }
+      }} 
       expectedPassword={expectedPassword} 
       companyName={settings?.companyName}
       gstin={settings?.gstin}
@@ -532,6 +636,11 @@ export default function App() {
                 {settings.companyName}
               </div>
               <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{settings.gstin}</div>
+              {isSyncing && (
+                <div className="mt-2 flex items-center justify-center gap-1 text-[8px] text-blue-400 font-black animate-pulse">
+                  <RefreshCw size={8} className="animate-spin" /> CLOUD SYNCING...
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-[#00cec9] font-black text-2xl tracking-tighter">
@@ -892,7 +1001,12 @@ export default function App() {
                 </button>
                 <div className="flex gap-4">
                   <button 
-                    onClick={() => setIsAuthenticated(false)}
+                    onClick={() => {
+                      auth.signOut();
+                      setIsAuthenticated(false);
+                      setUser(null);
+                      setShowLogoutConfirm(false);
+                    }}
                     className="flex-1 py-5 bg-red-600 text-white rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all"
                   >
                     Logout Anyway

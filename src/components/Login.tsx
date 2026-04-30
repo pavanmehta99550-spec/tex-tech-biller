@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Lock, User, ShieldCheck, Building2, Hash, Key, CheckCircle2 } from 'lucide-react';
+import { signInWithGoogle } from '../lib/firebase';
+import { FcGoogle } from 'react-icons/fc';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (user?: any) => void;
   expectedPassword?: string;
   companyName?: string;
   gstin?: string;
@@ -21,6 +23,19 @@ export default function Login({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showForgot, setShowForgot] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const user = await signInWithGoogle();
+      onLogin(user);
+    } catch (err) {
+      setError('Google Sign-In Failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Recovery form states
   const [verifyCompany, setVerifyCompany] = useState('');
@@ -242,6 +257,25 @@ export default function Login({
             className="w-full bg-[#1E293B] hover:bg-[#334155] text-white font-black py-4 rounded-2xl text-lg shadow-xl shadow-slate-200 transition-all active:scale-[0.98] uppercase"
           >
             Login
+          </button>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-100"></span>
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-black">
+              <span className="bg-white px-4 text-slate-400">OR CONTINUE WITH</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-100 hover:border-blue-100 hover:bg-blue-50 text-slate-700 font-bold py-4 rounded-2xl transition-all shadow-sm group"
+          >
+            <FcGoogle size={24} />
+            <span className="group-hover:text-blue-600">Sign in with Google</span>
           </button>
         </form>
       </motion.div>

@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "Party": {
+      "title": "Party",
+      "description": "Customer or Supplier details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "gstin": { "type": "string" },
+        "address": { "type": "string" },
+        "mobile": { "type": "string" },
+        "totalSales": { "type": "number" },
+        "totalPaid": { "type": "number" },
+        "totalPurchases": { "type": "number" }
+      },
+      "required": ["id", "name", "gstin", "address"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Sales Bill / Booking detail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "lrNumber": { "type": "string" },
+        "ewbNumber": { "type": "string" },
+        "transportName": { "type": "string" },
+        "transportGstin": { "type": "string" },
+        "consignorGstin": { "type": "string" },
+        "consignorName": { "type": "string" },
+        "consignorAddress": { "type": "string" },
+        "consigneeGstin": { "type": "string" },
+        "consigneeName": { "type": "string" },
+        "consigneeAddress": { "type": "string" },
+        "grandTotal": { "type": "number" },
+        "date": { "type": "string" },
+        "billNumber": { "type": "number" }
+      }
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Payment receipt",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "partyId": { "type": "string" },
+        "partyName": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" }
+      }
+    },
+    "AppSettings": {
+      "title": "App Settings",
+      "description": "Business profile settings",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "gstin": { "type": "string" },
+        "address": { "type": "string" },
+        "mobile": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}/purchaseParties": { "schema": "Party", "description": "User's purchase parties" },
+    "users/{userId}/saleParties": { "schema": "Party", "description": "User's sale parties" },
+    "users/{userId}/itemsMaster": { "schema": "ItemMaster", "description": "User's product catalog" },
+    "users/{userId}/transports": { "schema": "Transport", "description": "User's transport directory" },
+    "users/{userId}/bookings": { "schema": "Booking", "description": "User's sale invoices" },
+    "users/{userId}/purchases": { "schema": "Purchase", "description": "User's purchase invoices" },
+    "users/{userId}/debitNotes": { "schema": "DebitNote", "description": "User's debit notes" },
+    "users/{userId}/creditNotes": { "schema": "CreditNote", "description": "User's credit notes" },
+    "users/{userId}/payments": { "schema": "Payment", "description": "User's payment records" },
+    "users/{userId}/settings/profile": { "schema": "AppSettings", "description": "User's business profile" }
+  }
+}
