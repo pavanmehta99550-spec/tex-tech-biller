@@ -29,6 +29,7 @@ import {
   RefreshCw,
   FileText,
   PenTool,
+  Edit,
   Landmark,
 } from 'lucide-react';
 import { storage } from './lib/storage';
@@ -6630,29 +6631,54 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
     address: '',
     mobile: ''
   });
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const handleAddParty = (e: React.FormEvent) => {
+  const handleSaveParty = (e: React.FormEvent) => {
     e.preventDefault();
-    const existing = parties.find((p: any) => p.gstin === partyForm.gstin.toUpperCase());
-    if (existing) {
-      alert("Party with this GST already exists!");
-      return;
+    
+    if (editingId) {
+      const updatedParties = parties.map((p: any) => 
+        p.id === editingId 
+          ? { ...p, name: partyForm.name, gstin: partyForm.gstin.toUpperCase(), address: partyForm.address, mobile: partyForm.mobile }
+          : p
+      );
+      onUpdateParties(updatedParties);
+      setEditingId(null);
+      setPartyForm({ name: '', gstin: '', address: '', mobile: '' });
+      alert(`${title} Updated Successfully!`);
+    } else {
+      const existing = parties.find((p: any) => p.gstin === partyForm.gstin.toUpperCase());
+      if (existing) {
+        alert("Party with this GST already exists!");
+        return;
+      }
+
+      const newParty: Party = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: partyForm.name,
+        gstin: partyForm.gstin.toUpperCase(),
+        address: partyForm.address,
+        mobile: partyForm.mobile,
+        totalSales: 0,
+        totalPaid: 0,
+        totalPurchases: 0
+      };
+
+      onUpdateParties([newParty, ...parties]);
+      setPartyForm({ name: '', gstin: '', address: '', mobile: '' });
+      alert(`${title} Added Successfully!`);
     }
+  };
 
-    const newParty: Party = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: partyForm.name,
-      gstin: partyForm.gstin.toUpperCase(),
-      address: partyForm.address,
-      mobile: partyForm.mobile,
-      totalSales: 0,
-      totalPaid: 0,
-      totalPurchases: 0
-    };
-
-    onUpdateParties([newParty, ...parties]);
-    setPartyForm({ name: '', gstin: '', address: '', mobile: '' });
-    alert(`${title} Added Successfully!`);
+  const handleEditParty = (party: any) => {
+    setEditingId(party.id);
+    setPartyForm({
+      name: party.name,
+      gstin: party.gstin,
+      address: party.address,
+      mobile: party.mobile || ''
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDeleteParty = (party: Party) => {
@@ -6684,10 +6710,25 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
       </div>
 
       <div className="p-10 space-y-8">
-        <form onSubmit={handleAddParty} className="space-y-6 p-8 bg-slate-50 rounded-3xl border border-slate-200 shadow-inner">
-          <h3 className="text-lg font-black text-slate-900 uppercase flex items-center gap-2">
-            <Plus size={20} className="text-[#00cec9]" /> Add New {title}
-          </h3>
+        <form onSubmit={handleSaveParty} className={`space-y-6 p-8 rounded-3xl border shadow-inner transition-colors ${editingId ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-200'}`}>
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-black text-slate-900 uppercase flex items-center gap-2">
+              {editingId ? <Edit size={20} className="text-indigo-600" /> : <Plus size={20} className="text-[#00cec9]" />} 
+              {editingId ? `Edit ${title}` : `Add New ${title}`}
+            </h3>
+            {editingId && (
+              <button 
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  setPartyForm({ name: '', gstin: '', address: '', mobile: '' });
+                }}
+                className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:underline"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Party Name</label>
@@ -6737,9 +6778,9 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
           </div>
           <button 
             type="submit"
-            className="w-full bg-[#1e272e] text-white font-black py-4 rounded-xl hover:bg-black transition-all shadow-lg active:scale-[0.99]"
+            className={`w-full text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.99] ${editingId ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-[#1e272e] hover:bg-black'}`}
           >
-            Save {title}
+            {editingId ? `Update ${title}` : `Save ${title}`}
           </button>
         </form>
 
@@ -6759,13 +6800,22 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
                     <div className="text-[9px] font-black text-slate-400 uppercase">{title === 'Sale Party Entry' ? 'Total Sales' : 'Total Purchases'}</div>
                     <div className="text-lg font-black text-slate-900">₹{(title === 'Sale Party Entry' ? p.totalSales : (p.totalPurchases || 0)).toLocaleString()}</div>
                   </div>
-                  <button 
-                    onClick={() => handleDeleteParty(p)}
-                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                    title="Delete Party"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                    <button 
+                      onClick={() => handleEditParty(p)}
+                      className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                      title="Edit Party"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteParty(p)}
+                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      title="Delete Party"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
