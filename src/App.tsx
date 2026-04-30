@@ -4138,11 +4138,15 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
 
           <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Sales Return Voucher I</div>
-            <div className="text-center border-t border-green-700 pt-2 w-48 relative">
-              {settings?.signature && !settings.signature.startsWith('data:application/pdf') && (
-                <img src={settings.signature} alt="Sign" className="h-12 absolute bottom-[100%] left-1/2 -translate-x-1/2 mb-1 object-contain" />
+            <div className="text-center min-w-[12rem] pt-2 border-t-2 border-green-700 relative">
+              {settings?.signature ? (
+                <div className="h-16 flex items-end justify-center mb-1">
+                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                </div>
+              ) : (
+                <div className="h-16" />
               )}
-              <div className="text-[10px] font-black uppercase tracking-widest">Authorized Entry</div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-green-700">Authorized Entry</div>
               <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
             </div>
           </div>
@@ -4712,16 +4716,16 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
                 </div>
               )}
             </div>
-            <div className="text-center">
-              {settings?.signature && (
-                <div className="mb-[-15px] relative z-10">
-                   {!settings.signature.startsWith('data:application/pdf') && (
-                     <img src={settings.signature} alt="Sign" className="h-16 mx-auto object-contain" />
-                   )}
-                </div>
-              )}
-              <div className="h-16 w-40 border-b-2 border-slate-900 mb-2"></div>
-              <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Signatory</p>
+            <div className="text-center min-w-[12rem]">
+               {settings?.signature && (
+                 <div className="h-16 flex items-end justify-center mb-1">
+                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                 </div>
+               )}
+               {!settings?.signature && <div className="h-16" />}
+               <div className="pt-2 border-t-2 border-slate-900">
+                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Signatory</p>
+               </div>
             </div>
           </footer>
         </div>
@@ -5510,13 +5514,17 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
 
           <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Entry Logged I</div>
-             <div className="text-center border-t border-indigo-900 pt-2 w-48 relative">
-               {settings?.signature && !settings.signature.startsWith('data:application/pdf') && (
-                 <img src={settings.signature} alt="Sign" className="h-12 absolute bottom-[100%] left-1/2 -translate-x-1/2 mb-1 object-contain" />
-               )}
-               <div className="text-[10px] font-black uppercase tracking-widest">Authorized Entry</div>
-               <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Purchase</div>
-             </div>
+            <div className="text-center min-w-[12rem] pt-2 border-t-2 border-indigo-900 relative">
+              {settings?.signature ? (
+                <div className="h-16 flex items-end justify-center mb-1">
+                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                </div>
+              ) : (
+                <div className="h-16" />
+              )}
+              <div className="text-[10px] font-black uppercase tracking-widest text-indigo-900">Authorized Entry</div>
+              <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Purchase</div>
+            </div>
           </div>
         </div>
 
@@ -5696,11 +5704,15 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
 
           <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Return Voucher I</div>
-            <div className="text-center border-t border-red-700 pt-2 w-48 relative">
-              {settings?.signature && !settings.signature.startsWith('data:application/pdf') && (
-                <img src={settings.signature} alt="Sign" className="h-12 absolute bottom-[100%] left-1/2 -translate-x-1/2 mb-1 object-contain" />
+            <div className="text-center min-w-[12rem] pt-2 border-t-2 border-red-700 relative">
+              {settings?.signature ? (
+                <div className="h-16 flex items-end justify-center mb-1">
+                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                </div>
+              ) : (
+                <div className="h-16" />
               )}
-              <div className="text-[10px] font-black uppercase tracking-widest">Authorized Entry</div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-red-700">Authorized Entry</div>
               <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
             </div>
           </div>
@@ -5944,12 +5956,16 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
 
           <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Generated via Pro Biller I</div>
-            <div className="text-center border-t border-slate-900 pt-2 w-48 relative">
-              {settings?.signature && !settings.signature.startsWith('data:application/pdf') && (
-                <img src={settings.signature} alt="Sign" className="h-12 absolute bottom-[100%] left-1/2 -translate-x-1/2 mb-1 object-contain" />
+            <div className="text-center min-w-[12rem] pt-2 border-t-2 border-slate-900 relative">
+              {settings?.signature ? (
+                <div className="h-16 flex items-end justify-center mb-1">
+                  <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                </div>
+              ) : (
+                <div className="h-16" />
               )}
-              <div className="text-[10px] font-black uppercase tracking-widest">Authorized Signatory</div>
-              <div className="text-[9px] text-slate-400 mt-1 cursor-default select-none">E-Signature Verfied</div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-900">Authorized Signatory</div>
+              <div className="text-[9px] text-slate-400 mt-1 cursor-default select-none">E-Signature Verified</div>
             </div>
           </div>
         </div>
