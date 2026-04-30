@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Lock, User, ShieldCheck, Building2, Hash, Key, CheckCircle2, Mail } from 'lucide-react';
+import { Lock, User, ShieldCheck, Building2, Hash, Key, CheckCircle2, Mail, RefreshCw } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
 import { FcGoogle } from 'react-icons/fc';
 
@@ -102,10 +102,12 @@ export default function Login({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const isValid = (username.toLowerCase() === expectedUsername.toLowerCase() || username === expectedPassword || username === 'ANGAD99' || username === '1234') && 
-                    (password === expectedPassword || password === 'ANGAD99' || password === '1234');
-                    
-    if (isValid) {
+    
+    // If we have a cloud user, we only check the password
+    const isUsernameValid = user ? true : (username.toLowerCase() === expectedUsername.toLowerCase() || username === expectedPassword || username === 'ANGAD99' || username === '1234');
+    const isPasswordValid = (password === expectedPassword || password === 'ANGAD99' || password === '1234');
+    
+    if (isUsernameValid && isPasswordValid) {
       onLogin();
     } else {
       setError('Invalid Username or Password!');
@@ -359,18 +361,40 @@ export default function Login({
               <span className="w-full border-t border-slate-100"></span>
             </div>
             <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-black">
-              <span className="bg-white px-4 text-slate-400">OR CLOUD SIGN-IN/UP</span>
+              <span className="bg-white px-4 text-slate-400">PREFERRED: CLOUD LOGIN (MULTI-DEVICE SYNC)</span>
             </div>
           </div>
 
+          <div className="bg-blue-50 border-2 border-blue-100 p-4 rounded-2xl mb-4">
+            <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <RefreshCw size={12} className="animate-spin" /> Multi-Device Support / मल्टी-डिवाइस सपोर्ट
+            </p>
+            <p className="text-[10px] text-blue-600 leading-relaxed font-medium">
+              अपनी पुरानी ID और पासवर्ड को दूसरे डिवाइस पर चलाने के लिए पहले <b>Google</b> या <b>Email Login</b> करें।
+            </p>
+            <p className="text-[10px] text-blue-500 leading-relaxed mt-1">
+              To access your data on other devices, you MUST use Google or Email login first.
+            </p>
+          </div>
+
           {!isSignup && !email ? (
-            <button
-              type="button"
-              onClick={() => setIsSignup(true)}
-              className="w-full flex items-center justify-center gap-3 bg-indigo-50 border-2 border-indigo-100 hover:border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold py-4 rounded-2xl transition-all shadow-sm group text-sm uppercase tracking-widest"
-            >
-              Sign up with Email
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setIsSignup(true)}
+                className="flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-indigo-100 hover:bg-indigo-700 text-xs uppercase tracking-widest"
+              >
+                <Mail size={16} /> Cloud Sign Up
+              </button>
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="flex items-center justify-center gap-2 bg-white border-2 border-slate-100 hover:border-blue-100 hover:bg-blue-50 text-slate-700 font-bold py-4 rounded-2xl transition-all shadow-sm group text-xs uppercase tracking-widest"
+              >
+                <FcGoogle size={20} /> Google
+              </button>
+            </div>
           ) : (
             <div className="space-y-4 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100">
               <div className="space-y-1">
@@ -426,24 +450,7 @@ export default function Login({
             </div>
           )}
 
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-slate-100"></span>
-            </div>
-            <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-black">
-              <span className="bg-white px-4 text-slate-400">OR CONTINUE WITH</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-100 hover:border-blue-100 hover:bg-blue-50 text-slate-700 font-bold py-4 rounded-2xl transition-all shadow-sm group"
-          >
-            <FcGoogle size={24} />
-            <span className="group-hover:text-blue-600">Sign in with Google</span>
-          </button>
+          {/* Removed redundant google button */}
         </form>
       </motion.div>
     </div>
