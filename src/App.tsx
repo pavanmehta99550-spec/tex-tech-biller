@@ -75,6 +75,7 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentView, setCurrentView] = useState<View>('dash');
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
+  const lastWriteTime = useRef<Record<string, number>>({});
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
     'dn', 'cn', 'items', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
@@ -86,17 +87,6 @@ export default function App() {
   
   const [purchaseParties, setPurchaseParties] = useState<Party[]>(() => {
     const saved = storage.get('purchaseParties', storage.get('parties', []));
-    if (saved.length === 0) {
-      return Object.entries(INITIAL_PARTIES).map(([gstin, data]) => ({
-        id: Math.random().toString(36).substr(2, 9),
-        name: data.name,
-        gstin,
-        address: data.address,
-        totalSales: 0,
-        totalPaid: 0,
-        totalPurchases: 0
-      }));
-    }
     return saved;
   });
 
@@ -227,9 +217,14 @@ export default function App() {
       const [col, docId, subCol, subDocId, ...rest] = docPath.split('/');
       
       return onSnapshot(doc(db, col, docId, subCol, subDocId), (docSnap) => {
-        if (docSnap.exists()) {
+        // Only update local state if the snapshot is from the server 
+        // AND we don't have a pending local write for this specific key
+        const now = Date.now();
+        const lastWrite = lastWriteTime.current[key] || 0;
+        
+        if (docSnap.exists() && !docSnap.metadata.hasPendingWrites && (now - lastWrite > 5000)) {
           setter(docSnap.data().value);
-        } else {
+        } else if (!docSnap.exists() && (now - lastWrite > 5000)) {
           // If Firestore is empty but we have local data, upload it (Migration)
           const localData = storage.get(key, null);
           if (localData !== null) {
@@ -243,6 +238,17 @@ export default function App() {
 
     return () => unsubscribers.forEach(unsub => unsub());
   }, [user, customLoginId]);
+
+  useEffect(() => {
+    const data: Record<string, any> = {
+      purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, 
+      'debit-notes': debitNotes, 'credit-notes': creditNotes, payments, purchasePayments, 
+      settings, lastBackupDate
+    };
+    Object.keys(data).forEach(key => {
+      lastWriteTime.current[key] = Date.now();
+    });
+  }, [purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, settings, lastBackupDate]);
 
   // Sync to Firebase on changes
   useEffect(() => {
@@ -262,18 +268,21 @@ export default function App() {
           'debit-notes': debitNotes,
           'credit-notes': creditNotes,
           payments,
+          purchasePayments,
           settings,
           lastBackupDate
         };
 
-        for (const [key, value] of Object.entries(batch)) {
+        const syncPromises = Object.entries(batch).map(async ([key, value]) => {
           if (value !== undefined) {
              const docPath = user ? `users/${user.uid}/appData/${key}` : `custom_accounts/${customLoginId}/appData/${key}`;
              const pathParts = docPath.split('/');
              const [col, docId, subCol, subDocId] = pathParts;
              await setDoc(doc(db, col, docId, subCol, subDocId), { value });
           }
-        }
+        });
+        
+        await Promise.all(syncPromises);
         
         // Also ensure current password is synced if using custom ID
         if (customLoginId && settings?.adminPassword) {
@@ -290,9 +299,9 @@ export default function App() {
       }
     };
 
-    const timer = setTimeout(syncData, 2000); // Debounce sync
+    const timer = setTimeout(syncData, 500); // Fast sync to prevent race conditions
     return () => clearTimeout(timer);
-  }, [user, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, settings, lastBackupDate]);
+  }, [user, customLoginId, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, settings, lastBackupDate, purchasePayments]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -4140,11 +4149,11 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Sales Return Voucher I</div>
             <div className="text-center min-w-[12rem] pt-2 border-t-2 border-green-700 relative">
               {settings?.signature ? (
-                <div className="h-16 flex items-end justify-center mb-1">
+                <div className="h-20 flex items-end justify-center mb-1">
                    <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-16" />
+                <div className="h-20" />
               )}
               <div className="text-[10px] font-black uppercase tracking-widest text-green-700">Authorized Entry</div>
               <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
@@ -4718,11 +4727,11 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
             </div>
             <div className="text-center min-w-[12rem]">
                {settings?.signature && (
-                 <div className="h-16 flex items-end justify-center mb-1">
+                 <div className="h-20 flex items-end justify-center mb-1">
                    <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
                  </div>
                )}
-               {!settings?.signature && <div className="h-16" />}
+               {!settings?.signature && <div className="h-20" />}
                <div className="pt-2 border-t-2 border-slate-900">
                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Signatory</p>
                </div>
@@ -5516,11 +5525,11 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Entry Logged I</div>
             <div className="text-center min-w-[12rem] pt-2 border-t-2 border-indigo-900 relative">
               {settings?.signature ? (
-                <div className="h-16 flex items-end justify-center mb-1">
+                <div className="h-20 flex items-end justify-center mb-1">
                    <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-16" />
+                <div className="h-20" />
               )}
               <div className="text-[10px] font-black uppercase tracking-widest text-indigo-900">Authorized Entry</div>
               <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Purchase</div>
@@ -5706,11 +5715,11 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Return Voucher I</div>
             <div className="text-center min-w-[12rem] pt-2 border-t-2 border-red-700 relative">
               {settings?.signature ? (
-                <div className="h-16 flex items-end justify-center mb-1">
+                <div className="h-20 flex items-end justify-center mb-1">
                    <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-16" />
+                <div className="h-20" />
               )}
               <div className="text-[10px] font-black uppercase tracking-widest text-red-700">Authorized Entry</div>
               <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
@@ -5958,11 +5967,11 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Generated via Pro Biller I</div>
             <div className="text-center min-w-[12rem] pt-2 border-t-2 border-slate-900 relative">
               {settings?.signature ? (
-                <div className="h-16 flex items-end justify-center mb-1">
+                <div className="h-20 flex items-end justify-center mb-1">
                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-16" />
+                <div className="h-20" />
               )}
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-900">Authorized Signatory</div>
               <div className="text-[9px] text-slate-400 mt-1 cursor-default select-none">E-Signature Verified</div>
@@ -6375,38 +6384,40 @@ function SignatureAndBankView({ settings, onUpdateSettings }: any) {
               Select File
             </button>
             {settings?.signature && (
-              <button 
-                onClick={() => alert("Signature is ready! It will be saved with other details when you click the main save button in Settings or when updated automatically.")}
-                className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-xl shadow-indigo-900/40 hover:bg-indigo-700 transition-all flex items-center gap-2"
-              >
-                <Save size={16} /> Save Signature
-              </button>
+              <div className="mt-4 flex flex-col gap-2 w-full">
+                <button 
+                  onClick={() => alert("Signature is ready! It will be saved with other details when you click the main save button in Settings or when updated automatically.")}
+                  className="w-full px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-xl shadow-indigo-900/40 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <Save size={16} /> Save Signature
+                </button>
+                <button 
+                  onClick={() => {
+                    if(confirm("Are you sure you want to remove the signature?")) {
+                      onUpdateSettings({...(settings || {}), signature: ""});
+                    }
+                  }}
+                  className="w-full px-6 py-3 bg-red-50 text-red-600 border-2 border-red-100 rounded-xl font-black text-sm hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={16} /> Remove Signature
+                </button>
+              </div>
             )}
           </div>
 
           {settings?.signature && (
             <div className="mt-8 border-t border-slate-100 pt-8">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Current Signature Preview</h3>
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-center min-h-[100px]">
+              <div className="bg-white rounded-2xl p-4 border-2 border-slate-100 flex items-center justify-center min-h-[120px] shadow-inner">
                 {settings.signature.startsWith('data:application/pdf') ? (
                   <div className="flex flex-col items-center gap-2 text-slate-500">
                     <FileText size={48} />
                     <span className="text-[10px] font-black uppercase">PDF Uploaded</span>
                   </div>
                 ) : (
-                  <img src={settings.signature} alt="Signature" className="max-h-24 object-contain" />
+                  <img src={settings.signature} alt="Signature" className="max-h-28 object-contain" />
                 )}
               </div>
-              <button 
-                onClick={() => {
-                  if(confirm("Are you sure you want to remove the signature?")) {
-                    onUpdateSettings({...(settings || {}), signature: undefined});
-                  }
-                }}
-                className="mt-4 text-xs font-black text-red-500 uppercase tracking-widest hover:underline"
-              >
-                Remove Signature
-              </button>
             </div>
           )}
         </motion.div>
