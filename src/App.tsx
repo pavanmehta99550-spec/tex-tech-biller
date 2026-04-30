@@ -67,7 +67,7 @@ const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGs
 };
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => storage.get('auth', false));
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -111,7 +111,6 @@ export default function App() {
   const [editingDebitNote, setEditingDebitNote] = useState<DebitNote | null>(null);
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
 
-  useEffect(() => storage.set('auth', isAuthenticated), [isAuthenticated]);
   useEffect(() => storage.set('purchaseParties', purchaseParties), [purchaseParties]);
   useEffect(() => storage.set('saleParties', saleParties), [saleParties]);
   useEffect(() => storage.set('itemsMaster', itemsMaster), [itemsMaster]);
@@ -133,7 +132,16 @@ export default function App() {
       }
       setIsFirebaseLoading(false);
     });
-    return () => unsubscribe();
+    
+    // Safety timeout: Ensure app opens even if Firebase initialization is slow or fails
+    const timeout = setTimeout(() => {
+      setIsFirebaseLoading(false);
+    }, 5000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   // Firebase Data Loader & Syncer
@@ -600,6 +608,11 @@ export default function App() {
     return prefix + suffix;
   }, [settings]);
 
+  const expectedUsername = useMemo(() => {
+    if (settings?.adminUsername) return settings.adminUsername;
+    return 'admin';
+  }, [settings]);
+
   if (isFirebaseLoading) return (
     <div className="fixed inset-0 bg-[#1E272E] flex flex-col items-center justify-center text-white">
       <RefreshCw size={48} className="animate-spin text-blue-400 mb-4" />
@@ -608,17 +621,17 @@ export default function App() {
     </div>
   );
 
-  if (!isAuthenticated && !user) return (
+  if (!isAuthenticated) return (
     <Login 
+      user={user}
       onLogin={(u) => {
         if (u) {
           setUser(u);
-          setIsAuthenticated(true);
-        } else {
-          setIsAuthenticated(true);
         }
+        setIsAuthenticated(true);
       }} 
       expectedPassword={expectedPassword} 
+      expectedUsername={expectedUsername}
       companyName={settings?.companyName}
       gstin={settings?.gstin}
       onResetPassword={(newPass) => setSettings({ ...settings!, adminPassword: newPass })}
@@ -5890,6 +5903,7 @@ function SettingsView({ settings, onSave }: any) {
     gstin: settings?.gstin || '',
     address: settings?.address || '',
     mobile: settings?.mobile || '',
+    adminUsername: settings?.adminUsername || 'admin',
     adminPassword: settings?.adminPassword || '1234'
   });
   const [isLocked, setIsLocked] = useState(!!settings);
@@ -6019,18 +6033,31 @@ function SettingsView({ settings, onSave }: any) {
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Admin Access Password</label>
-              <input 
-                type="text" 
-                required
-                value={formData.adminPassword}
-                onChange={e => setFormData({ ...formData, adminPassword: e.target.value })}
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all font-mono"
-                placeholder="Set your login password"
-              />
-              <p className="text-[10px] text-slate-400 font-bold ml-1 uppercase">Default is 1234. Change this for security.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Admin User Name</label>
+                <input 
+                  type="text" 
+                  required
+                  value={formData.adminUsername}
+                  onChange={e => setFormData({ ...formData, adminUsername: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
+                  placeholder="Set login user name"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Admin Access Password</label>
+                <input 
+                  type="text" 
+                  required
+                  value={formData.adminPassword}
+                  onChange={e => setFormData({ ...formData, adminPassword: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all font-mono"
+                  placeholder="Set login password"
+                />
+              </div>
             </div>
+            <p className="text-[10px] text-slate-400 font-bold ml-1 uppercase">Default: admin / 1234. Change these for security.</p>
           </div>
 
           <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-4">

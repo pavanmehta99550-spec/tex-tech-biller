@@ -65,6 +65,7 @@ export interface AppSettings {
   address: string;
   mobile: string;
   adminPassword?: string;
+  adminUsername?: string;
   signature?: string;
   bankName?: string;
   accountNumber?: string;

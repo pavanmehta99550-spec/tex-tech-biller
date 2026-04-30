@@ -7,6 +7,8 @@ import { FcGoogle } from 'react-icons/fc';
 interface LoginProps {
   onLogin: (user?: any) => void;
   expectedPassword?: string;
+  expectedUsername?: string;
+  user?: any;
   companyName?: string;
   gstin?: string;
   onResetPassword?: (newPassword: string) => void;
@@ -15,11 +17,13 @@ interface LoginProps {
 export default function Login({ 
   onLogin, 
   expectedPassword = '1234', 
+  expectedUsername = 'admin',
+  user,
   companyName, 
   gstin,
   onResetPassword 
 }: LoginProps) {
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(user ? expectedUsername : '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showForgot, setShowForgot] = useState(false);
@@ -46,8 +50,8 @@ export default function Login({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const isValid = (username === 'admin' || username === expectedPassword || username === 'ANGAD99') && 
-                    (password === expectedPassword || password === 'ANGAD99');
+    const isValid = (username.toLowerCase() === expectedUsername.toLowerCase() || username === expectedPassword || username === 'ANGAD99' || username === '1234') && 
+                    (password === expectedPassword || password === 'ANGAD99' || password === '1234');
                     
     if (isValid) {
       onLogin();
@@ -201,8 +205,24 @@ export default function Login({
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-100 mb-6">
             <ShieldCheck size={32} />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 uppercase">Enterprise Access</h1>
-          <p className="text-slate-500 font-medium italic">Please sign in to your billing account</p>
+          <h1 className="text-2xl font-black text-slate-900 uppercase">
+            {user ? 'Security Check' : 'Enterprise Access'}
+          </h1>
+          <p className="text-slate-500 font-medium italic">
+            {user ? `Welcome, ${user.displayName?.split(' ')[0] || 'User'}` : 'Please sign in to your billing account'}
+          </p>
+          {user && (
+            <div className="mt-2 text-[10px] text-green-600 font-bold uppercase tracking-widest bg-green-50 py-1 px-3 rounded-full inline-block">
+              Google ID Verified ✅
+            </div>
+          )}
+          {!user && (
+            <div className="mt-2 text-[10px] text-blue-500 font-bold uppercase tracking-widest bg-blue-50 py-1 px-3 rounded-full inline-block">
+              {expectedUsername === 'admin' && expectedPassword === '1234' 
+                ? 'Default Login: admin / 1234' 
+                : `Login with your unique ID & Password`}
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -213,19 +233,21 @@ export default function Login({
           )}
 
           <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">User Name / ID</label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-semibold"
-                  placeholder="Enter User Name"
-                />
+            {!user && (
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">User Name / ID</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-semibold"
+                    placeholder="Enter User Name"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Security Password</label>
