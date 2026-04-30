@@ -75,11 +75,11 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentView, setCurrentView] = useState<View>('dash');
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
-  const views: View[] = [
+  const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
     'dn', 'cn', 'items', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
     'signature', 'bankdetails', 'backup', 'settings'
-  ];
+  ], []);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -147,16 +147,17 @@ export default function App() {
 
       if (e.key === 'Escape') {
         if (focusedIdx === -1) {
+          // Blur any active input so arrow keys/enter work for sidebar
+          if (activeElement && (activeElement as HTMLElement).blur) {
+            (activeElement as HTMLElement).blur();
+          }
           // If not focused on sidebar, focus it
           setFocusedIdx(views.indexOf(currentView));
           // Scroll to top
           window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
-          // If already in navigation, confirm logout
-          if (confirm("Are you sure you want to logout?")) {
-            auth.signOut();
-            window.location.reload();
-          }
+          // If already in navigation, trigger the stylized logout modal
+          setShowLogoutConfirm(true);
         }
         return;
       }
