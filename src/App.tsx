@@ -4043,7 +4043,13 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-8 p-1">
+        <div ref={printRef} className="space-y-8 p-1 relative overflow-hidden">
+          {/* Watermark for Print */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
+            <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
+              {settings?.companyName || "PRO BILLER"}
+            </span>
+          </div>
           <div className="flex justify-between items-start border-b-4 border-green-700 pb-6">
             <div>
               <h1 className="text-3xl font-black text-green-700 uppercase">CREDIT NOTE</h1>
@@ -4628,8 +4634,14 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
           </div>
         </div>
 
-        <div ref={printRef} className="p-12 bg-white text-slate-800">
-          <header className="flex justify-between items-start mb-12 border-b-4 border-slate-900 pb-8">
+        <div ref={printRef} className="p-12 bg-white text-slate-800 relative overflow-hidden">
+          {/* Watermark for Print */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden">
+            <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
+              {settings?.companyName || "PRO BILLER"}
+            </span>
+          </div>
+          <header className="flex justify-between items-start mb-12 border-b-4 border-slate-900 pb-8 relative z-10">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">{settings?.companyName}</h1>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Payment Receipt / Voucher</p>
@@ -5392,7 +5404,13 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-8 p-1">
+        <div ref={printRef} className="space-y-8 p-1 relative overflow-hidden">
+          {/* Watermark for Print */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
+            <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
+              {settings?.companyName || "PRO BILLER"}
+            </span>
+          </div>
           <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-6">
             <div>
               <h1 className="text-3xl font-black text-indigo-900 uppercase">PURCHASE VOUCHER</h1>
@@ -5580,7 +5598,13 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-8 p-1">
+        <div ref={printRef} className="space-y-8 p-1 relative overflow-hidden">
+          {/* Watermark for Print */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
+            <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
+              {settings?.companyName || "PRO BILLER"}
+            </span>
+          </div>
           <div className="flex justify-between items-start border-b-4 border-red-700 pb-6">
             <div>
               <h1 className="text-3xl font-black text-red-700 uppercase">DEBIT NOTE</h1>
@@ -5760,7 +5784,13 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-8 p-1">
+        <div ref={printRef} className="space-y-8 p-1 relative overflow-hidden">
+          {/* Watermark for Print */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
+            <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
+              {settings?.companyName || "PRO BILLER"}
+            </span>
+          </div>
           <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6">
             <div>
               <h1 className="text-3xl font-black text-slate-900 uppercase">{settings?.companyName || "PRO BILLER"}</h1>
