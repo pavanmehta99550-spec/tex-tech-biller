@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Lock, User, ShieldCheck, Building2, Hash, Key, CheckCircle2, Mail, RefreshCw } from 'lucide-react';
-import { signInWithGoogle } from '../lib/firebase';
+import { auth, db, signInWithGoogle } from '../lib/firebase';
 import { FcGoogle } from 'react-icons/fc';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
 interface LoginProps {
   onLogin: (user?: any, customId?: string) => void;
@@ -34,8 +37,6 @@ export default function Login({
     e.preventDefault();
     setLoading(true);
     setError('');
-    const { createUserWithEmailAndPassword } = await import('firebase/auth');
-    const { auth } = await import('../lib/firebase');
     
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, signupPassword);
@@ -52,8 +53,6 @@ export default function Login({
     e.preventDefault();
     setLoading(true);
     setError('');
-    const { signInWithEmailAndPassword } = await import('firebase/auth');
-    const { auth } = await import('../lib/firebase');
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, signupPassword);
@@ -106,10 +105,6 @@ export default function Login({
     setError('');
 
     try {
-      const { doc, getDoc, setDoc } = await import('firebase/firestore');
-      const { db } = await import('../lib/firebase');
-      const { handleFirestoreError, OperationType } = await import('../lib/firestoreErrorHandler');
-
       // 1. Check Global Cloud Credentials first
       const credPath = `custom_credentials/${username}`;
       const credRef = doc(db, 'custom_credentials', username);

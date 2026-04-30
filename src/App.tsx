@@ -51,7 +51,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }> = {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails';
+type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -102,6 +102,7 @@ export default function App() {
   const [debitNotes, setDebitNotes] = useState<DebitNote[]>(() => storage.get('debit-notes', []));
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => storage.get('credit-notes', []));
   const [payments, setPayments] = useState<Payment[]>(() => storage.get('payments', []));
+  const [purchasePayments, setPurchasePayments] = useState<Payment[]>(() => storage.get('purchasePayments', []));
   const [settings, setSettings] = useState<AppSettings | null>(() => storage.get('settings', null));
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
   const [previewPurchase, setPreviewPurchase] = useState<Purchase | null>(null);
@@ -161,6 +162,7 @@ export default function App() {
       { key: 'debit-notes', setter: setDebitNotes },
       { key: 'credit-notes', setter: setCreditNotes },
       { key: 'payments', setter: setPayments },
+      { key: 'purchasePayments', setter: setPurchasePayments },
       { key: 'settings', setter: setSettings },
       { key: 'lastBackupDate', setter: setLastBackupDate },
     ];
@@ -678,6 +680,49 @@ export default function App() {
     setCurrentView('ledg');
   };
 
+  const handleSavePurchasePayment = (data: any) => {
+    const party = purchaseParties.find(p => p.id === data.partyId);
+    if (!party) return;
+
+    const isUpdate = !!data.id && purchasePayments.some(p => p.id === data.id);
+
+    const newPayment: Payment = {
+      id: data.id || Math.random().toString(36).substr(2, 9),
+      partyId: party.id,
+      partyName: party.name,
+      partyGstin: party.gstin,
+      amount: data.amount,
+      date: data.date || new Date().toISOString(),
+      chequeNumber: data.chequeNumber,
+      chequeDate: data.chequeDate,
+      notes: data.notes,
+      billAdjustments: data.billAdjustments
+    };
+
+    if (isUpdate) {
+      const oldPayment = purchasePayments.find(p => p.id === data.id)!;
+      const revertedParties = purchaseParties.map(p => 
+        p.id === oldPayment.partyId 
+          ? { ...p, totalPaid: (p.totalPaid || 0) - oldPayment.amount } 
+          : p
+      );
+      
+      setPurchasePayments(purchasePayments.map(p => p.id === data.id ? newPayment : p));
+      setPurchaseParties(revertedParties.map(p => 
+        p.id === data.partyId 
+          ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } 
+          : p
+      ));
+      setEditingPayment(null);
+    } else {
+      setPurchasePayments([newPayment, ...purchasePayments]);
+      setPurchaseParties(purchaseParties.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
+    }
+
+    alert(isUpdate ? "Send Payment Record Updated Successfully!" : "Send Payment Record Saved Successfully!");
+    setCurrentView('ledg');
+  };
+
   const handleDeletePayment = (payment: any) => {
     if (confirm("Are you sure you want to delete this payment record? This action cannot be undone.")) {
       setPayments(payments.filter((p: any) => p.id !== payment.id));
@@ -767,6 +812,7 @@ export default function App() {
           <NavBtn active={currentView === 'cn'} onClick={() => setCurrentView('cn')} icon={TrendingUp} label="Credit Note" />
           <NavBtn active={currentView === 'items'} onClick={() => setCurrentView('items')} icon={Package} label="Items Master" />
           <NavBtn active={currentView === 'pay'} onClick={() => setCurrentView('pay')} icon={CreditCard} label="Receive Payment" />
+          <NavBtn active={currentView === 'sendpay'} onClick={() => setCurrentView('sendpay')} icon={CreditCard} label="Send Payment" />
           <NavBtn active={currentView === 'ledg'} onClick={() => setCurrentView('ledg')} icon={BookText} label="Party Ledger" />
           <NavBtn active={currentView === 'transports'} onClick={() => setCurrentView('transports')} icon={Truck} label="Transports" />
           <NavBtn active={currentView === 'gstreport'} onClick={() => setCurrentView('gstreport')} icon={TrendingUp} label="GST Reports" />
@@ -975,6 +1021,19 @@ export default function App() {
                 }}
               />
             )}
+            {currentView === 'sendpay' && (
+              <SendPaymentView 
+                key={`sendpay-${editingPayment?.id || 'new'}`} 
+                onSave={handleSavePurchasePayment} 
+                parties={purchaseParties} 
+                purchases={purchases} 
+                editingPayment={editingPayment}
+                onCancel={() => {
+                  setEditingPayment(null);
+                  setCurrentView('ledg');
+                }}
+              />
+            )}
             {currentView === 'purchaseparty' && (
               <PartyMasterView 
                 key="purchaseparty" 
@@ -1019,12 +1078,12 @@ export default function App() {
             />}
             {currentView === 'signature' && <SignatureAndBankView 
               key="signature"
-              settings={settings}
+              settings={{...(settings || {}), viewMode: 'signature'}}
               onUpdateSettings={setSettings}
             />}
             {currentView === 'bankdetails' && <SignatureAndBankView 
               key="bankdetails"
-              settings={settings}
+              settings={{...(settings || {}), viewMode: 'bank'}}
               onUpdateSettings={setSettings}
             />}
             {currentView === 'settings' && <SettingsView key="settings" settings={settings} onSave={setSettings} />}
@@ -4009,6 +4068,212 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
   );
 }
 
+function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel }: any) {
+  const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
+  const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
+  const [chequeDate, setChequeDate] = useState(editingPayment?.chequeDate || '');
+  const [notes, setNotes] = useState(editingPayment?.notes || '');
+  const [billAdjustments, setBillAdjustments] = useState<any[]>(editingPayment?.billAdjustments || []);
+  const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
+
+  const selectedParty = parties.find((p: any) => p.id === selectedId);
+  const partyPurchases = useMemo(() => {
+    if (!selectedParty) return [];
+    return (purchases || []).filter((p: any) => p.partyGstin === selectedParty.gstin);
+  }, [selectedParty, purchases]);
+
+  useEffect(() => {
+    if (editingPayment) return;
+    if (selectedParty) {
+      setBillAdjustments(partyPurchases.map((p: any) => ({
+        billId: p.id,
+        billNumber: p.billNumber,
+        grandTotal: p.grandTotal,
+        paid: 0
+      })));
+    } else {
+      setBillAdjustments([]);
+    }
+  }, [selectedParty, partyPurchases]);
+
+  const totalAdjusted = billAdjustments.reduce((sum, b) => sum + (parseFloat(b.paid) || 0), 0);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto mt-12 mb-20 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+      <div className="bg-gradient-to-r from-red-600 to-rose-700 p-8 text-white flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-black uppercase tracking-tight">Send Payment</h2>
+          <p className="text-red-100 text-xs font-bold uppercase tracking-widest mt-1 italic">Payment to Purchase Parties</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-black text-red-100 uppercase tracking-widest">Total Sending</p>
+          <p className="text-2xl font-black text-white">₹ {totalAdjusted.toLocaleString()}</p>
+        </div>
+      </div>
+      
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        if (!selectedId) {
+          alert("Please select a party");
+          return;
+        }
+        if (totalAdjusted <= 0) {
+          alert("Please enter adjustment amount against at least one purchase bill");
+          return;
+        }
+        onSave({ 
+          id: editingPayment?.id,
+          partyId: selectedId, 
+          amount: totalAdjusted,
+          date: new Date(date).toISOString(),
+          chequeNumber,
+          chequeDate,
+          notes,
+          billAdjustments: billAdjustments.filter(b => b.paid > 0).map(b => ({
+            billId: b.billId,
+            billNumber: b.billNumber,
+            amount: b.paid
+          }))
+        });
+      }} className="p-10 space-y-10">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Select Purchase Party</label>
+            <select 
+              value={selectedId} 
+              disabled={!!editingPayment}
+              onChange={e => setSelectedId(e.target.value)}
+              className={`w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-red-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
+            >
+              <option value="">-- Choose Party --</option>
+              {parties.map((p: any) => (
+                <option key={p.id} value={p.id}>{p.name} ({p.gstin})</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Payment Date</label>
+            <input 
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-red-500 transition-all"
+            />
+          </div>
+          
+          {selectedParty && (
+            <div className="p-4 bg-red-50 rounded-2xl border border-red-100 flex justify-between items-center">
+              <div>
+                <div className="text-[10px] font-black text-red-700 uppercase tracking-widest">To Be Paid</div>
+                <div className="text-xl font-black text-red-600">
+                  ₹ {(selectedParty.totalPurchases - selectedParty.totalPaid).toLocaleString()}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] font-black text-red-700 uppercase tracking-widest">Total Purchases</div>
+                <div className="text-sm font-bold text-slate-600">₹ {selectedParty.totalPurchases.toLocaleString()}</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {selectedParty && (
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2">Adjust Against Purchase Bills</h3>
+            <div className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="px-6 py-4">Purchase Bill No.</th>
+                    <th className="px-6 py-4">Bill Total</th>
+                    <th className="px-6 py-4 text-right">Adjust Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {billAdjustments.map((b, idx) => (
+                    <tr key={b.billId} className="bg-white">
+                      <td className="px-6 py-4 font-black text-slate-900"># {b.billNumber}</td>
+                      <td className="px-6 py-4 font-bold text-slate-500 text-sm">₹ {b.grandTotal.toLocaleString()}</td>
+                      <td className="px-6 py-4">
+                        <input 
+                          type="number"
+                          step="any"
+                          value={b.paid || ''}
+                          onChange={(e) => {
+                            const newAdjustments = [...billAdjustments];
+                            newAdjustments[idx].paid = parseFloat(e.target.value) || 0;
+                            setBillAdjustments(newAdjustments);
+                          }}
+                          className="w-full text-right px-4 py-2 border border-slate-100 rounded-lg font-black text-red-600 outline-none focus:border-red-500"
+                          placeholder="0.00"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                  {billAdjustments.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-10 text-center text-slate-400 font-bold italic text-xs">No pending purchase bills found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-slate-100">
+          <div className="space-y-4">
+             <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cheque / Ref Number</label>
+                <input 
+                  type="text" 
+                  value={chequeNumber}
+                  onChange={e => setChequeNumber(e.target.value)}
+                  className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-red-500"
+                  placeholder="e.g. 123456"
+                />
+             </div>
+             <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cheque Pass Date</label>
+                <input 
+                  type="date" 
+                  value={chequeDate}
+                  onChange={e => setChequeDate(e.target.value)}
+                  className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-red-500"
+                />
+             </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Internal Notes</label>
+            <textarea 
+              rows={4}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-red-500 resize-none"
+              placeholder="Enter payment details..."
+            />
+          </div>
+        </div>
+
+        <div className="pt-4 flex flex-col items-center">
+          <button 
+            type="submit"
+            disabled={totalAdjusted <= 0}
+            className="w-full md:w-auto md:min-w-[400px] bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white font-black py-5 px-12 rounded-2xl text-xl shadow-xl shadow-red-100 transition-all active:scale-[0.98] flex items-center justify-center gap-4"
+          >
+            <Save size={24} /> Send Payment (₹ {totalAdjusted.toLocaleString()})
+          </button>
+          <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">
+            This will update the purchase party ledger and bills
+          </p>
+        </div>
+      </form>
+    </motion.div>
+  );
+}
+
 function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [amount, setAmount] = useState(editingPayment?.amount?.toString() || '');
@@ -5930,72 +6195,84 @@ function SignatureAndBankView({ settings, onUpdateSettings }: any) {
 
   return (
     <div className="space-y-12 pb-20">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto mt-12 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-8">
-        <header className="mb-8 text-center">
-          <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Upload size={32} />
-          </div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Upload Signature</h2>
-          <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">This will appear on your bill print-outs</p>
-        </header>
-
-        <div 
-          className={`relative border-2 border-dashed rounded-3xl p-12 transition-all flex flex-col items-center justify-center gap-4 ${dragActive ? 'border-indigo-500 bg-indigo-50 scale-105' : 'border-slate-200 bg-slate-50'}`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
-          <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-400">
-            <FileText size={32} />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-black text-slate-900 mb-1">Drag and drop your signature here</p>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Or click to browse (JPG, PNG, PDF)</p>
-          </div>
-          <input 
-            ref={fileInputRef}
-            type="file" 
-            className="hidden" 
-            accept="image/*,application/pdf"
-            onChange={handleChange}
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-xl shadow-indigo-900/40 hover:bg-indigo-700 transition-all"
-          >
-            Select File
-          </button>
-        </div>
-
-        {settings?.signature && (
-          <div className="mt-8 border-t border-slate-100 pt-8">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Current Signature Preview</h3>
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-center min-h-[100px]">
-              {settings.signature.startsWith('data:application/pdf') ? (
-                <div className="flex flex-col items-center gap-2 text-slate-500">
-                  <FileText size={48} />
-                  <span className="text-[10px] font-black uppercase">PDF Uploaded</span>
-                </div>
-              ) : (
-                <img src={settings.signature} alt="Signature" className="max-h-24 object-contain" />
-              )}
+      {settings?.viewMode === 'signature' && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto mt-12 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-8">
+          <header className="mb-8 text-center">
+            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Upload size={32} />
             </div>
-            <button 
-              onClick={() => {
-                if(confirm("Are you sure you want to remove the signature?")) {
-                  onUpdateSettings({...(settings || {}), signature: undefined});
-                }
-              }}
-              className="mt-4 text-xs font-black text-red-500 uppercase tracking-widest hover:underline"
-            >
-              Remove Signature
-            </button>
-          </div>
-        )}
-      </motion.div>
+            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Upload Signature</h2>
+            <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">This will appear on your bill print-outs</p>
+          </header>
 
-      <BankDetailsView settings={settings} onUpdateSettings={onUpdateSettings} />
+          <div 
+            className={`relative border-2 border-dashed rounded-3xl p-12 transition-all flex flex-col items-center justify-center gap-4 ${dragActive ? 'border-indigo-500 bg-indigo-50 scale-105' : 'border-slate-200 bg-slate-50'}`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-400">
+              <FileText size={32} />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-black text-slate-900 mb-1">Drag and drop your signature here</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Or click to browse (JPG, PNG, PDF)</p>
+            </div>
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              className="hidden" 
+              accept="image/*,application/pdf"
+              onChange={handleChange}
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-4 px-6 py-3 bg-white text-indigo-600 border-2 border-indigo-600 rounded-xl font-black text-sm hover:bg-indigo-50 transition-all"
+            >
+              Select File
+            </button>
+            {settings?.signature && (
+              <button 
+                onClick={() => alert("Signature is ready! It will be saved with other details when you click the main save button in Settings or when updated automatically.")}
+                className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-xl shadow-indigo-900/40 hover:bg-indigo-700 transition-all flex items-center gap-2"
+              >
+                <Save size={16} /> Save Signature
+              </button>
+            )}
+          </div>
+
+          {settings?.signature && (
+            <div className="mt-8 border-t border-slate-100 pt-8">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Current Signature Preview</h3>
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-center min-h-[100px]">
+                {settings.signature.startsWith('data:application/pdf') ? (
+                  <div className="flex flex-col items-center gap-2 text-slate-500">
+                    <FileText size={48} />
+                    <span className="text-[10px] font-black uppercase">PDF Uploaded</span>
+                  </div>
+                ) : (
+                  <img src={settings.signature} alt="Signature" className="max-h-24 object-contain" />
+                )}
+              </div>
+              <button 
+                onClick={() => {
+                  if(confirm("Are you sure you want to remove the signature?")) {
+                    onUpdateSettings({...(settings || {}), signature: undefined});
+                  }
+                }}
+                className="mt-4 text-xs font-black text-red-500 uppercase tracking-widest hover:underline"
+              >
+                Remove Signature
+              </button>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {settings?.viewMode === 'bank' && (
+        <BankDetailsView settings={settings} onUpdateSettings={onUpdateSettings} />
+      )}
     </div>
   );
 }
