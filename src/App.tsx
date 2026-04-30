@@ -129,6 +129,17 @@ export default function App() {
 
   // Firebase Auth Listener
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F5') {
+        e.preventDefault();
+        window.location.reload();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
@@ -854,7 +865,16 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8 print:ml-0 print:p-0 relative">
-        <div className="absolute top-8 right-8 flex items-center gap-3 bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-slate-200 shadow-sm z-10">
+        <div className="absolute top-8 right-8 flex items-center gap-3 bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-slate-200 shadow-sm z-10 print:hidden">
+          <button 
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
+            title="Refresh Application (F5)"
+          >
+            <RefreshCw size={14} className="animate-spin-hover" />
+            Update App
+          </button>
+          <div className="w-px h-4 bg-slate-200 mx-1"></div>
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Working Year:</span>
           <span className="text-sm font-black text-slate-900 tracking-tight">{financialYear}</span>
