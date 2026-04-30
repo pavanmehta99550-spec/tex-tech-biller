@@ -29,6 +29,7 @@ import {
   RefreshCw,
   FileText,
   PenTool,
+  Landmark,
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import jsPDF from 'jspdf';
@@ -47,7 +48,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }> = {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'gstreport' | 'transports' | 'signature';
+type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -545,6 +546,7 @@ export default function App() {
           <NavBtn active={currentView === 'transports'} onClick={() => setCurrentView('transports')} icon={Truck} label="Transports" />
           <NavBtn active={currentView === 'gstreport'} onClick={() => setCurrentView('gstreport')} icon={TrendingUp} label="GST Reports" />
           <NavBtn active={currentView === 'signature'} onClick={() => setCurrentView('signature')} icon={PenTool} label="Upload Signature" />
+          <NavBtn active={currentView === 'bankdetails'} onClick={() => setCurrentView('bankdetails')} icon={Landmark} label="Bank Details" />
           <NavBtn active={currentView === 'backup'} onClick={() => setCurrentView('backup')} icon={Download} label="Data Backup" />
           <NavBtn active={currentView === 'settings'} onClick={() => setCurrentView('settings')} icon={Settings} label="Settings" />
           <button 
@@ -770,6 +772,11 @@ export default function App() {
             />}
             {currentView === 'signature' && <SignatureUploadView 
               key="signature"
+              settings={settings}
+              onUpdateSettings={setSettings}
+            />}
+            {currentView === 'bankdetails' && <BankDetailsView 
+              key="bankdetails"
               settings={settings}
               onUpdateSettings={setSettings}
             />}
@@ -3566,18 +3573,39 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
             </tbody>
           </table>
 
-          <div className="space-y-2 border-t border-slate-100 pt-6">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
-              <span>Basic Amount</span>
-              <span>₹{creditNote.basicAmount.toLocaleString()}</span>
+          <div className="border-t border-slate-100 pt-6 flex justify-between items-start">
+            <div className="flex-1 pr-8">
+              {settings?.bankName && (
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <Landmark size={12} className="text-green-600" /> Bank Details
+                  </h4>
+                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
+                    <span className="font-bold text-slate-500 uppercase">Bank:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.bankName}</span>
+                    <span className="font-bold text-slate-500 uppercase">A/c No:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.accountNumber}</span>
+                    <span className="font-bold text-slate-500 uppercase">IFSC:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.ifscCode}</span>
+                    <span className="font-bold text-slate-500 uppercase">Branch:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.branchName}</span>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
-              <span>Tax ({creditNote.taxRate}%)</span>
-              <span>₹{creditNote.taxAmount.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-              <span className="text-lg font-black uppercase">Grand Total</span>
-              <span className="text-xl font-black text-green-700">₹{creditNote.grandTotal.toLocaleString()}</span>
+            <div className="w-64 space-y-2">
+              <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
+                <span>Basic Amount</span>
+                <span>₹{creditNote.basicAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
+                <span>Tax ({creditNote.taxRate}%)</span>
+                <span>₹{creditNote.taxAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                <span className="text-lg font-black uppercase">Grand Total</span>
+                <span className="text-xl font-black text-green-700">₹{creditNote.grandTotal.toLocaleString()}</span>
+              </div>
             </div>
           </div>
 
@@ -4634,7 +4662,26 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
             </tbody>
           </table>
 
-          <div className="border-t border-slate-200 pt-6 flex justify-end">
+          <div className="border-t border-slate-200 pt-6 flex justify-between items-start">
+            <div className="flex-1 pr-8">
+              {settings?.bankName && (
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <Landmark size={12} className="text-indigo-600" /> Bank Details
+                  </h4>
+                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
+                    <span className="font-bold text-slate-500 uppercase">Bank:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.bankName}</span>
+                    <span className="font-bold text-slate-500 uppercase">A/c No:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.accountNumber}</span>
+                    <span className="font-bold text-slate-500 uppercase">IFSC:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.ifscCode}</span>
+                    <span className="font-bold text-slate-500 uppercase">Branch:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.branchName}</span>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="w-64 space-y-2">
               <div className="flex justify-between text-slate-500 font-bold text-sm">
                 <span>Basic Amount:</span>
@@ -4801,7 +4848,26 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
             </tbody>
           </table>
 
-          <div className="border-t border-slate-200 pt-6 flex justify-end">
+          <div className="border-t border-slate-200 pt-6 flex justify-between items-start">
+            <div className="flex-1 pr-8">
+              {settings?.bankName && (
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <Landmark size={12} className="text-red-600" /> Bank Details
+                  </h4>
+                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
+                    <span className="font-bold text-slate-500 uppercase">Bank:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.bankName}</span>
+                    <span className="font-bold text-slate-500 uppercase">A/c No:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.accountNumber}</span>
+                    <span className="font-bold text-slate-500 uppercase">IFSC:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.ifscCode}</span>
+                    <span className="font-bold text-slate-500 uppercase">Branch:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.branchName}</span>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="w-64 space-y-2">
               <div className="flex justify-between text-slate-500 font-bold text-sm">
                 <span>Taxable Value:</span>
@@ -5001,7 +5067,26 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
             </tbody>
           </table>
 
-          <div className="border-t border-slate-200 pt-6 flex justify-end">
+          <div className="border-t border-slate-200 pt-6 flex justify-between items-start">
+            <div className="flex-1 pr-8">
+              {settings?.bankName && (
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <Landmark size={12} className="text-[#00cec9]" /> Bank Details
+                  </h4>
+                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
+                    <span className="font-bold text-slate-500 uppercase">Bank:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.bankName}</span>
+                    <span className="font-bold text-slate-500 uppercase">A/c No:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.accountNumber}</span>
+                    <span className="font-bold text-slate-500 uppercase">IFSC:</span>
+                    <span className="font-black text-slate-900 tracking-wider">{settings.ifscCode}</span>
+                    <span className="font-bold text-slate-500 uppercase">Branch:</span>
+                    <span className="font-black text-slate-900 uppercase">{settings.branchName}</span>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="w-64 space-y-2">
               <div className="flex justify-between text-slate-500 font-bold text-sm">
                 <span>Total Items Value:</span>
@@ -5481,6 +5566,159 @@ function SignatureUploadView({ settings, onUpdateSettings }: any) {
             Remove Signature
           </button>
         </div>
+      )}
+    </motion.div>
+  );
+}
+
+function BankDetailsView({ settings, onUpdateSettings }: any) {
+  const [formData, setFormData] = useState({
+    bankName: settings?.bankName || '',
+    accountNumber: settings?.accountNumber || '',
+    ifscCode: settings?.ifscCode || '',
+    branchName: settings?.branchName || ''
+  });
+  const [isLocked, setIsLocked] = useState(!!settings?.bankName || !!settings?.accountNumber);
+  const [password, setPassword] = useState('');
+  const [showPassError, setShowPassError] = useState(false);
+
+  const handleUnlock = () => {
+    // Exact same logic as SettingsView
+    const derivedPrefix = (settings?.companyName || '').replace(/\s/g, '').substring(0, 5).toUpperCase();
+    const derivedSuffix = (settings?.gstin || '').slice(-3).toUpperCase();
+    const derivedPassword = derivedPrefix + derivedSuffix;
+    const manualPassword = settings?.adminPassword;
+
+    if (
+      password === manualPassword || 
+      password.toUpperCase() === derivedPassword || 
+      password === 'ANGAD99'
+    ) {
+      setIsLocked(false);
+      setShowPassError(false);
+      setPassword('');
+    } else {
+      setShowPassError(true);
+    }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateSettings({ 
+      ...(settings || {}), 
+      ...formData 
+    });
+    setIsLocked(true);
+    alert("Bank Details Saved Successfully!");
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl mx-auto mt-12 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+      <div className="bg-[#1E293B] p-8 text-white">
+        <div className="flex items-center gap-4">
+          <Landmark size={32} className="text-[#00cec9]" />
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Bank Details</h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Update your banking information</p>
+          </div>
+        </div>
+      </div>
+
+      {isLocked ? (
+        <div className="p-10 space-y-8 text-center bg-slate-50/50">
+          <div className="w-20 h-20 bg-slate-900 text-[#00cec9] rounded-full flex items-center justify-center mx-auto shadow-xl">
+             <Lock size={32} />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-slate-900 uppercase">Section Locked</h3>
+            <p className="text-slate-500 text-xs font-bold mt-1 uppercase tracking-widest leading-relaxed">Enter your password to modify<br/>Bank details</p>
+          </div>
+          <div className="max-w-xs mx-auto space-y-4">
+             <input 
+               type="password" 
+               value={password}
+               onChange={(e) => setPassword(e.target.value)}
+               className={`w-full px-6 py-4 bg-white border outline-none rounded-2xl font-black text-center tracking-[0.5em] transition-all ${showPassError ? 'border-red-500 ring-4 ring-red-50 shadow-inner' : 'border-slate-200 focus:border-[#00cec9] shadow-sm'}`}
+               placeholder="••••"
+             />
+             <button 
+               onClick={handleUnlock}
+               className="w-full bg-[#1e272e] text-white font-black py-4 rounded-2xl hover:bg-black transition-all shadow-xl active:scale-[0.98]"
+             >
+               Unlock Records
+             </button>
+             {showPassError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">Access Denied: Incorrect Password</p>}
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSave} className="p-10 space-y-6">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bank Name</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={formData.bankName}
+                  onChange={e => setFormData({ ...formData, bankName: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:bg-white focus:border-[#00cec9] transition-all"
+                  placeholder="HDFC Bank"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Account Number</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={formData.accountNumber}
+                  onChange={e => setFormData({ ...formData, accountNumber: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:bg-white focus:border-[#00cec9] transition-all"
+                  placeholder="1234567890"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">IFSC Code</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={formData.ifscCode}
+                    onChange={e => setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:bg-white focus:border-[#00cec9] transition-all"
+                    placeholder="HDFC0001234"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Branch Name</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={formData.branchName}
+                    onChange={e => setFormData({ ...formData, branchName: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:bg-white focus:border-[#00cec9] transition-all"
+                    placeholder="Main Branch"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-4 pt-4">
+            <button 
+              type="button"
+              onClick={() => setIsLocked(true)}
+              className="flex-1 bg-slate-100 text-slate-600 font-black py-4 rounded-xl hover:bg-slate-200 transition-all"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              className="flex-[2] bg-[#1e272e] text-white font-black py-4 rounded-xl hover:bg-black transition-all shadow-xl active:scale-[0.98]"
+            >
+              Save Bank Details
+            </button>
+          </div>
+        </form>
       )}
     </motion.div>
   );

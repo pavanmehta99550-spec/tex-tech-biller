@@ -66,6 +66,10 @@ export interface AppSettings {
   mobile: string;
   adminPassword?: string;
   signature?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  branchName?: string;
 }
 
 export interface Payment {
