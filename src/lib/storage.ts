@@ -18,5 +18,12 @@ export const storage = {
     } catch (e) {
       console.error('Storage error', e);
     }
+  },
+  remove: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.error('Storage error', e);
+    }
   }
 };

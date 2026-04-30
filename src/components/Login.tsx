@@ -108,41 +108,57 @@ export default function Login({
     try {
       const { doc, getDoc, setDoc } = await import('firebase/firestore');
       const { db } = await import('../lib/firebase');
+      const { handleFirestoreError, OperationType } = await import('../lib/firestoreErrorHandler');
 
       // 1. Check Global Cloud Credentials first
+      const credPath = `custom_credentials/${username}`;
       const credRef = doc(db, 'custom_credentials', username);
-      const credSnap = await getDoc(credRef);
+      let credSnap;
+      try {
+        credSnap = await getDoc(credRef);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.GET, credPath);
+      }
 
-      if (credSnap.exists()) {
+      if (credSnap && credSnap.exists()) {
         const data = credSnap.data();
-        if (data.password === password) {
+        if (data.username === username && data.password === password) {
           onLogin(null, username);
           return;
-        } else {
+        } else if (data.password !== password) {
           setError('Invalid Password for this User ID!');
           setLoading(false);
           return;
         }
       }
 
-      // 2. Fallback to Local/Default check or Setup new Cloud ID
+      // 2. Fallback to Local/Default check or Setup new Cloud ID?
       const isLocalUsernameValid = (username.toLowerCase() === expectedUsername.toLowerCase() || username === expectedPassword || username === 'ANGAD99' || username === '1234');
       const isLocalPasswordValid = (password === expectedPassword || password === 'ANGAD99' || password === '1234');
       
       if (isLocalUsernameValid && isLocalPasswordValid) {
         // If it's valid locally, we register it to the Cloud for future cross-device sync
-        await setDoc(credRef, {
-          username: username,
-          password: password,
-          createdAt: new Date().toISOString()
-        });
+        try {
+          await setDoc(credRef, {
+            username: username,
+            password: password,
+            createdAt: new Date().toISOString()
+          });
+        } catch (err) {
+           handleFirestoreError(err, OperationType.CREATE, credPath);
+        }
         onLogin(null, username);
       } else {
-        setError('Invalid User ID or Password! If this is a new device, check your details.');
+        setError('Invalid User ID or Password! Are you using the correct name?');
       }
     } catch (err: any) {
-      console.error("Login Error:", err);
-      setError(`Auth Error: ${err.message || 'Server connection failed'}`);
+      console.error("Login Error Details:", err);
+      try {
+        const parsedError = JSON.parse(err.message);
+        setError(`Security Block: ${parsedError.error}. Check your credentials.`);
+      } catch {
+        setError(`Auth Error: ${err.message || 'Server connection failed'}`);
+      }
     } finally {
       setLoading(false);
     }

@@ -27,5 +27,23 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
     }
+
+    // Custom accounts for multi-device sync without Google login
+    match /custom_credentials/{username} {
+      // Allow any user to find a credential to check password
+      allow get: if true;
+      // Allow creation of first-time credentials
+      allow create: if true;
+      // Allow update if they know the id (this is simplified as requested)
+      allow update: if true;
+    }
+
+    match /custom_accounts/{customId} {
+      allow read, write: if true;
+      
+      match /{collectionPath}/{docId} {
+        allow read, write: if true;
+      }
+    }
   }
 }

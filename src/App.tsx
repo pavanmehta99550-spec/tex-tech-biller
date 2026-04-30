@@ -179,11 +179,13 @@ export default function App() {
             setDoc(doc(db, col, docId, subCol, subDocId), { value: localData });
           }
         }
+      }, (error) => {
+        console.error(`Snapshot error for ${key}:`, error);
       });
     });
 
     return () => unsubscribers.forEach(unsub => unsub());
-  }, [user]);
+  }, [user, customLoginId]);
 
   // Sync to Firebase on changes
   useEffect(() => {
@@ -210,7 +212,8 @@ export default function App() {
         for (const [key, value] of Object.entries(batch)) {
           if (value !== undefined) {
              const docPath = user ? `users/${user.uid}/appData/${key}` : `custom_accounts/${customLoginId}/appData/${key}`;
-             const [col, docId, subCol, subDocId] = docPath.split('/');
+             const pathParts = docPath.split('/');
+             const [col, docId, subCol, subDocId] = pathParts;
              await setDoc(doc(db, col, docId, subCol, subDocId), { value });
           }
         }

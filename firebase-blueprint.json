@@ -71,6 +71,8 @@
     "users/{userId}/debitNotes": { "schema": "DebitNote", "description": "User's debit notes" },
     "users/{userId}/creditNotes": { "schema": "CreditNote", "description": "User's credit notes" },
     "users/{userId}/payments": { "schema": "Payment", "description": "User's payment records" },
-    "users/{userId}/settings/profile": { "schema": "AppSettings", "description": "User's business profile" }
+    "users/{userId}/settings/profile": { "schema": "AppSettings", "description": "User's business profile" },
+    "custom_credentials/{username}": { "schema": "object", "description": "Stores user ID and password for multi-device sync" },
+    "custom_accounts/{customId}/appData/{key}": { "schema": "object", "description": "Stores app data for custom ID accounts" }
   }
 }
