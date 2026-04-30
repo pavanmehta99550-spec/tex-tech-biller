@@ -51,7 +51,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }> = {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails';
+type View = 'dash' | 'inv' | 'pay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -375,6 +375,48 @@ export default function App() {
     alert("Sale Bill Deleted Successfully!");
   };
 
+  const handleDeletePurchase = (id: string) => {
+    if (!confirm("Are you sure you want to delete this Purchase Bill? This will also revert the party balance.")) return;
+    const pToDelete = purchases.find(p => p.id === id);
+    if (!pToDelete) return;
+    
+    setPurchaseParties(prev => prev.map(p => 
+      p.gstin === pToDelete.partyGstin 
+        ? { ...p, totalPurchases: (p.totalPurchases || 0) - pToDelete.grandTotal } 
+        : p
+    ));
+    setPurchases(prev => prev.filter(p => p.id !== id));
+    alert("Purchase Bill Deleted Successfully!");
+  };
+
+  const handleDeleteDebitNote = (id: string) => {
+    if (!confirm("Are you sure you want to delete this Debit Note? This will also revert the party balance.")) return;
+    const dnToDelete = debitNotes.find(dn => dn.id === id);
+    if (!dnToDelete) return;
+
+    setPurchaseParties(prev => prev.map(p => 
+      p.gstin === dnToDelete.partyGstin 
+        ? { ...p, totalPurchases: (p.totalPurchases || 0) + dnToDelete.grandTotal } 
+        : p
+    ));
+    setDebitNotes(prev => prev.filter(dn => dn.id !== id));
+    alert("Debit Note Deleted Successfully!");
+  };
+
+  const handleDeleteCreditNote = (id: string) => {
+    if (!confirm("Are you sure you want to delete this Credit Note? This will also revert the party balance.")) return;
+    const cnToDelete = creditNotes.find(cn => cn.id === id);
+    if (!cnToDelete) return;
+
+    setSaleParties(prev => prev.map(p => 
+      p.gstin === cnToDelete.partyGstin 
+        ? { ...p, totalSales: (p.totalSales || 0) + cnToDelete.grandTotal } 
+        : p
+    ));
+    setCreditNotes(prev => prev.filter(cn => cn.id !== id));
+    alert("Credit Note Deleted Successfully!");
+  };
+
   const handleSavePurchase = (data: Partial<Purchase>) => {
     let updatedParties = [...purchaseParties];
     
@@ -668,6 +710,7 @@ export default function App() {
           <NavBtn active={currentView === 'salehistory'} onClick={() => setCurrentView('salehistory')} icon={BookText} label="Sale History" />
           <NavBtn active={currentView === 'saleparty'} onClick={() => setCurrentView('saleparty')} icon={Users} label="Sale Party Entry" />
           <NavBtn active={currentView === 'pur'} onClick={() => setCurrentView('pur')} icon={ShoppingBag} label="Purchase Bill" />
+          <NavBtn active={currentView === 'purchasehistory'} onClick={() => setCurrentView('purchasehistory')} icon={BookText} label="Purchase History" />
           <NavBtn active={currentView === 'purchaseparty'} onClick={() => setCurrentView('purchaseparty')} icon={Users} label="Purchase Party Entry" />
           <NavBtn active={currentView === 'dn'} onClick={() => setCurrentView('dn')} icon={AlertCircle} label="Debit Note" />
           <NavBtn active={currentView === 'cn'} onClick={() => setCurrentView('cn')} icon={TrendingUp} label="Credit Note" />
@@ -735,6 +778,7 @@ export default function App() {
                 setEditingPurchase(p);
                 setCurrentView('pur');
               }}
+              onDeletePurchase={handleDeletePurchase}
               onPreviewPurchase={(p: Purchase) => setPreviewPurchase(p)}
             />}
             {currentView === 'inv' && <BookingView 
@@ -762,6 +806,16 @@ export default function App() {
               onDeleteSale={handleDeleteBooking}
               onPreviewSale={(b: Booking) => setPreviewBooking(b)}
             />}
+            {currentView === 'purchasehistory' && <PurchaseHistoryView 
+              key="purchasehistory"
+              purchases={purchases}
+              onEditPurchase={(p: Purchase) => {
+                setEditingPurchase(p);
+                setCurrentView('pur');
+              }}
+              onDeletePurchase={handleDeletePurchase}
+              onPreviewPurchase={(p: Purchase) => setPreviewPurchase(p)}
+            />}
             {currentView === 'saleparty' && (
               <PartyMasterView 
                 key="saleparty" 
@@ -782,6 +836,7 @@ export default function App() {
               itemsMaster={itemsMaster}
               transports={transports}
               editingPurchase={editingPurchase}
+              onViewHistory={() => setCurrentView('purchasehistory')}
               onCancel={() => {
                 setEditingPurchase(null);
                 setCurrentView('dash');
@@ -792,15 +847,10 @@ export default function App() {
               onSave={handleSaveDebitNote} 
               onEdit={(dn: DebitNote) => {
                 setEditingDebitNote(dn);
-                // No need to change view as we are already in 'dn'
               }}
-              onDelete={(id: string) => {
-                if (window.confirm("Are you sure you want to delete this Debit Note?")) {
-                  setDebitNotes(debitNotes.filter(dn => dn.id !== id));
-                }
-              }}
+              onDelete={handleDeleteDebitNote}
               onPreview={(dn: DebitNote) => setPreviewDebitNote(dn)}
-              parties={purchaseParties} 
+              parties={purchaseParties}
               settings={settings}
               debitNotes={debitNotes}
               purchases={purchases}
@@ -817,13 +867,9 @@ export default function App() {
               onEdit={(cn: CreditNote) => {
                 setEditingCreditNote(cn);
               }}
-              onDelete={(id: string) => {
-                if (window.confirm("Are you sure you want to delete this Credit Note?")) {
-                  setCreditNotes(creditNotes.filter(cn => cn.id !== id));
-                }
-              }}
+              onDelete={handleDeleteCreditNote}
               onPreview={(cn: CreditNote) => setPreviewCreditNote(cn)}
-              parties={saleParties} 
+              parties={saleParties}
               settings={settings}
               creditNotes={creditNotes}
               bookings={bookings}
@@ -1137,6 +1183,97 @@ function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale }: 
   );
 }
 
+function PurchaseHistoryView({ purchases, onEditPurchase, onDeletePurchase, onPreviewPurchase }: any) {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredPurchases = useMemo(() => {
+    return (purchases || []).filter((p: Purchase) => 
+      p.billNumber?.toString().includes(searchTerm) || 
+      p.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.partyGstin.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [purchases, searchTerm]);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+      <header className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Purchase History</h2>
+          <p className="text-slate-500 font-bold text-sm">View and Manage all inward bills</p>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search by Bill No, Party or GST..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-red-600 shadow-sm w-80 transition-all"
+          />
+        </div>
+      </header>
+
+      <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                <th className="px-8 py-5">Date</th>
+                <th className="px-8 py-5">Bill No.</th>
+                <th className="px-8 py-5">Supplier (GSTIN)</th>
+                <th className="px-8 py-5 text-right">Amount</th>
+                <th className="px-8 py-5 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filteredPurchases.map((p: Purchase) => (
+                <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
+                  <td className="px-8 py-5 font-bold text-slate-600">
+                    {new Date(p.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-8 py-5">
+                    <span className="bg-red-50 text-red-700 px-3 py-1 rounded-lg font-black text-xs">#{p.billNumber}</span>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="font-black text-slate-900 uppercase text-xs">{p.partyName}</div>
+                    <div className="text-[10px] text-slate-400 font-bold tracking-wider">{p.partyGstin}</div>
+                  </td>
+                  <td className="px-8 py-5 text-right whitespace-nowrap">
+                    <span className="font-black text-red-600 tracking-tighter text-lg">₹ {p.grandTotal.toLocaleString()}</span>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => onPreviewPurchase(p)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="View/Print">
+                        <Printer size={18} />
+                      </button>
+                      <button onClick={() => onEditPurchase(p)} className="p-2.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title="Edit Bill">
+                        <Plus size={18} className="rotate-45" />
+                      </button>
+                      <button onClick={() => onDeletePurchase(p.id)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete">
+                        <AlertCircle size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredPurchases.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-8 py-20 text-center">
+                    <div className="flex flex-col items-center gap-4 text-slate-300">
+                      <ShoppingBag size={64} opacity={0.2} />
+                      <p className="font-black uppercase tracking-widest text-xs">No records found matching search</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function NavBtn({ active, onClick, icon: Icon, label }: any) {
   return (
     <button 
@@ -1153,7 +1290,7 @@ function NavBtn({ active, onClick, icon: Icon, label }: any) {
   );
 }
 
-function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, onPreviewSale, onEditPurchase, onPreviewPurchase }: any) {
+function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, onPreviewSale, onEditPurchase, onDeletePurchase, onPreviewPurchase }: any) {
   const [searchTerm, setSearchTerm] = useState('');
   
   const financialYear = useMemo(() => {
@@ -1291,6 +1428,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                   <th className="px-8 py-4">Bill Details</th>
                   <th className="px-8 py-4">Supplier</th>
                   <th className="px-8 py-4 text-right">Amount</th>
+                  <th className="px-8 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -1307,6 +1445,19 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                     <td className="px-8 py-5 text-right whitespace-nowrap">
                       <span className="font-black text-red-600 tracking-tighter">₹ {p.grandTotal.toLocaleString()}</span>
                     </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => onPreviewPurchase(p)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="View">
+                          <Printer size={14} />
+                        </button>
+                        <button onClick={() => onEditPurchase(p)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Edit">
+                          <Plus size={14} className="rotate-45" />
+                        </button>
+                        <button onClick={() => onDeletePurchase(p.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                          <AlertCircle size={14} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {(!purchases || purchases.length === 0) && (
@@ -1321,7 +1472,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
   );
 }
 
-function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onCancel }: any) {
+function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onViewHistory, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
@@ -1504,6 +1655,13 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
           <p className="text-indigo-300 font-black text-xs tracking-[0.3em]">PURCHASE ENTRY SYSTEM</p>
         </div>
         <div className="flex items-center gap-4">
+          <button 
+            type="button"
+            onClick={onViewHistory}
+            className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/20 shadow-lg"
+          >
+            <BookText size={14} /> View Inward History
+          </button>
           {isLocked && (
             <div className="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 border border-red-500/30">
               <AlertCircle size={14} /> Locked (30 Days Passed)
