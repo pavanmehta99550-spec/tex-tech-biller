@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Lock, User, ShieldCheck, Building2, Hash, Key, CheckCircle2 } from 'lucide-react';
+import { Lock, User, ShieldCheck, Building2, Hash, Key, CheckCircle2, Mail } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
 import { FcGoogle } from 'react-icons/fc';
 
