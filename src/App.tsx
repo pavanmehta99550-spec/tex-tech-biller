@@ -1184,6 +1184,8 @@ export default function App() {
               stats={stats} 
               bookings={bookings} 
               purchases={purchases}
+              isSyncing={isSyncing}
+              syncStatus={syncStatus}
               onEditSale={(b: Booking) => {
                 setEditingBooking(b);
                 setCurrentView('inv');
@@ -1787,7 +1789,7 @@ function NavBtn({ active, onClick, icon: Icon, label, focused, shortcut }: any) 
   );
 }
 
-function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, onPreviewSale, onEditPurchase, onDeletePurchase, onPreviewPurchase }: any) {
+function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, onPreviewSale, onEditPurchase, onDeletePurchase, onPreviewPurchase, isSyncing, syncStatus }: any) {
   const [searchTerm, setSearchTerm] = useState('');
   const [lrSearchTerm, setLrSearchTerm] = useState('');
   const [isVisible, setIsVisible] = useState(true);
@@ -1822,9 +1824,14 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
+      <header className="flex flex-col md:flex-row justify-between items-center bg-white p-8 rounded-[40px] border border-slate-200 shadow-2xl gap-6">
+        <div className="flex-1">
+          <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Vyapaar Summary</h2>
+          <p className="text-slate-500 font-medium italic">Overview of all transactions and returns</p>
+        </div>
+
+        <div className="flex flex-col items-center gap-3 px-8 border-x border-slate-100">
+          <div className="flex items-center gap-2">
             <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-widest">FY {financialYear}</span>
             <button 
               onClick={() => setIsVisible(!isVisible)}
@@ -1834,28 +1841,34 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
               <span className="text-[10px] font-black uppercase tracking-widest">{isVisible ? 'Hide Data' : 'Show Data'}</span>
             </button>
           </div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Vyapaar Summary</h2>
-          <p className="text-slate-500 font-medium italic">Overview of all transactions and returns</p>
+          
+          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-2xl whitespace-nowrap">
+            <div className={`w-2 h-2 rounded-full ${syncStatus === 'synced' ? 'bg-[#2ed573]' : syncStatus === 'error' ? 'bg-red-500' : 'bg-indigo-500 animate-pulse'}`}></div>
+            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+              {syncStatus === 'synced' ? 'Data Synced' : syncStatus === 'error' ? 'Sync Error' : 'Cloud Syncing...'}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        <div className="flex-1 flex flex-wrap justify-end gap-2">
           <div className="relative group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
             <input 
               type="text" 
-              placeholder="Search Bills/Parties..." 
+              placeholder="Search Bills..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-600 shadow-sm w-56 transition-all"
+              className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-600 shadow-sm w-44 transition-all"
             />
           </div>
           <div className="relative group">
             <Truck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={18} />
             <input 
               type="text" 
-              placeholder="Search LR No..." 
+              placeholder="LR No..." 
               value={lrSearchTerm}
               onChange={(e) => setLrSearchTerm(e.target.value)}
-              className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-600 shadow-sm w-44 transition-all"
+              className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-600 shadow-sm w-36 transition-all"
             />
           </div>
         </div>
