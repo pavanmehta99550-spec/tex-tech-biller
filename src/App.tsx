@@ -87,6 +87,7 @@ export default function App() {
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [logoutFocusedIdx, setLogoutFocusedIdx] = useState<number>(-1);
   
   const [purchaseParties, setPurchaseParties] = useState<Party[]>(() => {
     const saved = storage.get('purchaseParties', storage.get('parties', []));
@@ -184,6 +185,7 @@ export default function App() {
         if (showLogoutConfirm || showBackupWarning) {
           setShowLogoutConfirm(false);
           setShowBackupWarning(false);
+          setLogoutFocusedIdx(-1);
           closedSomething = true;
         }
 
@@ -201,11 +203,42 @@ export default function App() {
         } else {
           // If already in navigation, trigger the stylized logout modal
           setShowLogoutConfirm(true);
+          setLogoutFocusedIdx(0);
         }
         return;
       }
 
       if (isInput) return;
+      
+      if (showLogoutConfirm) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          setLogoutFocusedIdx(prev => (prev < 2 ? prev + 1 : 0));
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          setLogoutFocusedIdx(prev => (prev > 0 ? prev - 1 : 2));
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (logoutFocusedIdx === 0) {
+            setCurrentView('backup');
+            setShowLogoutConfirm(false);
+            setLogoutFocusedIdx(-1);
+          } else if (logoutFocusedIdx === 1) {
+            auth.signOut();
+            resetData();
+            setIsAuthenticated(false);
+            setUser(null);
+            setCustomLoginId(null);
+            storage.remove('customLoginId');
+            setShowLogoutConfirm(false);
+            setLogoutFocusedIdx(-1);
+          } else if (logoutFocusedIdx === 2) {
+            setShowLogoutConfirm(false);
+            setLogoutFocusedIdx(-1);
+          }
+        }
+        return;
+      }
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -223,7 +256,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentView, focusedIdx, views, previewBooking, previewPurchase, previewDebitNote, previewCreditNote, editingBooking, editingPurchase, editingDebitNote, editingCreditNote, editingPayment, showLogoutConfirm, showBackupWarning]);
+  }, [currentView, focusedIdx, views, previewBooking, previewPurchase, previewDebitNote, previewCreditNote, editingBooking, editingPurchase, editingDebitNote, editingCreditNote, editingPayment, showLogoutConfirm, showBackupWarning, logoutFocusedIdx]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -1370,8 +1403,13 @@ export default function App() {
                   onClick={() => {
                     setCurrentView('backup');
                     setShowLogoutConfirm(false);
+                    setLogoutFocusedIdx(-1);
                   }}
-                  className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-black transition-all active:scale-95"
+                  className={`w-full py-5 rounded-3xl font-black text-sm uppercase tracking-widest shadow-xl transition-all active:scale-95 ${
+                    logoutFocusedIdx === 0 
+                      ? "bg-black text-white shadow-none ring-4 ring-indigo-200" 
+                      : "bg-indigo-600 text-white shadow-indigo-100 hover:bg-black"
+                  }`}
                 >
                   Go to Backup Page
                 </button>
@@ -1385,14 +1423,26 @@ export default function App() {
                       setCustomLoginId(null);
                       storage.remove('customLoginId');
                       setShowLogoutConfirm(false);
+                      setLogoutFocusedIdx(-1);
                     }}
-                    className="flex-1 py-5 bg-red-600 text-white rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all"
+                    className={`flex-1 py-5 rounded-3xl font-black text-xs uppercase tracking-widest transition-all ${
+                      logoutFocusedIdx === 1
+                        ? "bg-black text-white ring-4 ring-red-200"
+                        : "bg-red-600 text-white hover:bg-red-700"
+                    }`}
                   >
                     Logout Anyway
                   </button>
                   <button 
-                    onClick={() => setShowLogoutConfirm(false)}
-                    className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-xs uppercase tracking-widest hover:text-slate-900 transition-all"
+                    onClick={() => {
+                      setShowLogoutConfirm(false);
+                      setLogoutFocusedIdx(-1);
+                    }}
+                    className={`flex-1 py-5 rounded-3xl font-black text-xs uppercase tracking-widest transition-all ${
+                      logoutFocusedIdx === 2
+                        ? "bg-black text-white ring-4 ring-slate-200"
+                        : "bg-slate-100 text-slate-500 hover:text-slate-900"
+                    }`}
                   >
                     Stay Logged In
                   </button>
@@ -1595,8 +1645,20 @@ function PurchaseHistoryView({ purchases, onEditPurchase, onDeletePurchase, onPr
 }
 
 function NavBtn({ active, onClick, icon: Icon, label, focused }: any) {
+  const ref = useRef<HTMLButtonElement>(null);
+  
+  useEffect(() => {
+    if (focused && ref.current) {
+      ref.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+      });
+    }
+  }, [focused]);
+
   return (
     <button 
+      ref={ref}
       onClick={onClick}
       className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${
         active 
