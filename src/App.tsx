@@ -33,6 +33,7 @@ import {
   Landmark,
   Eye,
   EyeOff,
+  MessageSquare,
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { auth, db } from './lib/firebase';
@@ -54,7 +55,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses';
+type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses' | 'whatsapp';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -84,7 +85,7 @@ export default function App() {
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
     'dn', 'cn', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
-    'signature', 'bankdetails', 'backup', 'settings'
+    'signature', 'bankdetails', 'backup', 'whatsapp', 'settings'
   ], []);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
@@ -513,6 +514,33 @@ export default function App() {
       totalPending: netSales - totalReceived 
     };
   }, [bookings, purchases, creditNotes, debitNotes, payments]);
+
+  const [waStatus, setWaStatus] = useState<{status: string, hasQr: boolean}>({ status: 'disconnected', hasQr: false });
+  const [waQr, setWaQr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const pollStatus = async () => {
+      try {
+        const res = await fetch('/api/whatsapp/status');
+        const data = await res.json();
+        setWaStatus(data);
+        
+        if (data.hasQr) {
+          const qrRes = await fetch('/api/whatsapp/qr');
+          const qrData = await qrRes.json();
+          setWaQr(qrData.qr);
+        } else {
+          setWaQr(null);
+        }
+      } catch (err) {
+        // console.error("WA Poll skipped (local dev)");
+      }
+    };
+
+    pollStatus();
+    const timer = setInterval(pollStatus, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   const financialYear = useMemo(() => {
     const today = new Date();
@@ -1073,6 +1101,7 @@ export default function App() {
                 v === 'signature' ? PenTool :
                 v === 'bankdetails' ? Landmark :
                 v === 'backup' ? Download :
+                v === 'whatsapp' ? MessageSquare :
                 Settings
               } 
               label={
@@ -1095,6 +1124,7 @@ export default function App() {
                 v === 'signature' ? "Upload Signature" :
                 v === 'bankdetails' ? "Bank Details" :
                 v === 'backup' ? "Data Backup" :
+                v === 'whatsapp' ? "WhatsApp Link" :
                 "Settings"
               }
               shortcut={
@@ -1115,6 +1145,7 @@ export default function App() {
                 v === 'gstreport' ? "Alt+G" :
                 v === 'transports' ? "Alt+T" :
                 v === 'backup' ? "Alt+B" :
+                v === 'whatsapp' ? "Alt+W" :
                 undefined
               }
             />
@@ -1210,6 +1241,7 @@ export default function App() {
               itemsMaster={itemsMaster}
               transports={transports}
               editingBooking={editingBooking}
+              waStatus={waStatus}
               onViewHistory={() => setCurrentView('salehistory')}
               onCancel={() => {
                 setEditingBooking(null);
@@ -1406,6 +1438,18 @@ export default function App() {
               onSave={setExpenses}
               onBack={() => setCurrentView('dash')}
             />}
+            {currentView === 'whatsapp' && (
+              <WhatsAppSettingsView 
+                key="whatsapp"
+                status={waStatus}
+                qr={waQr}
+                onLogout={async () => {
+                  if (confirm("Are you sure you want to disconnect WhatsApp?")) {
+                    await fetch('/api/whatsapp/logout', { method: 'POST' });
+                  }
+                }}
+              />
+            )}
             {currentView === 'signature' && <SignatureAndBankView 
               key="signature"
               settings={{...(settings || {}), viewMode: 'signature'}}
@@ -1424,6 +1468,7 @@ export default function App() {
               <PrintPreview 
                 booking={previewBooking} 
                 settings={settings} 
+                waStatus={waStatus}
                 onClose={() => setPreviewBooking(null)} 
               />
             )}
@@ -3146,7 +3191,7 @@ function QtyCalculator({ value, onChange, onApply, onBlur, isLocked }: { value: 
   );
 }
 
-function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], transports = [], editingBooking, onViewHistory, onCancel }: any) {
+function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], transports = [], editingBooking, onViewHistory, onCancel, waStatus }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
 
@@ -3890,6 +3935,7 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
               grandTotal: calc.total
             }} 
             settings={settings} 
+            waStatus={waStatus}
             onClose={() => setShowPreview(false)} 
           />
         )}
@@ -5818,7 +5864,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
           </div>
         </div>
 
-        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} onClose={() => setPreviewBooking(null)} />}
+        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} waStatus={waStatus} onClose={() => setPreviewBooking(null)} />}
         {previewPurchase && <PurchasePrintPreview purchase={previewPurchase} settings={settings} onClose={() => setPreviewPurchase(null)} />}
         {previewPayment && <PaymentPrintPreview payment={previewPayment} settings={settings} onClose={() => setPreviewPayment(null)} />}
         {previewCreditNote && <CreditNotePrintPreview creditNote={previewCreditNote} settings={settings} onClose={() => setPreviewCreditNote(null)} />}
@@ -6318,8 +6364,9 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
   );
 }
 
-function PrintPreview({ booking, settings, onClose }: { booking: Booking, settings: AppSettings | null, onClose: () => void }) {
+function PrintPreview({ booking, settings, onClose, waStatus }: { booking: Booking, settings: AppSettings | null, onClose: () => void, waStatus: any }) {
   const printRef = useRef<HTMLDivElement>(null);
+  const [waSending, setWaSending] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -6332,6 +6379,47 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
+  const handleWhatsAppSend = async () => {
+    if (!booking.consigneeMobile) return;
+    if (!printRef.current) return;
+    
+    setWaSending('sending');
+    try {
+      const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      
+      const pdfBase64 = pdf.output('datauristring');
+      
+      const res = await fetch('/api/whatsapp/send-bill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: booking.consigneeMobile,
+          billNumber: booking.billNumber,
+          pdfBase64,
+          partyName: booking.consigneeName
+        })
+      });
+      
+      if (res.ok) setWaSending('success');
+      else setWaSending('error');
+    } catch (error) {
+      console.error("WA Send failed", error);
+      setWaSending('error');
+    }
+  };
+
+  useEffect(() => {
+    if (waStatus.status === 'connected' && booking.consigneeMobile && waSending === 'idle') {
+      handleWhatsAppSend();
+    }
+  }, []);
 
   const handleDownloadPDF = async () => {
     if (!printRef.current) return;
@@ -6529,27 +6617,60 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
         </div>
         </div>
 
-        <div className="mt-12 flex gap-4 print:hidden">
-          <button 
-            onClick={() => window.print()}
-            className="flex-1 bg-black text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
-          >
-            <Printer size={20} />
-            Print
-          </button>
-          <button 
-            onClick={handleDownloadPDF}
-            className="flex-1 bg-blue-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
-          >
-            <Download size={20} />
-            Download PDF
-          </button>
-          <button 
-            onClick={onClose}
-            className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl hover:bg-slate-200 transition-all"
-          >
-            Close
-          </button>
+        <div className="mt-12 flex flex-col gap-4 print:hidden">
+          {waSending !== 'idle' && (
+            <div className={`p-4 rounded-2xl flex items-center justify-between font-black text-xs uppercase tracking-widest ${
+              waSending === 'sending' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+              waSending === 'success' ? 'bg-green-50 text-green-600 border border-green-200' :
+              'bg-red-50 text-red-600 border border-red-200'
+            }`}>
+              <div className="flex items-center gap-3">
+                {waSending === 'sending' && <RefreshCw size={14} className="animate-spin" />}
+                {waSending === 'success' && <MessageSquare size={14} />}
+                {waSending === 'error' && <AlertTriangle size={14} />}
+                <span>
+                  {waSending === 'sending' ? 'Sending Invoice to WhatsApp...' : 
+                   waSending === 'success' ? 'Invoice Sent to WhatsApp Successfully!' : 
+                   'Failed to Send to WhatsApp'}
+                </span>
+              </div>
+              {waSending === 'error' && (
+                <button onClick={handleWhatsAppSend} className="underline text-[10px] hover:text-red-700">Retry Send</button>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-4">
+            <button 
+              onClick={() => window.print()}
+              className="flex-1 bg-black text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2 hover:bg-slate-900 transition-all"
+            >
+              <Printer size={20} />
+              Print
+            </button>
+            <button 
+              onClick={handleDownloadPDF}
+              className="flex-1 bg-blue-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+            >
+              <Download size={20} />
+              Download PDF
+            </button>
+            {waStatus.status === 'connected' && waSending === 'idle' && (
+              <button 
+                onClick={handleWhatsAppSend}
+                className="flex-1 bg-green-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
+              >
+                <MessageSquare size={20} />
+                WhatsApp
+              </button>
+            )}
+            <button 
+              onClick={onClose}
+              className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl hover:bg-slate-200 transition-all"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -7205,6 +7326,73 @@ function BankDetailsView({ settings, onUpdateSettings }: any) {
           </div>
         </form>
       )}
+    </motion.div>
+  );
+}
+
+function WhatsAppSettingsView({ status, qr, onLogout }: { status: any, qr: string | null, onLogout: () => void, key?: string }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto">
+      <div className="bg-white rounded-[40px] border border-slate-200 shadow-2xl overflow-hidden p-8 lg:p-12">
+        <div className="flex flex-col items-center text-center space-y-6">
+          <div className="w-20 h-20 bg-green-100 rounded-3xl flex items-center justify-center text-green-600 shadow-xl shadow-green-100/50">
+            <MessageSquare size={40} />
+          </div>
+          
+          <div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">WhatsApp Gateway</h2>
+            <p className="text-slate-500 font-medium italic">Link your account to send invoices automatically</p>
+          </div>
+
+          <div className="w-full flex items-center justify-center gap-2 py-4">
+            <div className={`px-4 py-2 rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 border ${
+              status.status === 'connected' 
+                ? 'bg-green-50 text-green-600 border-green-200' 
+                : 'bg-slate-50 text-slate-400 border-slate-200'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${status.status === 'connected' ? 'bg-green-500' : 'bg-slate-300'}`} />
+              {status.status === 'connected' ? 'Connected' : 'Disconnected'}
+            </div>
+          </div>
+
+          {status.status === 'connected' ? (
+            <div className="w-full space-y-6">
+              <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl text-center">
+                <p className="text-blue-900 font-black text-sm uppercase tracking-tight">System Linked Successfully!</p>
+                <p className="text-blue-600/70 text-xs mt-1">You can now send bills directly to WhatsApp numbers.</p>
+              </div>
+              <button 
+                onClick={onLogout}
+                className="w-full py-4 bg-red-50 text-red-600 hover:bg-red-100 font-black rounded-2xl transition-all flex items-center justify-center gap-2"
+              >
+                <LogOut size={20} />
+                Disconnect Account
+              </button>
+            </div>
+          ) : (
+            <div className="w-full space-y-8">
+              {qr ? (
+                <div className="flex flex-col items-center space-y-6">
+                  <div className="bg-white p-4 rounded-3xl border-4 border-slate-900 shadow-2xl">
+                    <img src={qr} alt="WA QR Code" className="w-64 h-64" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-slate-900 font-black text-sm uppercase tracking-tight">Scan this QR Code</p>
+                    <p className="text-slate-500 text-xs leading-relaxed max-w-xs mx-auto">
+                      Open WhatsApp on your phone, go to Linked Devices and scan this code to link your account.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-10 space-y-4">
+                  <RefreshCw size={32} className="text-slate-300 animate-spin" />
+                  <p className="text-slate-400 font-bold text-sm uppercase tracking-widest italic">Initializing Gateway...</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </motion.div>
   );
 }
