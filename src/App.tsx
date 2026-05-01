@@ -2186,7 +2186,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                       <QtyCalculator 
                         value={calcValues[item.id] || ''}
                         onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
-                        onApply={(sum) => updateItem(item.id, 'quantity', sum)}
+                        onApply={(sum, count) => updateItem(item.id, 'quantity', sum)}
                         onBlur={() => setActiveCalcId(null)}
                         isLocked={isLocked}
                       />
@@ -2651,7 +2651,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
                       <QtyCalculator 
                         value={calcValues[item.id] || ''}
                         onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
-                        onApply={(sum) => updateItem(item.id, 'quantity', sum)}
+                        onApply={(sum, count) => updateItem(item.id, 'quantity', sum)}
                         onBlur={() => setActiveCalcId(null)}
                       />
                     )}
@@ -2804,28 +2804,52 @@ function PurchaseViewWrapper({ onSave, parties, purchases, editingPurchase, onCa
   return <PurchaseView onSave={onSave} parties={parties} purchases={purchases} editingPurchase={editingPurchase} onCancel={onCancel} />;
 }
 
-function QtyCalculator({ value, onChange, onApply, onBlur, isLocked }: { value: string, onChange: (v: string) => void, onApply: (sum: number) => void, onBlur: () => void, isLocked?: boolean }) {
-  const sum = value.split(/[+,\s]+/).map(v => parseFloat(v) || 0).reduce((a, b) => a + b, 0);
+function QtyCalculator({ value, onChange, onApply, onBlur, isLocked }: { value: string, onChange: (v: string) => void, onApply: (sum: number, count: number) => void, onBlur: () => void, isLocked?: boolean }) {
+  const parts = value.split(/[+,\s]+/).filter(v => v.trim() !== '');
+  const sum = parts.map(v => parseFloat(v) || 0).reduce((a, b) => a + b, 0);
+  const count = parts.length;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      onApply(sum, count);
+      onBlur();
+    }
+  };
 
   return (
-    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border-2 border-slate-900 rounded-xl shadow-2xl p-3 animate-in fade-in slide-in-from-top-2 duration-200">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Multi-Qty Calculator</span>
-        <span className="text-xs font-black text-[#00cec9]">Sum: {sum.toLocaleString()}</span>
+    <div className="absolute top-full left-1/2 -translate-x-1/2 z-50 mt-2 bg-[#1E272E] border-2 border-[#00cec9] rounded-2xl shadow-2xl p-6 min-w-[320px] md:min-w-[450px] animate-in fade-in zoom-in duration-200">
+      <div className="flex justify-between items-center mb-4 border-b border-[#00cec9]/20 pb-3">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-black text-[#00cec9] uppercase tracking-[0.2em]">Quantity Calculator</span>
+          <span className="text-xs font-bold text-slate-400 italic">Enter values separated by +, Space or Enter</span>
+        </div>
+        <div className="bg-[#00cec9]/10 px-3 py-1.5 rounded-lg border border-[#00cec9]/20 flex flex-col items-end">
+          <span className="text-[14px] font-black text-[#00cec9]">Total: {sum.toLocaleString()}</span>
+          <span className="text-[10px] font-black text-slate-300 uppercase">{count} Taka / Pcs</span>
+        </div>
       </div>
       <textarea
         autoFocus
         readOnly={isLocked}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onBlur={() => {
-          onApply(sum);
-          setTimeout(onBlur, 200);
-        }}
-        className="w-full bg-slate-50 border-2 border-slate-100 rounded-lg p-2 text-sm font-bold h-24 outline-none focus:border-[#00cec9] transition-all resize-none"
-        placeholder="Enter values: 10+20+5..."
+        onKeyDown={handleKeyDown}
+        className="w-full bg-slate-800/50 border-2 border-slate-700 rounded-xl p-4 text-white font-mono font-bold text-lg h-48 outline-none focus:border-[#00cec9] transition-all resize-none shadow-inner"
+        placeholder="Example: 10.5 + 20 + 30..."
       />
-      <div className="text-[8px] text-slate-400 mt-1 font-bold italic">* Use space, comma or '+' to separate values</div>
+      <div className="flex justify-between items-center mt-4">
+        <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+           Press <span className="text-[#00cec9]">ENTER</span> to apply
+        </div>
+        <button 
+          type="button" 
+          onClick={() => { onApply(sum, count); onBlur(); }}
+          className="bg-[#00cec9] text-[#1E272E] px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#00cec9]/20"
+        >
+          Confirm Total
+        </button>
+      </div>
     </div>
   );
 }
@@ -3317,7 +3341,10 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
                       <QtyCalculator 
                         value={calcValues[item.id] || ''}
                         onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
-                        onApply={(sum) => updateItem(item.id, 'quantity', sum)}
+                        onApply={(sum, count) => {
+                          updateItem(item.id, 'quantity', sum);
+                          updateItem(item.id, 'taka', count.toString());
+                        }}
                         onBlur={() => setActiveCalcId(null)}
                         isLocked={isLocked}
                       />
@@ -3909,7 +3936,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
                       <QtyCalculator 
                         value={calcValues[item.id] || ''}
                         onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
-                        onApply={(sum) => updateItem(item.id, 'quantity', sum)}
+                        onApply={(sum, count) => updateItem(item.id, 'quantity', sum)}
                         onBlur={() => setActiveCalcId(null)}
                       />
                     )}
