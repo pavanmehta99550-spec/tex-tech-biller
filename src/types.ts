@@ -149,3 +149,16 @@ export interface ItemMaster {
   unit: 'MTR' | 'PCS' | 'SET' | 'BOX' | 'KG';
   gstRate: number;
 }
+
+export interface Expense {
+  id: string;
+  date: string;
+  category: string;
+  amount: number;
+  description: string;
+  gstIncluded: boolean;
+  gstRate: number;
+  gstAmount: number;
+  payeeName?: string;
+  paymentMode: 'Cash' | 'Bank' | 'Cheque' | 'UPI';
+}

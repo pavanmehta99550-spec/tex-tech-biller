@@ -40,7 +40,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
-import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport } from './types';
+import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense } from './types';
 import Login from './components/Login';
 
 // Initial Party Database
@@ -52,7 +52,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails';
+type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -81,7 +81,7 @@ export default function App() {
   const loadedKeys = useRef<Set<string>>(new Set());
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
-    'dn', 'cn', 'items', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
+    'dn', 'cn', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
     'signature', 'bankdetails', 'backup', 'settings'
   ], []);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
@@ -95,6 +95,7 @@ export default function App() {
   });
 
   const [saleParties, setSaleParties] = useState<Party[]>(() => storage.get('saleParties', []));
+  const [expenses, setExpenses] = useState<Expense[]>(() => storage.get('expenses', []));
   const [itemsMaster, setItemsMaster] = useState<ItemMaster[]>(() => storage.get('itemsMaster', []));
   const [transports, setTransports] = useState<Transport[]>(() => storage.get('transports', []));
 
@@ -123,6 +124,7 @@ export default function App() {
   useEffect(() => storage.set('purchases', purchases), [purchases]);
   useEffect(() => storage.set('debit-notes', debitNotes), [debitNotes]);
   useEffect(() => storage.set('credit-notes', creditNotes), [creditNotes]);
+  useEffect(() => storage.set('expenses', expenses), [expenses]);
   useEffect(() => storage.set('payments', payments), [payments]);
   useEffect(() => storage.set('purchasePayments', purchasePayments), [purchasePayments]);
   useEffect(() => storage.set('settings', settings), [settings]);
@@ -992,6 +994,7 @@ export default function App() {
                 v === 'dn' ? AlertCircle :
                 v === 'cn' ? TrendingUp :
                 v === 'items' ? Package :
+                v === 'expenses' ? Calculator :
                 v === 'pay' || v === 'sendpay' ? CreditCard :
                 v === 'transports' ? Truck :
                 v === 'gstreport' ? TrendingUp :
@@ -1011,6 +1014,7 @@ export default function App() {
                 v === 'dn' ? "Debit Note" :
                 v === 'cn' ? "Credit Note" :
                 v === 'items' ? "Items Master" :
+                v === 'expenses' ? "Business Expenses" :
                 v === 'pay' ? "Receive Payment" :
                 v === 'sendpay' ? "Send Payment" :
                 v === 'ledg' ? "Party Ledger" :
@@ -1292,12 +1296,18 @@ export default function App() {
               purchases={purchases}
               creditNotes={creditNotes}
               debitNotes={debitNotes}
+              expenses={expenses}
               settings={settings}
             />}
             {currentView === 'transports' && <TransportMasterView 
               key="transports"
               transports={transports}
               onSave={setTransports}
+            />}
+            {currentView === 'expenses' && <ExpensesView 
+              key="expenses"
+              expenses={expenses}
+              onSave={setExpenses}
             />}
             {currentView === 'signature' && <SignatureAndBankView 
               key="signature"
@@ -6386,7 +6396,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
   );
 }
 
-function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings }: any) {
+function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses, settings }: any) {
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -6403,6 +6413,13 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings 
       return d >= startDate && d <= endDate;
     });
   }, [purchases, startDate, endDate]);
+
+  const filteredExpenses = useMemo(() => {
+    return (expenses || []).filter((e: any) => {
+      const d = e.date.split('T')[0];
+      return d >= startDate && d <= endDate;
+    });
+  }, [expenses, startDate, endDate]);
 
   const gstr1Data = useMemo(() => {
     return filteredSales.map((b: any) => {
@@ -6458,22 +6475,39 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings 
       return acc;
     }, { total: 0 });
 
+    const expenseTax = filteredExpenses.reduce((acc: any, e: any) => {
+      if (e.gstIncluded) {
+        acc.total += e.gstAmount;
+        acc.cgst += e.gstAmount / 2;
+        acc.sgst += e.gstAmount / 2;
+      }
+      acc.amount += e.amount;
+      return acc;
+    }, { cgst: 0, sgst: 0, igst: 0, total: 0, amount: 0 });
+
     const salesNet = salesTax.total - cnTax.total;
-    const purchaseNet = purchaseTax.total - dnTax.total;
+    const purchaseNet = purchaseTax.total - dnTax.total + expenseTax.total;
 
     return {
       output: salesTax,
-      input: purchaseTax,
+      input: {
+        ...purchaseTax,
+        cgst: purchaseTax.cgst + expenseTax.cgst,
+        sgst: purchaseTax.sgst + expenseTax.sgst,
+        total: purchaseTax.total + expenseTax.total,
+        taxable: purchaseTax.taxable + (expenseTax.amount - expenseTax.total)
+      },
+      expenseOnly: expenseTax,
       salesNet,
       purchaseNet,
       net: {
-        cgst: salesTax.cgst - purchaseTax.cgst, // Simplified, usually split correctly
-        sgst: salesTax.sgst - purchaseTax.sgst,
+        cgst: salesTax.cgst - (purchaseTax.cgst + expenseTax.cgst),
+        sgst: salesTax.sgst - (purchaseTax.sgst + expenseTax.sgst),
         igst: salesTax.igst - purchaseTax.igst,
         total: salesNet - purchaseNet
       }
     };
-  }, [filteredSales, filteredPurchases, creditNotes, debitNotes, startDate, endDate]);
+  }, [filteredSales, filteredPurchases, filteredExpenses, creditNotes, debitNotes, startDate, endDate]);
 
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
@@ -6481,8 +6515,8 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings 
     XLSX.utils.book_append_sheet(wb, ws1, "GSTR-1 Details");
     
     const summaryData = [
-      ["Summary", "Output (Sales)", "Input (Purchase)", "Net Balance"],
-      ["Taxable Value", summary.output.taxable, summary.input.taxable, ""],
+      ["Summary", "Output (Sales)", "Input (Purchase + Expense)", "Net Balance"],
+      ["Taxable/Expense Value", summary.output.taxable, summary.input.taxable, ""],
       ["CGST", summary.output.cgst, summary.input.cgst, summary.net.cgst],
       ["SGST", summary.output.sgst, summary.input.sgst, summary.net.sgst],
       ["IGST", summary.output.igst, summary.input.igst, summary.net.igst],
@@ -6490,6 +6524,20 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings 
     ];
     const ws2 = XLSX.utils.aoa_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(wb, ws2, "GSTR-3B Summary");
+
+    if (filteredExpenses.length > 0) {
+      const expenseData = filteredExpenses.map(e => ({
+        Date: e.date,
+        Category: e.category,
+        Description: e.description,
+        Amount: e.amount,
+        GST_Included: e.gstIncluded ? 'Yes' : 'No',
+        GST_Rate: e.gstIncluded ? `${e.gstRate}%` : '-',
+        GST_Amount: e.gstIncluded ? e.gstAmount : 0
+      }));
+      const ws3 = XLSX.utils.json_to_sheet(expenseData);
+      XLSX.utils.book_append_sheet(wb, ws3, "Business Expenses");
+    }
     
     XLSX.writeFile(wb, `GST_Report_${startDate}_to_${endDate}.xlsx`);
   };
@@ -6529,6 +6577,23 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings 
       ]),
     });
 
+    if (filteredExpenses.length > 0) {
+      doc.addPage();
+      doc.text("Business Expenses", 14, 22);
+      autoTable(doc, {
+        startY: 30,
+        head: [["Date", "Category", "Description", "Payee", "Amount", "GST Amt"]],
+        body: filteredExpenses.map(e => [
+          new Date(e.date).toLocaleDateString(),
+          e.category,
+          e.description,
+          e.payeeName || '-',
+          e.amount.toFixed(2),
+          e.gstIncluded ? e.gstAmount.toFixed(2) : '0.00'
+        ]),
+      });
+    }
+
     doc.save(`GST_Report_${startDate}_to_${endDate}.pdf`);
   };
 
@@ -6558,6 +6623,27 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, settings 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+            <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Calculator size={16} className="text-orange-400" /> Business Expenses Summary</h3>
+              <span className="text-[10px] font-bold bg-white/10 px-3 py-1 rounded-full">{filteredExpenses.length} Records</span>
+            </div>
+            <div className="p-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Expenses</div>
+                <div className="text-2xl font-black text-slate-900">₹{summary.expenseOnly.amount.toLocaleString()}</div>
+              </div>
+              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">GST Paid (ITC)</div>
+                <div className="text-2xl font-black text-orange-500">₹{summary.expenseOnly.total.toLocaleString()}</div>
+              </div>
+              <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100">
+                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Net Balance (GST)</div>
+                <div className="text-2xl font-black text-indigo-600">₹{summary.net.total.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
             <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
               <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Receipt size={16} className="text-[#00cec9]" /> GSTR-1 (Sales Details)</h3>
@@ -7481,6 +7567,290 @@ function TransportMasterView({ transports, onSave }: any) {
             <p className="text-slate-400 font-bold text-sm">Add your first transporter to get started</p>
           </div>
         )}
+      </div>
+    </motion.div>
+  );
+}
+
+function ExpensesView({ expenses, onSave }: { expenses: Expense[], onSave: (e: Expense[]) => void }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Partial<Expense>>({
+    date: new Date().toISOString().split('T')[0],
+    category: '',
+    amount: 0,
+    description: '',
+    gstIncluded: false,
+    gstRate: 5,
+    gstAmount: 0,
+    paymentMode: 'Cash'
+  });
+
+  const categories = [
+    'Rent', 'Electricity', 'Water', 'Internet/Phone', 'Salary', 'Maintenance', 
+    'Travel', 'Stationery', 'Professional Fees', 'Marketing', 'Refreshments', 
+    'Repair', 'Transport', 'Others'
+  ];
+
+  const calculateGst = (amount: number, rate: number, included: boolean) => {
+    if (included) {
+      const basic = amount / (1 + rate / 100);
+      return amount - basic;
+    } else {
+      return (amount * rate) / 100;
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const gstAmt = formData.gstIncluded ? calculateGst(formData.amount || 0, formData.gstRate || 0, true) : calculateGst(formData.amount || 0, formData.gstRate || 0, false);
+    
+    const expense: Expense = {
+      id: editingId || Math.random().toString(36).substring(2, 9),
+      date: formData.date || new Date().toISOString().split('T')[0],
+      category: formData.category || 'Others',
+      amount: formData.amount || 0,
+      description: formData.description || '',
+      gstIncluded: formData.gstIncluded || false,
+      gstRate: formData.gstRate || 0,
+      gstAmount: gstAmt,
+      payeeName: formData.payeeName || '',
+      paymentMode: formData.paymentMode || 'Cash'
+    };
+
+    if (editingId) {
+      onSave(expenses.map(exp => exp.id === editingId ? expense : exp));
+    } else {
+      onSave([...expenses, expense]);
+    }
+
+    setShowAdd(false);
+    setEditingId(null);
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      category: '',
+      amount: 0,
+      description: '',
+      gstIncluded: false,
+      gstRate: 5,
+      gstAmount: 0,
+      paymentMode: 'Cash'
+    });
+  };
+
+  const deleteExpense = (id: string) => {
+    if (confirm("Delete this expense record?")) {
+      onSave(expenses.filter(e => e.id !== id));
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20">
+      <div className="flex justify-between items-center bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Business Expenses</h2>
+          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-1">Manage all business costs & ITC records</p>
+        </div>
+        <button 
+          onClick={() => { setShowAdd(true); setEditingId(null); }}
+          className="flex items-center gap-2 bg-[#1e272e] text-white px-6 py-3 rounded-2xl font-black hover:bg-black transition-all shadow-lg active:scale-95"
+        >
+          <Plus size={20} /> Add Expense
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showAdd && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <form onSubmit={handleSubmit} className="bg-white p-8 rounded-3xl border-2 border-dashed border-slate-200 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Date</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={formData.date}
+                    onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+                  <select 
+                    required
+                    value={formData.category}
+                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Amount (Final)</label>
+                  <input 
+                    type="number" 
+                    required
+                    value={formData.amount}
+                    onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payee Name / Vendor</label>
+                  <input 
+                    type="text" 
+                    value={formData.payeeName}
+                    onChange={e => setFormData({ ...formData, payeeName: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
+                    placeholder="Who did you pay?"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Mode</label>
+                  <select 
+                    value={formData.paymentMode}
+                    onChange={e => setFormData({ ...formData, paymentMode: e.target.value as any })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Bank">Bank Transfer</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Cheque">Cheque</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">GST Details</label>
+                  <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={formData.gstIncluded}
+                        onChange={e => setFormData({ ...formData, gstIncluded: e.target.checked })}
+                        className="w-5 h-5 rounded-lg border-2 border-slate-300 text-[#00cec9] focus:ring-[#00cec9]"
+                      />
+                      <span className="text-xs font-bold text-slate-600">GST Included?</span>
+                    </label>
+                    {formData.gstIncluded && (
+                      <select 
+                        value={formData.gstRate}
+                        onChange={e => setFormData({ ...formData, gstRate: parseFloat(e.target.value) })}
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold"
+                      >
+                        <option value="5">5%</option>
+                        <option value="12">12%</option>
+                        <option value="18">18%</option>
+                        <option value="28">28%</option>
+                      </select>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Description / Notes</label>
+                <textarea 
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all resize-none"
+                  placeholder="Additional details..."
+                  rows={2}
+                />
+              </div>
+              <div className="flex gap-4">
+                <button type="submit" className="flex-1 bg-[#00cec9] text-white font-black py-4 rounded-2xl hover:bg-[#00b5b5] transition-all shadow-lg active:scale-[0.99]">
+                  {editingId ? 'Update Expense' : 'Save Expense'}
+                </button>
+                <button type="button" onClick={() => setShowAdd(false)} className="px-8 bg-slate-100 text-slate-500 font-black py-4 rounded-2xl hover:bg-slate-200 transition-all">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="bg-white rounded-[40px] border border-slate-200 shadow-xl overflow-hidden">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-slate-900 border-b border-white/5">
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</th>
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</th>
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Payee</th>
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">GST</th>
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
+              <tr key={exp.id} className="hover:bg-slate-50 transition-colors group">
+                <td className="px-8 py-5 font-bold text-slate-600 italic">
+                  {new Date(exp.date).toLocaleDateString()}
+                </td>
+                <td className="px-8 py-5">
+                  <span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                    {exp.category}
+                  </span>
+                </td>
+                <td className="px-8 py-5 font-bold text-slate-900 max-w-xs truncate">
+                  {exp.description}
+                </td>
+                <td className="px-8 py-5 text-slate-500 text-sm font-bold uppercase tracking-tight">
+                  {exp.payeeName || '-'}
+                </td>
+                <td className="px-8 py-5 text-right font-black text-xs text-orange-500">
+                  {exp.gstIncluded ? `₹${exp.gstAmount.toFixed(2)} (${exp.gstRate}%)` : '-'}
+                </td>
+                <td className="px-8 py-5 text-right">
+                  <div className="text-lg font-black text-slate-900">₹{exp.amount.toLocaleString()}</div>
+                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{exp.paymentMode}</div>
+                </td>
+                <td className="px-8 py-5">
+                  <div className="flex justify-center gap-2">
+                    <button 
+                      onClick={() => { setEditingId(exp.id); setFormData(exp); setShowAdd(true); }}
+                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button 
+                      onClick={() => deleteExpense(exp.id)}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-white rounded-xl transition-all shadow-sm"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {expenses.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-8 py-20 text-center">
+                  <div className="bg-slate-50 rounded-[40px] p-20 border-2 border-dashed border-slate-200">
+                    <Calculator size={64} className="mx-auto text-slate-200 mb-6" />
+                    <h3 className="text-2xl font-black text-slate-300 uppercase tracking-tight">No Expenses Recorded</h3>
+                    <p className="text-slate-400 font-bold max-w-xs mx-auto mt-2 leading-relaxed italic">
+                      Start tracking your business costs today. Every rupee counts!
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+          {expenses.length > 0 && (
+            <tfoot>
+              <tr className="bg-slate-50 border-t-2 border-slate-200">
+                <td colSpan={5} className="px-8 py-6 text-right text-slate-900 font-black uppercase text-xs tracking-widest">Total Expenses:</td>
+                <td className="px-8 py-6 text-right text-2xl font-black text-red-600">
+                  ₹{expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
       </div>
     </motion.div>
   );
