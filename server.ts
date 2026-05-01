@@ -29,7 +29,8 @@ async function startServer() {
     let connectionStatus: string = 'disconnected';
 
     async function connectToWhatsApp() {
-        const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+        const authPath = '/tmp/wa_auth';
+        const { state, saveCreds } = await useMultiFileAuthState(authPath);
         const { version, isLatest } = await fetchLatestBaileysVersion();
         
         console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`);
@@ -41,7 +42,8 @@ async function startServer() {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, logger),
             },
-            printQRInTerminal: false, // We want to show it in the UI
+            printQRInTerminal: false,
+            browser: ['Tex-Tech Biller', 'Chrome', '1.0.0']
         });
 
         sock.ev.on('connection.update', async (update: any) => {
@@ -88,9 +90,9 @@ async function startServer() {
         try {
             if (sock) {
                 await sock.logout();
-                // Optionally delete auth_info folder
-                if (fs.existsSync('auth_info')) {
-                    fs.rmSync('auth_info', { recursive: true, force: true });
+                const authPath = '/tmp/wa_auth';
+                if (fs.existsSync(authPath)) {
+                    fs.rmSync(authPath, { recursive: true, force: true });
                 }
                 res.json({ success: true });
                 connectToWhatsApp(); // Restart to get new QR

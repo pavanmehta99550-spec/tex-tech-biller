@@ -235,7 +235,8 @@ export default function App() {
           'l': 'ledg',
           'g': 'gstreport',
           't': 'transports',
-          'b': 'backup'
+          'b': 'backup',
+          'w': 'whatsapp'
         };
 
         if (shortcutMap[key]) {
@@ -527,13 +528,15 @@ export default function App() {
         
         if (data.hasQr) {
           const qrRes = await fetch('/api/whatsapp/qr');
-          const qrData = await qrRes.json();
-          setWaQr(qrData.qr);
+          if (qrRes.ok) {
+            const qrData = await qrRes.json();
+            setWaQr(qrData.qr);
+          }
         } else {
           setWaQr(null);
         }
       } catch (err) {
-        // console.error("WA Poll skipped (local dev)");
+        console.error("WhatsApp Gateway connection failed. Please ensure the server is running.");
       }
     };
 
