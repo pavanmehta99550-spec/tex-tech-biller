@@ -4212,10 +4212,12 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
             <div className="text-center min-w-[12rem] relative">
               {settings?.signature ? (
                 <div className="h-28 flex items-end justify-center mb-1">
-                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                   <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-28" />
+                <div className="h-28 border-2 border-dashed border-green-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
+                  Sign / Stamp
+                </div>
               )}
               <div className="pt-2 border-t-2 border-green-700">
                 <div className="text-[10px] font-black uppercase tracking-widest text-green-700">Authorized Entry</div>
@@ -4792,10 +4794,12 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
             <div className="text-center min-w-[12rem] pl-8 flex flex-col justify-end">
                {settings?.signature ? (
                  <div className="h-28 flex items-end justify-center mb-1">
-                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                   <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
                  </div>
                ) : (
-                 <div className="h-28" />
+                 <div className="h-28 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-300 uppercase italic">
+                   Sign / Stamp
+                 </div>
                )}
                <div className="pt-2 border-t-2 border-slate-900">
                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Signatory</p>
@@ -5289,9 +5293,13 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
           <footer className="p-8 print:p-6 border-t-2 border-slate-900 bg-slate-50 flex justify-between items-end">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Automated Ledger Generated I Pro Biller</div>
             <div className="text-center min-w-[12rem]">
-               {settings?.signature && (
+               {settings?.signature ? (
                  <div className="h-28 flex items-end justify-center mb-1">
-                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                   <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
+                 </div>
+               ) : (
+                 <div className="h-28 border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
+                   Sign / Stamp
                  </div>
                )}
                <div className="pt-2 border-t-2 border-slate-900">
@@ -5717,10 +5725,12 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
             <div className="text-center min-w-[12rem] relative">
               {settings?.signature ? (
                 <div className="h-28 flex items-end justify-center mb-1">
-                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                   <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-28" />
+                <div className="h-28 border-2 border-dashed border-indigo-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
+                  Sign / Stamp
+                </div>
               )}
               <div className="pt-2 border-t-2 border-indigo-900">
                 <div className="text-[10px] font-black uppercase tracking-widest text-indigo-900">Authorized Entry</div>
@@ -5911,10 +5921,12 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
             <div className="text-center min-w-[12rem] relative">
               {settings?.signature ? (
                 <div className="h-28 flex items-end justify-center mb-1">
-                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                   <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-28" />
+                <div className="h-28 border-2 border-dashed border-red-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
+                  Sign / Stamp
+                </div>
               )}
               <div className="pt-2 border-t-2 border-red-700">
                 <div className="text-[10px] font-black uppercase tracking-widest text-red-700">Authorized Entry</div>
@@ -6147,10 +6159,12 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           <div className="text-center min-w-[12rem] relative">
             {settings?.signature ? (
               <div className="h-28 flex items-end justify-center mb-1">
-                <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
               </div>
             ) : (
-              <div className="h-28" />
+              <div className="h-28 border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
+                Sign / Stamp
+              </div>
             )}
             <div className="pt-2 border-t-2 border-slate-900">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-900">Authorized Signatory</div>
@@ -6596,7 +6610,7 @@ function SignatureAndBankView({ settings, onUpdateSettings }: any) {
                     <span className="text-[10px] font-black uppercase">PDF Uploaded</span>
                   </div>
                 ) : (
-                  <img src={settings.signature} alt="Signature" className="max-h-28 object-contain" />
+                  <img src={settings.signature} alt="Signature" referrerPolicy="no-referrer" className="max-h-28 object-contain" />
                 )}
               </div>
             </div>
@@ -6771,7 +6785,12 @@ function SettingsView({ settings, onSave }: any) {
     address: settings?.address || '',
     mobile: settings?.mobile || '',
     adminUsername: settings?.adminUsername || 'admin',
-    adminPassword: settings?.adminPassword || '1234'
+    adminPassword: settings?.adminPassword || '1234',
+    signature: settings?.signature || '',
+    bankName: settings?.bankName || '',
+    accountNumber: settings?.accountNumber || '',
+    ifscCode: settings?.ifscCode || '',
+    branchName: settings?.branchName || ''
   });
   const [isLocked, setIsLocked] = useState(!!settings);
   const [password, setPassword] = useState('');
@@ -6798,7 +6817,7 @@ function SettingsView({ settings, onSave }: any) {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    onSave({ ...settings, ...formData });
     setIsLocked(true);
     alert("Settings Saved & Locked! Use your login password to edit again.");
   };
