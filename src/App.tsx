@@ -1411,6 +1411,7 @@ export default function App() {
                 debitNotes={debitNotes} 
                 creditNotes={creditNotes} 
                 settings={settings}
+                waStatus={waStatus}
                 onDeletePayment={handleDeletePayment}
                 onEditPayment={(p: any) => {
                   setEditingPayment(p);
@@ -5699,7 +5700,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
   );
 }
 
-function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment }: any) {
+function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment, waStatus }: any) {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedParty, setSelectedParty] = useState<any>(null);
