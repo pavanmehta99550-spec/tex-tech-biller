@@ -213,8 +213,8 @@ export default function App() {
 
       if (isInput) return;
 
-      // ALT + KEY Shortcuts
-      if (e.altKey) {
+      // ALT + KEY Shortcuts (Navigation)
+      if (e.altKey && !e.ctrlKey) {
         const key = e.key.toLowerCase();
         const shortcutMap: Record<string, View> = {
           'd': 'dash',
@@ -237,6 +237,29 @@ export default function App() {
         if (shortcutMap[key]) {
           e.preventDefault();
           setCurrentView(shortcutMap[key]);
+          setFocusedIdx(-1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+      }
+
+      // CTRL + KEY Shortcuts (New Records)
+      if (e.ctrlKey && !e.altKey) {
+        const key = e.key.toLowerCase();
+        // i: Sale, p: Purchase, d: Debit Note, c: Credit Note, e: Expense
+        const ctrlShortcutMap: Record<string, View> = {
+          'i': 'inv',
+          'p': 'pur',
+          'd': 'dn',
+          'c': 'cn',
+          'e': 'expenses',
+          'r': 'pay',
+          'n': 'sendpay'
+        };
+
+        if (ctrlShortcutMap[key]) {
+          e.preventDefault();
+          setCurrentView(ctrlShortcutMap[key]);
           setFocusedIdx(-1);
           window.scrollTo({ top: 0, behavior: 'smooth' });
           return;
@@ -1057,16 +1080,18 @@ export default function App() {
               }
               shortcut={
                 v === 'dash' ? "Alt+D" :
-                v === 'inv' ? "Alt+I" :
+                v === 'inv' ? "Ctrl+I" :
                 v === 'salehistory' ? "Alt+H" :
                 v === 'saleparty' ? "Alt+S" :
-                v === 'pur' ? "Alt+P" :
+                v === 'pur' ? "Ctrl+P" :
                 v === 'purchasehistory' ? "Alt+J" :
                 v === 'purchaseparty' ? "Alt+K" :
-                v === 'expenses' ? "Alt+E" :
+                v === 'dn' ? "Ctrl+D" :
+                v === 'cn' ? "Ctrl+C" :
+                v === 'expenses' ? "Ctrl+E" :
                 v === 'items' ? "Alt+M" :
-                v === 'pay' ? "Alt+R" :
-                v === 'sendpay' ? "Alt+N" :
+                v === 'pay' ? "Ctrl+R" :
+                v === 'sendpay' ? "Ctrl+N" :
                 v === 'ledg' ? "Alt+L" :
                 v === 'gstreport' ? "Alt+G" :
                 v === 'transports' ? "Alt+T" :
@@ -1356,6 +1381,7 @@ export default function App() {
               key="expenses"
               expenses={expenses}
               onSave={setExpenses}
+              onBack={() => setCurrentView('dash')}
             />}
             {currentView === 'signature' && <SignatureAndBankView 
               key="signature"
@@ -7629,7 +7655,7 @@ function TransportMasterView({ transports, onSave }: any) {
   );
 }
 
-function ExpensesView({ expenses, onSave }: { expenses: Expense[], onSave: (e: Expense[]) => void }) {
+function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSave: (e: Expense[]) => void, onBack: () => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Expense>>({
@@ -7704,9 +7730,17 @@ function ExpensesView({ expenses, onSave }: { expenses: Expense[], onSave: (e: E
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20">
       <div className="flex justify-between items-center bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
-        <div>
-          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Business Expenses</h2>
-          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-1">Manage all business costs & ITC records</p>
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={onBack}
+            className="p-3 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all active:scale-95"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <div>
+            <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Business Expenses</h2>
+            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-1">Manage all business costs & ITC records</p>
+          </div>
         </div>
         <button 
           onClick={() => { setShowAdd(true); setEditingId(null); }}
