@@ -1587,6 +1587,7 @@ function NavBtn({ active, onClick, icon: Icon, label, focused }: any) {
 
 function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, onPreviewSale, onEditPurchase, onDeletePurchase, onPreviewPurchase }: any) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [lrSearchTerm, setLrSearchTerm] = useState('');
   
   const financialYear = useMemo(() => {
     const today = new Date();
@@ -1597,16 +1598,20 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
   }, []);
 
   const filteredBookings = useMemo(() => {
-    return bookings.filter((b: Booking) => 
-      b.billNumber?.toString().includes(searchTerm) || 
-      b.consigneeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.consigneeGstin.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [bookings, searchTerm]);
+    return bookings.filter((b: Booking) => {
+      const matchesMain = b.billNumber?.toString().includes(searchTerm) || 
+                          b.consigneeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          b.consigneeGstin.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesLr = !lrSearchTerm || (b.lrNumber && b.lrNumber.toLowerCase().includes(lrSearchTerm.toLowerCase()));
+      
+      return matchesMain && matchesLr;
+    });
+  }, [bookings, searchTerm, lrSearchTerm]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
-      <header className="flex justify-between items-end">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-widest">FY {financialYear}</span>
@@ -1614,15 +1619,27 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Vyapaar Summary</h2>
           <p className="text-slate-500 font-medium italic">Overview of all transactions and returns</p>
         </div>
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search Bills..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-600 shadow-sm w-64 transition-all"
-          />
+        <div className="flex flex-wrap gap-2">
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search Bills/Parties..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-600 shadow-sm w-56 transition-all"
+            />
+          </div>
+          <div className="relative group">
+            <Truck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search LR No..." 
+              value={lrSearchTerm}
+              onChange={(e) => setLrSearchTerm(e.target.value)}
+              className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-600 shadow-sm w-44 transition-all"
+            />
+          </div>
         </div>
       </header>
 
@@ -1661,7 +1678,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Sale Bills History</h3>
-             <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">{searchTerm ? 'Search Results' : 'Recent Invoices'}</span>
+             <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">{(searchTerm || lrSearchTerm) ? 'Search Results' : 'Recent Invoices'}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -1669,12 +1686,13 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                 <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                   <th className="px-8 py-4">Bill Details</th>
                   <th className="px-8 py-4">Customer</th>
+                  <th className="px-8 py-4">LR Number</th>
                   <th className="px-8 py-4 text-right">Amount</th>
                   <th className="px-8 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filteredBookings.slice(0, searchTerm ? 50 : 10).map((b: Booking) => (
+                {filteredBookings.slice(0, (searchTerm || lrSearchTerm) ? 50 : 10).map((b: Booking) => (
                   <tr key={b.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="font-bold text-slate-900"># {b.billNumber}</div>
@@ -1683,6 +1701,16 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                     <td className="px-8 py-5">
                       <div className="font-black text-slate-700 uppercase tracking-tight truncate max-w-[150px]">{b.consigneeName}</div>
                       <div className="text-[10px] text-slate-400 font-bold uppercase">{b.consigneeGstin}</div>
+                    </td>
+                    <td className="px-8 py-5">
+                      {b.lrNumber ? (
+                        <div className="flex items-center gap-1.5 ring-1 ring-blue-100 bg-blue-50/50 text-blue-700 px-2 py-1 rounded-md w-fit">
+                          <Truck size={12} />
+                          <span className="text-[10px] font-black tracking-tighter uppercase">{b.lrNumber}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-300 italic font-bold">N/A</span>
+                      )}
                     </td>
                     <td className="px-8 py-5 text-right whitespace-nowrap">
                       <span className="font-black text-indigo-600 tracking-tighter">₹ {b.grandTotal.toLocaleString()}</span>
@@ -1693,7 +1721,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                           <Printer size={16} />
                         </button>
                         <button onClick={() => onEditSale(b)} title="Edit" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all">
-                          <Plus size={16} className="rotate-45" /> {/* Using Plus as a generic icon or could use Settings */}
+                          <Edit size={16} />
                         </button>
                         <button onClick={() => onDeleteSale(b.id)} title="Delete" className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
                           <AlertCircle size={16} />
@@ -1703,11 +1731,12 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                   </tr>
                 ))}
                 {filteredBookings.length === 0 && (
-                  <tr><td colSpan={4} className="px-8 py-12 text-center text-slate-400 italic font-medium">No sales recorded matching your search.</td></tr>
+                  <tr><td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic font-medium">No sales recorded matching your search.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
+
         </div>
 
         {/* Recent Purchase Bills */}
