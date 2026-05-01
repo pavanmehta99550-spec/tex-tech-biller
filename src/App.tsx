@@ -73,9 +73,11 @@ export default function App() {
   const [customLoginId, setCustomLoginId] = useState<string | null>(() => storage.get('customLoginId', null));
   const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [currentView, setCurrentView] = useState<View>('dash');
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
   const lastWriteTime = useRef<Record<string, number>>({});
+  const loadedKeys = useRef<Set<string>>(new Set());
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
     'dn', 'cn', 'items', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
@@ -122,6 +124,29 @@ export default function App() {
   useEffect(() => storage.set('payments', payments), [payments]);
   useEffect(() => storage.set('settings', settings), [settings]);
   useEffect(() => storage.set('lastBackupDate', lastBackupDate), [lastBackupDate]);
+
+  const resetData = () => {
+    setPurchaseParties([]);
+    setSaleParties([]);
+    setItemsMaster([]);
+    setTransports([]);
+    setBookings([]);
+    setPurchases([]);
+    setDebitNotes([]);
+    setCreditNotes([]);
+    setPayments([]);
+    setPurchasePayments([]);
+    setSettings(null);
+    setIsDataLoaded(false);
+    loadedKeys.current.clear();
+    // Clear localStorage for session keys
+    const keys = [
+      'purchaseParties', 'saleParties', 'itemsMaster', 'transports', 
+      'bookings', 'purchases', 'debit-notes', 'credit-notes', 
+      'payments', 'purchasePayments', 'settings'
+    ];
+    keys.forEach(key => storage.remove(key));
+  };
 
   // Firebase Auth Listener
   useEffect(() => {
@@ -217,22 +242,27 @@ export default function App() {
       const [col, docId, subCol, subDocId, ...rest] = docPath.split('/');
       
       return onSnapshot(doc(db, col, docId, subCol, subDocId), (docSnap) => {
-        // Only update local state if the snapshot is from the server 
-        // AND we don't have a pending local write for this specific key
         const now = Date.now();
         const lastWrite = lastWriteTime.current[key] || 0;
         
-        if (docSnap.exists() && !docSnap.metadata.hasPendingWrites && (now - lastWrite > 5000)) {
-          setter(docSnap.data().value);
-        } else if (!docSnap.exists() && (now - lastWrite > 5000)) {
-          // If Firestore is empty but we have local data, upload it (Migration)
-          const localData = storage.get(key, null);
-          if (localData !== null) {
-            setDoc(doc(db, col, docId, subCol, subDocId), { value: localData });
+        if (docSnap.exists()) {
+          // If this is the server update and we don't have a blocking local write
+          if (!docSnap.metadata.hasPendingWrites && (now - lastWrite > 5000)) {
+            setter(docSnap.data().value);
           }
+        }
+        
+        // Mark as loaded regardless of existence
+        loadedKeys.current.add(key);
+        if (loadedKeys.current.size >= dataCollections.length) {
+            setIsDataLoaded(true);
         }
       }, (error) => {
         console.error(`Snapshot error for ${key}:`, error);
+        loadedKeys.current.add(key); 
+        if (loadedKeys.current.size >= dataCollections.length) {
+            setIsDataLoaded(true);
+        }
       });
     });
 
@@ -253,7 +283,7 @@ export default function App() {
   // Sync to Firebase on changes
   useEffect(() => {
     const activeId = user?.uid || customLoginId;
-    if (!activeId) return;
+    if (!activeId || !isDataLoaded) return;
     
     const syncData = async () => {
       setIsSyncing(true);
@@ -809,11 +839,15 @@ export default function App() {
     return 'admin';
   }, [settings]);
 
-  if (isFirebaseLoading) return (
+  if (isFirebaseLoading || ((isAuthenticated || customLoginId) && !isDataLoaded)) return (
     <div className="fixed inset-0 bg-[#1E272E] flex flex-col items-center justify-center text-white">
       <RefreshCw size={48} className="animate-spin text-blue-400 mb-4" />
-      <h2 className="text-xl font-bold uppercase tracking-widest">Loading Secure App...</h2>
-      <p className="text-slate-400 text-xs mt-2 font-mono">Syncing with encrypted cloud backup</p>
+      <h2 className="text-xl font-bold uppercase tracking-widest">
+        {isFirebaseLoading ? "Securing Tunnel..." : "Accessing Cloud Data..."}
+      </h2>
+      <p className="text-slate-400 text-xs mt-2 font-mono">
+        {isFirebaseLoading ? "Initializing security handshake" : "Synchronizing your account with cloud backup"}
+      </p>
     </div>
   );
 
@@ -1293,6 +1327,7 @@ export default function App() {
                   <button 
                     onClick={() => {
                       auth.signOut();
+                      resetData();
                       setIsAuthenticated(false);
                       setUser(null);
                       setCustomLoginId(null);
