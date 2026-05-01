@@ -1802,19 +1802,10 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
       const form = (e.currentTarget as any).form;
-      if (!form) return;
-      const elements = Array.from(form.elements) as HTMLElement[];
-      const index = elements.indexOf(e.currentTarget as any);
-      if (index > -1) {
-        for (let i = index + 1; i < elements.length; i++) {
-          const el = elements[i];
-          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
-            el.focus();
-            break;
-          }
-        }
+      if (form) {
+        e.preventDefault();
+        form.requestSubmit();
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -1931,25 +1922,27 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
   const hasItemDiscount = useMemo(() => formData.items.some(item => (item.discount || 0) > 0), [formData.items]);
 
   const calc = useMemo(() => {
-    const basicAmount = formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const basicAmount = Math.round(formData.items.reduce((sum, item) => sum + (item.amount || 0), 0) * 100) / 100;
     const effectiveGlobalDiscount = hasItemDiscount ? 0 : (formData.globalDiscount || 0);
     const taxableValue = Math.max(0, basicAmount - effectiveGlobalDiscount);
-    const tax = taxableValue * (formData.taxRate / 100);
+    const tax = Math.round((taxableValue * (formData.taxRate / 100)) * 100) / 100;
     
     // Determine CGST/SGST vs IGST
     const buyerStateCode = formData.buyerGstin?.substring(0, 2);
     const supplierStateCode = formData.partyGstin?.substring(0, 2);
     const isInterstate = buyerStateCode && supplierStateCode && buyerStateCode !== supplierStateCode;
     
-    const cgst = isInterstate ? 0 : tax / 2;
-    const sgst = isInterstate ? 0 : tax / 2;
+    const cgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
+    const sgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
     const igst = isInterstate ? tax : 0;
     
-    return { basicAmount, taxableValue, tax, cgst, sgst, igst, isInterstate, total: taxableValue + tax, effectiveGlobalDiscount };
+    return { basicAmount, taxableValue, tax, cgst, sgst, igst, isInterstate, total: Math.round((taxableValue + tax) * 100) / 100, effectiveGlobalDiscount };
   }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.buyerGstin, formData.partyGstin]);
 
   useEffect(() => {
-    setFormData(prev => ({ ...prev, basicAmount: calc.basicAmount }));
+    if (Math.abs(formData.basicAmount - calc.basicAmount) > 0.01) {
+      setFormData(prev => ({ ...prev, basicAmount: calc.basicAmount }));
+    }
   }, [calc.basicAmount]);
 
   useEffect(() => {
@@ -2333,19 +2326,10 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
   }, [debitNotes, searchTerm]);
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
       const form = (e.currentTarget as any).form;
-      if (!form) return;
-      const elements = Array.from(form.elements) as HTMLElement[];
-      const index = elements.indexOf(e.currentTarget as any);
-      if (index > -1) {
-        for (let i = index + 1; i < elements.length; i++) {
-          const el = elements[i];
-          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
-            el.focus();
-            break;
-          }
-        }
+      if (form) {
+        e.preventDefault();
+        form.requestSubmit();
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -2958,25 +2942,27 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
   const hasItemDiscount = useMemo(() => formData.items.some(item => (item.discount || 0) > 0), [formData.items]);
 
   const calc = useMemo(() => {
-    const basicAmount = formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const basicAmount = Math.round(formData.items.reduce((sum, item) => sum + (item.amount || 0), 0) * 100) / 100;
     const effectiveGlobalDiscount = hasItemDiscount ? 0 : (formData.globalDiscount || 0);
     const taxableValue = Math.max(0, basicAmount - effectiveGlobalDiscount);
-    const tax = taxableValue * (formData.taxRate / 100);
+    const tax = Math.round((taxableValue * (formData.taxRate / 100)) * 100) / 100;
     
     // Determine CGST/SGST vs IGST
     const consignorStateCode = formData.consignorGstin?.substring(0, 2);
     const consigneeStateCode = formData.consigneeGstin?.substring(0, 2);
     const isInterstate = consignorStateCode && consigneeStateCode && consignorStateCode !== consigneeStateCode;
     
-    const cgst = isInterstate ? 0 : tax / 2;
-    const sgst = isInterstate ? 0 : tax / 2;
+    const cgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
+    const sgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
     const igst = isInterstate ? tax : 0;
     
-    return { basicAmount, taxableValue, tax, cgst, sgst, igst, isInterstate, total: taxableValue + tax, effectiveGlobalDiscount };
+    return { basicAmount, taxableValue, tax, cgst, sgst, igst, isInterstate, total: Math.round((taxableValue + tax) * 100) / 100, effectiveGlobalDiscount };
   }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.consignorGstin, formData.consigneeGstin]);
 
   useEffect(() => {
-    setFormData(prev => ({ ...prev, basicAmount: calc.basicAmount }));
+    if (Math.abs(formData.basicAmount - calc.basicAmount) > 0.01) {
+      setFormData(prev => ({ ...prev, basicAmount: calc.basicAmount }));
+    }
   }, [calc.basicAmount]);
 
   useEffect(() => {
@@ -3054,19 +3040,10 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
 
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
       const form = (e.currentTarget as any).form;
-      if (!form) return;
-      const elements = Array.from(form.elements) as HTMLElement[];
-      const index = elements.indexOf(e.currentTarget as any);
-      if (index > -1) {
-        for (let i = index + 1; i < elements.length; i++) {
-          const el = elements[i];
-          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
-            el.focus();
-            break;
-          }
-        }
+      if (form) {
+        e.preventDefault();
+        form.requestSubmit();
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -3607,19 +3584,10 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
   }, [creditNotes, searchTerm]);
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
       const form = (e.currentTarget as any).form;
-      if (!form) return;
-      const elements = Array.from(form.elements) as HTMLElement[];
-      const index = elements.indexOf(e.currentTarget as any);
-      if (index > -1) {
-        for (let i = index + 1; i < elements.length; i++) {
-          const el = elements[i];
-          if (el && el.tagName !== 'BUTTON' && !el.hasAttribute('disabled') && !el.hasAttribute('readonly')) {
-            el.focus();
-            break;
-          }
-        }
+      if (form) {
+        e.preventDefault();
+        form.requestSubmit();
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
