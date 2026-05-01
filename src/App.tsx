@@ -162,6 +162,33 @@ export default function App() {
       }
 
       if (e.key === 'Escape') {
+        let closedSomething = false;
+
+        if (previewBooking || previewPurchase || previewDebitNote || previewCreditNote) {
+          setPreviewBooking(null);
+          setPreviewPurchase(null);
+          setPreviewDebitNote(null);
+          setPreviewCreditNote(null);
+          closedSomething = true;
+        }
+
+        if (editingBooking || editingPurchase || editingDebitNote || editingCreditNote || editingPayment) {
+          setEditingBooking(null);
+          setEditingPurchase(null);
+          setEditingDebitNote(null);
+          setEditingCreditNote(null);
+          setEditingPayment(null);
+          closedSomething = true;
+        }
+
+        if (showLogoutConfirm || showBackupWarning) {
+          setShowLogoutConfirm(false);
+          setShowBackupWarning(false);
+          closedSomething = true;
+        }
+
+        if (closedSomething) return;
+
         if (focusedIdx === -1) {
           // Blur any active input so arrow keys/enter work for sidebar
           if (activeElement && (activeElement as HTMLElement).blur) {
@@ -196,7 +223,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentView, focusedIdx, views]);
+  }, [currentView, focusedIdx, views, previewBooking, previewPurchase, previewDebitNote, previewCreditNote, editingBooking, editingPurchase, editingDebitNote, editingCreditNote, editingPayment, showLogoutConfirm, showBackupWarning]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -1799,6 +1826,18 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
 function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onViewHistory, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowPreview(false);
+        if (activeCalcId) setActiveCalcId(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [activeCalcId]);
+
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -2311,9 +2350,21 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
 
 function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings, debitNotes, purchases, itemsMaster = [], editingDebitNote, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
+  const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowPreview(false);
+        if (activeCalcId) setActiveCalcId(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [activeCalcId]);
+
   const [invoiceError, setInvoiceError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
 
   const filteredDebitNotes = useMemo(() => {
@@ -2856,8 +2907,20 @@ function QtyCalculator({ value, onChange, onApply, onBlur, isLocked }: { value: 
 
 function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], transports = [], editingBooking, onViewHistory, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
-  const [navigatedBillLocked, setNavigatedBillLocked] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowPreview(false);
+        if (activeCalcId) setActiveCalcId(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [activeCalcId]);
+
+  const [navigatedBillLocked, setNavigatedBillLocked] = useState(false);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = bookings.reduce((max: number, b: any) => Math.max(max, b.billNumber || 0), 0) + 1;
@@ -3596,9 +3659,21 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
 
 function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings, creditNotes, bookings, itemsMaster = [], editingCreditNote, onCancel }: any) {
   const [showPreview, setShowPreview] = useState(false);
+  const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowPreview(false);
+        if (activeCalcId) setActiveCalcId(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [activeCalcId]);
+
   const [invoiceError, setInvoiceError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
 
   const filteredCreditNotes = useMemo(() => {
@@ -5347,6 +5422,21 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
   const [previewDebitNote, setPreviewDebitNote] = useState<any>(null);
   const [previewPayment, setPreviewPayment] = useState<any>(null);
   const [showLedgerPrint, setShowLedgerPrint] = useState(false);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreviewBooking(null);
+        setPreviewPurchase(null);
+        setPreviewCreditNote(null);
+        setPreviewDebitNote(null);
+        setPreviewPayment(null);
+        setShowLedgerPrint(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
 
   const filteredParties = (activeTab === 'sales' ? (parties || []) : (purchaseParties || [])).filter((p: any) => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
