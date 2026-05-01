@@ -1152,31 +1152,33 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8 print:ml-0 print:p-0 relative">
-        <div className="absolute top-8 right-8 flex items-center gap-4 bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-slate-200 shadow-sm z-10 print:hidden">
-          <div className="flex items-center gap-3">
-            {syncStatus === 'synced' ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-600 rounded-full border border-green-100">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-[10px] font-black uppercase tracking-tighter">Cloud Saved</span>
-              </div>
-            ) : syncStatus === 'pending' ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
-                <RefreshCw size={12} className="animate-spin opacity-70" />
-                <span className="text-[10px] font-black uppercase tracking-tighter">Syncing...</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-full border border-red-100">
-                <AlertTriangle size={12} className="opacity-70" />
-                <span className="text-[10px] font-black uppercase tracking-tighter">Sync Error</span>
-              </div>
-            )}
+        {currentView !== 'dash' && (
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-slate-200 shadow-sm z-10 print:hidden whitespace-nowrap">
+            <div className="flex items-center gap-3">
+              {syncStatus === 'synced' ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-600 rounded-full border border-green-100">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-[10px] font-black uppercase tracking-tighter">Cloud Saved</span>
+                </div>
+              ) : syncStatus === 'pending' ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
+                  <RefreshCw size={12} className="animate-spin opacity-70" />
+                  <span className="text-[10px] font-black uppercase tracking-tighter">Syncing...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-full border border-red-100">
+                  <AlertTriangle size={12} className="opacity-70" />
+                  <span className="text-[10px] font-black uppercase tracking-tighter">Sync Error</span>
+                </div>
+              )}
+            </div>
+            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Working Year:</span>
+              <span className="text-sm font-black text-slate-900 tracking-tight">{financialYear}</span>
+            </div>
           </div>
-          <div className="w-px h-6 bg-slate-200 mx-1"></div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Working Year:</span>
-            <span className="text-sm font-black text-slate-900 tracking-tight">{financialYear}</span>
-          </div>
-        </div>
+        )}
         <div className="max-w-6xl mx-auto">
           <AnimatePresence mode="wait">
             {currentView === 'dash' && <DashboardView 
@@ -7730,7 +7732,7 @@ function TransportMasterView({ transports, onSave }: any) {
   );
 }
 
-function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSave: (e: Expense[]) => void, onBack: () => void }) {
+function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSave: (e: Expense[]) => void, onBack: () => void, key?: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Expense>>({
