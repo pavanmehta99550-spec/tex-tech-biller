@@ -73,6 +73,7 @@ export default function App() {
   const [customLoginId, setCustomLoginId] = useState<string | null>(() => storage.get('customLoginId', null));
   const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'pending' | 'error'>('synced');
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [currentView, setCurrentView] = useState<View>('dash');
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
@@ -269,14 +270,22 @@ export default function App() {
     return () => unsubscribers.forEach(unsub => unsub());
   }, [user, customLoginId]);
 
+  // Track individual changes to prevent "rollback" flickers
+  const prevData = useRef<Record<string, any>>({});
   useEffect(() => {
     const data: Record<string, any> = {
       purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, 
       'debit-notes': debitNotes, 'credit-notes': creditNotes, payments, purchasePayments, 
       settings, lastBackupDate
     };
+    
     Object.keys(data).forEach(key => {
-      lastWriteTime.current[key] = Date.now();
+      const currentVal = JSON.stringify(data[key]);
+      if (currentVal !== prevData.current[key]) {
+        lastWriteTime.current[key] = Date.now();
+        prevData.current[key] = currentVal;
+        setSyncStatus('pending');
+      }
     });
   }, [purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, settings, lastBackupDate]);
 
@@ -288,6 +297,7 @@ export default function App() {
     const syncData = async () => {
       setIsSyncing(true);
       try {
+        setSyncStatus('pending');
         const batch: any = {
           purchaseParties,
           saleParties,
@@ -313,6 +323,7 @@ export default function App() {
         });
         
         await Promise.all(syncPromises);
+        setSyncStatus('synced');
         
         // Also ensure current password is synced if using custom ID
         if (customLoginId && settings?.adminPassword) {
@@ -324,6 +335,7 @@ export default function App() {
         }
       } catch (err) {
         console.error("Sync failed", err);
+        setSyncStatus('error');
       } finally {
         setIsSyncing(false);
       }
@@ -855,6 +867,8 @@ export default function App() {
     <Login 
       user={user}
       onLogin={(u, customId) => {
+        setIsDataLoaded(false);
+        loadedKeys.current.clear();
         if (u) {
           setUser(u);
           setIsAuthenticated(true);
@@ -981,19 +995,30 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8 print:ml-0 print:p-0 relative">
-        <div className="absolute top-8 right-8 flex items-center gap-3 bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-slate-200 shadow-sm z-10 print:hidden">
-          <button 
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
-            title="Refresh Application (F5)"
-          >
-            <RefreshCw size={14} className="animate-spin-hover" />
-            Update App
-          </button>
-          <div className="w-px h-4 bg-slate-200 mx-1"></div>
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Working Year:</span>
-          <span className="text-sm font-black text-slate-900 tracking-tight">{financialYear}</span>
+        <div className="absolute top-8 right-8 flex items-center gap-4 bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-slate-200 shadow-sm z-10 print:hidden">
+          <div className="flex items-center gap-3">
+            {syncStatus === 'synced' ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-600 rounded-full border border-green-100">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-[10px] font-black uppercase tracking-tighter">Cloud Saved</span>
+              </div>
+            ) : syncStatus === 'pending' ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
+                <RefreshCw size={12} className="animate-spin opacity-70" />
+                <span className="text-[10px] font-black uppercase tracking-tighter">Syncing...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-full border border-red-100">
+                <AlertTriangle size={12} className="opacity-70" />
+                <span className="text-[10px] font-black uppercase tracking-tighter">Sync Error</span>
+              </div>
+            )}
+          </div>
+          <div className="w-px h-6 bg-slate-200 mx-1"></div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Working Year:</span>
+            <span className="text-sm font-black text-slate-900 tracking-tight">{financialYear}</span>
+          </div>
         </div>
         <div className="max-w-6xl mx-auto">
           <AnimatePresence mode="wait">
@@ -4087,14 +4112,14 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-8 p-1 relative overflow-hidden">
+        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-green-800 text-slate-900">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
               {settings?.companyName || "PRO BILLER"}
             </span>
           </div>
-          <div className="flex justify-between items-start border-b-4 border-green-700 pb-6">
+          <div className="flex justify-between items-start border-b-2 border-green-700 pb-6 p-8 print:p-6 print:border-b-2">
             <div>
               <h1 className="text-3xl font-black text-green-700 uppercase">CREDIT NOTE</h1>
               <p className="text-slate-500 font-bold text-sm tracking-widest">Customer Return Voucher</p>
@@ -4113,39 +4138,41 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
             </div>
           </div>
 
-          <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
-             <label className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1 block">To Customer</label>
-             <div className="font-black text-slate-900 text-lg uppercase">{creditNote.partyName}</div>
-             <div className="text-green-700 font-bold text-xs">{creditNote.partyGstin}</div>
-             <div className="text-slate-500 text-xs mt-1">{creditNote.partyAddress}</div>
+          <div className="border-b-2 border-green-700">
+            <div className="p-8 print:p-6 bg-green-50/10">
+               <label className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1 block">To Customer</label>
+               <div className="font-black text-slate-900 text-lg uppercase">{creditNote.partyName}</div>
+               <div className="text-green-700 font-bold text-xs">{creditNote.partyGstin}</div>
+               <div className="text-slate-500 text-xs mt-1">{creditNote.partyAddress}</div>
+            </div>
           </div>
 
-          <table className="w-full text-xs">
-            <thead className="bg-slate-50 border-y border-slate-100">
-              <tr>
-                <th className="py-2 px-3 text-left">Description</th>
-                <th className="py-2 px-3 text-right">Qty</th>
-                <th className="py-2 px-3 text-right">Rate</th>
-                <th className="py-2 px-3 text-right">Total</th>
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-green-50/50 border-b-2 border-green-700">
+                <th className="py-3 px-3 text-left border-r-2 border-green-700">Description</th>
+                <th className="py-3 px-3 text-right border-r-2 border-green-700">Qty</th>
+                <th className="py-3 px-3 text-right border-r-2 border-green-700">Rate</th>
+                <th className="py-3 px-3 text-right">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y-2 divide-green-700">
               {creditNote.items.map((item, idx) => (
                 <tr key={idx}>
-                  <td className="py-3 px-3">
+                  <td className="py-3 px-3 border-r-2 border-green-700">
                     <div className="font-bold">{item.name}</div>
                     <div className="text-slate-400">HSN: {item.hsnCode}</div>
                   </td>
-                  <td className="py-3 px-3 text-right">{item.quantity}</td>
-                  <td className="py-3 px-3 text-right">₹{item.rate.toLocaleString()}</td>
+                  <td className="py-3 px-3 text-right border-r-2 border-green-700">{item.quantity}</td>
+                  <td className="py-3 px-3 text-right border-r-2 border-green-700">₹{item.rate.toLocaleString()}</td>
                   <td className="py-3 px-3 text-right font-bold">₹{item.amount.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div className="border-t border-slate-100 pt-6 flex justify-between items-start">
-            <div className="flex-1 pr-8">
+          <div className="border-t-2 border-green-700 flex justify-between items-stretch">
+            <div className="flex-1 p-8 print:p-6 border-r-2 border-green-700">
               {settings?.bankName && (
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
@@ -4164,7 +4191,7 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
                 </div>
               )}
             </div>
-            <div className="w-64 space-y-2">
+            <div className="w-80 p-8 print:p-6 space-y-2">
               <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
                 <span>Basic Amount</span>
                 <span>₹{creditNote.basicAmount.toLocaleString()}</span>
@@ -4173,25 +4200,27 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
                 <span>Tax ({creditNote.taxRate}%)</span>
                 <span>₹{creditNote.taxAmount.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+              <div className="flex justify-between items-center pt-2 border-t-2 border-green-700 mt-2">
                 <span className="text-lg font-black uppercase">Grand Total</span>
                 <span className="text-xl font-black text-green-700">₹{creditNote.grandTotal.toLocaleString()}</span>
               </div>
             </div>
           </div>
 
-          <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
+          <div className="border-t-2 border-green-700 p-8 print:p-6 flex justify-between items-end">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Sales Return Voucher I</div>
-            <div className="text-center min-w-[12rem] pt-2 border-t-2 border-green-700 relative">
+            <div className="text-center min-w-[12rem] relative">
               {settings?.signature ? (
-                <div className="h-20 flex items-end justify-center mb-1">
+                <div className="h-28 flex items-end justify-center mb-1">
                    <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-20" />
+                <div className="h-28" />
               )}
-              <div className="text-[10px] font-black uppercase tracking-widest text-green-700">Authorized Entry</div>
-              <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
+              <div className="pt-2 border-t-2 border-green-700">
+                <div className="text-[10px] font-black uppercase tracking-widest text-green-700">Authorized Entry</div>
+                <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
+              </div>
             </div>
           </div>
         </div>
@@ -4682,14 +4711,14 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
           </div>
         </div>
 
-        <div ref={printRef} className="p-12 bg-white text-slate-800 relative overflow-hidden">
+        <div ref={printRef} className="p-0 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
               {settings?.companyName || "PRO BILLER"}
             </span>
           </div>
-          <header className="flex justify-between items-start mb-12 border-b-4 border-slate-900 pb-8 relative z-10">
+          <header className="flex justify-between items-start border-b-2 border-slate-900 pb-8 p-8 print:p-6 relative z-10">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">{settings?.companyName}</h1>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Payment Receipt / Voucher</p>
@@ -4700,33 +4729,33 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
             </div>
           </header>
 
-          <div className="grid grid-cols-2 gap-12 mb-12">
-            <div>
+          <div className="grid grid-cols-2 gap-0 border-b-2 border-slate-900">
+            <div className="p-8 print:p-6 border-r-2 border-slate-900">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Received From</h4>
               <p className="text-2xl font-black text-slate-900 uppercase leading-none mb-1">{payment.partyName}</p>
               <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{payment.partyGstin}</p>
             </div>
-            <div className="text-right">
+            <div className="text-right p-8 print:p-6">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Voucher Details</h4>
-              <p className="text-sm font-bold text-slate-700">Ref: {payment.id}</p>
+              <p className="text-sm font-bold text-slate-700 font-mono">Ref: {payment.id}</p>
               {payment.chequeNumber && <p className="text-sm font-bold text-slate-700">Cheque No: {payment.chequeNumber}</p>}
               {payment.chequeDate && <p className="text-sm font-bold text-slate-700">Date: {new Date(payment.chequeDate).toLocaleDateString()}</p>}
             </div>
           </div>
 
-          <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 mb-8">
+          <div className="p-8 print:p-6 border-b-2 border-slate-900 bg-slate-50/10">
             <div className="flex justify-between items-center mb-6">
               <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">Total Amount Received</span>
               <span className="text-3xl font-black text-slate-900 tracking-tighter">₹ {payment.amount.toLocaleString()}</span>
             </div>
             
             {payment.billAdjustments && payment.billAdjustments.length > 0 && (
-              <div className="space-y-3 pt-6 border-t border-slate-200">
+              <div className="space-y-3 pt-6 border-t-2 border-slate-900">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Adjustment Details</h4>
                 {payment.billAdjustments.map((adj: any, i: number) => (
                   <div key={i} className="flex justify-between text-xs font-bold text-slate-700">
-                    <span>Adjusted against Bill # {adj.billNumber}</span>
-                    <span>₹ {adj.amount.toLocaleString()}</span>
+                    <span className="uppercase">Adjusted against Bill # {adj.billNumber}</span>
+                    <span className="font-mono">₹ {adj.amount.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -4734,14 +4763,14 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
           </div>
 
           {payment.notes && (
-            <div className="mb-12">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Notes</h4>
+            <div className="p-8 print:p-6 border-b-2 border-slate-900">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Notes / Internal Remarks</h4>
               <p className="text-sm text-slate-600 italic leading-relaxed">{payment.notes}</p>
             </div>
           )}
 
-          <footer className="mt-12 pt-8 border-t border-slate-100 flex justify-between items-start">
-            <div className="flex-1 pr-8">
+          <footer className="p-8 print:p-6 flex justify-between items-stretch">
+            <div className="flex-1 pr-8 border-r-2 border-slate-900">
               {settings?.bankName && (
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
@@ -4760,13 +4789,14 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
                 </div>
               )}
             </div>
-            <div className="text-center min-w-[12rem]">
-               {settings?.signature && (
-                 <div className="h-20 flex items-end justify-center mb-1">
+            <div className="text-center min-w-[12rem] pl-8 flex flex-col justify-end">
+               {settings?.signature ? (
+                 <div className="h-28 flex items-end justify-center mb-1">
                    <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
                  </div>
+               ) : (
+                 <div className="h-28" />
                )}
-               {!settings?.signature && <div className="h-20" />}
                <div className="pt-2 border-t-2 border-slate-900">
                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Signatory</p>
                </div>
@@ -5159,6 +5189,122 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
   );
 }
 
+function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
+  const printRef = useRef<HTMLDivElement>(null);
+  const runningBalance = transactions.reduce((acc: number, t: any) => acc + t.amount, 0);
+
+  const handleDownloadPDF = async () => {
+    if (!printRef.current) return;
+    const canvas = await html2canvas(printRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`Ledger_${party.name}.pdf`);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl">
+        <div className="bg-slate-900 p-6 flex justify-between items-center print:hidden text-white font-black uppercase text-sm tracking-widest">
+          <h3>Ledger Statement</h3>
+          <div className="flex gap-4">
+            <button onClick={() => window.print()} className="bg-indigo-600 px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all">Print</button>
+            <button onClick={handleDownloadPDF} className="bg-blue-600 px-4 py-2 rounded-xl hover:bg-blue-700 transition-all">PDF</button>
+            <button onClick={onClose} className="bg-white/10 px-4 py-2 rounded-xl hover:bg-white/20 transition-all">Close</button>
+          </div>
+        </div>
+
+        <div ref={printRef} className="p-0 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse">
+          {/* Watermark for Print */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden font-black text-[100px] uppercase">
+            {settings?.companyName}
+          </div>
+
+          <header className="p-8 print:p-6 border-b-2 border-slate-900 flex justify-between items-start relative z-10">
+            <div>
+              <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">{settings?.companyName}</h1>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Address: {settings?.address}</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">GSTIN: {settings?.gstin}</p>
+            </div>
+            <div className="text-right">
+              <h2 className="text-2xl font-black text-slate-900 uppercase">Statement of Account</h2>
+              <p className="text-sm font-bold text-slate-500">Party: <span className="text-slate-900">{party.name}</span></p>
+              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Date: {new Date().toLocaleDateString()}</p>
+            </div>
+          </header>
+
+          <div className="p-8 print:p-6 border-b-2 border-slate-900 bg-slate-50/10">
+            <div className="grid grid-cols-2 gap-8">
+              <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Statement Period</h4>
+                <p className="text-sm font-bold text-slate-900 uppercase tracking-widest">All Previous Records</p>
+              </div>
+              <div className="text-right">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 italic">Net Outstanding (Balance)</h4>
+                <p className={`text-2xl font-black ${runningBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  ₹ {Math.abs(runningBalance).toLocaleString()} {runningBalance > 0 ? 'Debit (Dr)' : 'Credit (Cr)'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b-2 border-slate-900 font-black uppercase text-slate-600">
+                <th className="py-3 px-4 text-left border-r-2 border-slate-900">Date</th>
+                <th className="py-3 px-4 text-left border-r-2 border-slate-900 w-1/3">Description / Reference</th>
+                <th className="py-3 px-4 text-right border-r-2 border-slate-900">Debit (₹)</th>
+                <th className="py-3 px-4 text-right border-r-2 border-slate-900">Credit (₹)</th>
+                <th className="py-3 px-4 text-right">Balance (₹)</th>
+              </tr>
+            </thead>
+            <tbody className="border-b-2 border-slate-900 border-t-2">
+              {transactions.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).reduce((acc: any[], t: any) => {
+                const prevBal = acc.length > 0 ? acc[acc.length - 1].runningBal : 0;
+                acc.push({ ...t, runningBal: prevBal + t.amount });
+                return acc;
+              }, []).map((t: any, idx: number) => (
+                <tr key={idx} className="border-b-2 border-slate-900">
+                  <td className="py-3 px-4 font-bold border-r-2 border-slate-900">{new Date(t.date).toLocaleDateString()}</td>
+                  <td className="py-3 px-4 border-r-2 border-slate-900">
+                    <div className="font-bold uppercase tracking-tight">{t.type.replace('_', ' ')}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">REF: {t.billNumber || t.invoiceNumber || t.noteNumber || String(t.id).slice(0, 8)}</div>
+                  </td>
+                  <td className="py-3 px-4 text-right border-r-2 border-slate-900 font-bold">
+                    {t.amount > 0 ? t.amount.toLocaleString() : '-'}
+                  </td>
+                  <td className="py-3 px-4 text-right border-r-2 border-slate-900 font-bold">
+                    {t.amount < 0 ? Math.abs(t.amount).toLocaleString() : '-'}
+                  </td>
+                  <td className="py-3 px-4 text-right font-black">
+                    {Math.abs(t.runningBal).toLocaleString()} {t.runningBal >= 0 ? 'Dr' : 'Cr'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <footer className="p-8 print:p-6 border-t-2 border-slate-900 bg-slate-50 flex justify-between items-end">
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Automated Ledger Generated I Pro Biller</div>
+            <div className="text-center min-w-[12rem]">
+               {settings?.signature && (
+                 <div className="h-28 flex items-end justify-center mb-1">
+                   <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+                 </div>
+               )}
+               <div className="pt-2 border-t-2 border-slate-900">
+                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Authorized Stamp/Sign</p>
+               </div>
+            </div>
+          </footer>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment }: any) {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
@@ -5168,6 +5314,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
   const [previewCreditNote, setPreviewCreditNote] = useState<any>(null);
   const [previewDebitNote, setPreviewDebitNote] = useState<any>(null);
   const [previewPayment, setPreviewPayment] = useState<any>(null);
+  const [showLedgerPrint, setShowLedgerPrint] = useState(false);
 
   const filteredParties = (activeTab === 'sales' ? (parties || []) : (purchaseParties || [])).filter((p: any) => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -5202,7 +5349,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-        <header className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <header className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm print:hidden">
           <div className="flex items-center gap-4">
             <button onClick={() => setSelectedParty(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-all">
               <ChevronLeft size={24} />
@@ -5212,11 +5359,19 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{selectedParty.gstin}</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Current Balance</p>
-            <p className={`text-3xl font-black tracking-tighter ${runningBalance > 0 ? 'text-red-500' : 'text-green-600'}`}>
-              ₹ {runningBalance.toLocaleString()}
-            </p>
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => setShowLedgerPrint(true)}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-200"
+            >
+              <Printer size={14} /> Print Ledger
+            </button>
+            <div className="text-right">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Current Balance</p>
+              <p className={`text-3xl font-black tracking-tighter ${runningBalance > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                ₹ {runningBalance.toLocaleString()}
+              </p>
+            </div>
           </div>
         </header>
 
@@ -5305,6 +5460,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
         {previewPayment && <PaymentPrintPreview payment={previewPayment} settings={settings} onClose={() => setPreviewPayment(null)} />}
         {previewCreditNote && <CreditNotePrintPreview creditNote={previewCreditNote} settings={settings} onClose={() => setPreviewCreditNote(null)} />}
         {previewDebitNote && <DebitNotePrintPreview debitNote={previewDebitNote} settings={settings} onClose={() => setPreviewDebitNote(null)} />}
+        {showLedgerPrint && <LedgerPrintPreview party={selectedParty} transactions={transactions} settings={settings} onClose={() => setShowLedgerPrint(false)} />}
       </motion.div>
     );
   }
@@ -5452,14 +5608,14 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-8 p-1 relative overflow-hidden">
+        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-900">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
               {settings?.companyName || "PRO BILLER"}
             </span>
           </div>
-          <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-6">
+          <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-6 p-8 print:p-6 print:border-b-2">
             <div>
               <h1 className="text-3xl font-black text-indigo-900 uppercase">PURCHASE VOUCHER</h1>
               <p className="text-slate-500 font-bold text-sm tracking-widest">Self Record Entry</p>
@@ -5476,8 +5632,8 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-10">
-            <div className="p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100">
+          <div className="border-b-2 border-indigo-900">
+            <div className="p-8 print:p-6 bg-indigo-50/10">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Supplier Details (Seller)</label>
               <div className="font-black text-slate-900 text-lg uppercase">{purchase.partyName}</div>
               <div className="text-indigo-600 font-black text-xs italic tracking-wider">{purchase.partyGstin}</div>
@@ -5485,37 +5641,37 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
             </div>
           </div>
 
-          <table className="w-full text-sm">
+          <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-y border-slate-200">
-                <th className="py-4 text-left font-black uppercase text-xs tracking-widest text-slate-500">Item Name</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">HSN</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">Qty</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">Rate</th>
-                <th className="py-4 text-right font-black uppercase text-xs tracking-widest text-slate-500">Amount (₹)</th>
+              <tr className="border-b-2 border-indigo-900 bg-indigo-50/50">
+                <th className="py-4 px-4 text-left font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Item Name</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">HSN</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Qty</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Rate</th>
+                <th className="py-4 px-4 text-right font-black uppercase text-xs tracking-widest text-indigo-900">Amount (₹)</th>
               </tr>
             </thead>
             <tbody>
               {(purchase.items || []).map((item) => (
-                <tr key={item.id} className="border-b border-slate-50">
-                  <td className="py-4 font-bold text-slate-900">
+                <tr key={item.id} className="border-b-2 border-indigo-900">
+                  <td className="py-4 px-4 font-bold text-slate-900 border-r-2 border-indigo-900">
                     {item.name}
                   </td>
-                  <td className="py-4 text-center font-bold text-slate-700">{item.hsnCode || '-'}</td>
-                  <td className="py-4 text-center font-bold text-slate-700">
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">{item.hsnCode || '-'}</td>
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">
                     {item.quantity} {item.unit}
                   </td>
-                  <td className="py-4 text-center font-bold text-slate-700">
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">
                     {item.rate.toFixed(2)}
                   </td>
-                  <td className="py-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                  <td className="py-4 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div className="border-t border-slate-200 pt-6 flex justify-between items-start">
-            <div className="flex-1 pr-8">
+          <div className="border-t-2 border-indigo-900 flex justify-between items-stretch">
+            <div className="flex-1 p-8 print:p-6 border-r-2 border-indigo-900">
               {settings?.bankName && (
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
@@ -5534,40 +5690,42 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
                 </div>
               )}
             </div>
-            <div className="w-64 space-y-2">
-              <div className="flex justify-between text-slate-500 font-bold text-sm">
+            <div className="w-80 p-8 print:p-6 space-y-2">
+              <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
                 <span>Basic Amount:</span>
                 <span>₹{purchase.basicAmount.toLocaleString()}</span>
               </div>
               {purchase.globalDiscount > 0 && (
-                <div className="flex justify-between text-red-500 font-bold text-sm">
+                <div className="flex justify-between text-red-500 font-bold text-xs uppercase">
                   <span>Discount:</span>
                   <span>- ₹{purchase.globalDiscount.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-500 font-bold text-sm">
-                <span>GST ({purchase.taxRate}%):</span>
+              <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
+                <span>GST Total:</span>
                 <span>₹{purchase.taxAmount.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-slate-900 font-black text-xl pt-2 border-t border-indigo-100">
+              <div className="flex justify-between text-slate-900 font-black text-xl pt-2 border-t-2 border-indigo-900 mt-2">
                 <span>Grand Total:</span>
                 <span className="text-indigo-600">₹{purchase.grandTotal.toLocaleString()}</span>
               </div>
             </div>
           </div>
 
-          <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
+          <div className="border-t-2 border-indigo-900 p-8 print:p-6 flex justify-between items-end">
              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Entry Logged I</div>
-            <div className="text-center min-w-[12rem] pt-2 border-t-2 border-indigo-900 relative">
+            <div className="text-center min-w-[12rem] relative">
               {settings?.signature ? (
-                <div className="h-20 flex items-end justify-center mb-1">
+                <div className="h-28 flex items-end justify-center mb-1">
                    <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-20" />
+                <div className="h-28" />
               )}
-              <div className="text-[10px] font-black uppercase tracking-widest text-indigo-900">Authorized Entry</div>
-              <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Purchase</div>
+              <div className="pt-2 border-t-2 border-indigo-900">
+                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-900">Authorized Entry</div>
+                <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Purchase</div>
+              </div>
             </div>
           </div>
         </div>
@@ -5650,14 +5808,14 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-8 p-1 relative overflow-hidden">
+        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-red-900 text-slate-900">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
               {settings?.companyName || "PRO BILLER"}
             </span>
           </div>
-          <div className="flex justify-between items-start border-b-4 border-red-700 pb-6">
+          <div className="flex justify-between items-start border-b-2 border-red-700 pb-6 p-8 print:p-6 print:border-b-2">
             <div>
               <h1 className="text-3xl font-black text-red-700 uppercase">DEBIT NOTE</h1>
               <p className="text-slate-500 font-bold text-sm tracking-widest">Supplier Return Voucher</p>
@@ -5676,42 +5834,44 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
             </div>
           </div>
 
-          <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
-             <label className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1 block">To Supplier</label>
-             <div className="font-black text-slate-900 text-lg uppercase">{debitNote.partyName}</div>
-             <div className="text-red-700 font-bold text-xs">{debitNote.partyGstin}</div>
-             <div className="text-slate-500 text-xs mt-1">{debitNote.partyAddress}</div>
+          <div className="border-b-2 border-red-700">
+            <div className="p-8 print:p-6 bg-red-50/10">
+               <label className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1 block">To Supplier</label>
+               <div className="font-black text-slate-900 text-lg uppercase">{debitNote.partyName}</div>
+               <div className="text-red-700 font-bold text-xs">{debitNote.partyGstin}</div>
+               <div className="text-slate-500 text-xs mt-1">{debitNote.partyAddress}</div>
+            </div>
           </div>
 
           {debitNote.reason && (
-            <div className="text-sm font-bold text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div className="text-sm font-bold text-slate-600 bg-slate-50 p-4 border-b-2 border-red-700">
               Reason: {debitNote.reason}
             </div>
           )}
 
-          <table className="w-full text-sm">
+          <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-y border-slate-200">
-                <th className="py-4 text-left font-black uppercase text-xs tracking-widest text-slate-500">Item</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">Qty</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">Rate</th>
-                <th className="py-4 text-right font-black uppercase text-xs tracking-widest text-slate-500">Value (₹)</th>
+              <tr className="border-b-2 border-red-700 bg-red-50/50">
+                <th className="py-4 px-4 text-left font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-red-700">Item</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-red-700">Qty</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-red-700">Rate</th>
+                <th className="py-4 px-4 text-right font-black uppercase text-xs tracking-widest text-slate-900">Value (₹)</th>
               </tr>
             </thead>
             <tbody>
               {(debitNote.items || []).map((item) => (
-                <tr key={item.id} className="border-b border-slate-50">
-                  <td className="py-4 font-bold text-slate-900">{item.name}</td>
-                  <td className="py-4 text-center font-bold text-slate-700">{item.quantity} {item.unit}</td>
-                  <td className="py-4 text-center font-bold text-slate-700">{item.rate.toFixed(2)}</td>
-                  <td className="py-4 text-right font-bold text-slate-900">{item.amount.toLocaleString()}</td>
+                <tr key={item.id} className="border-b-2 border-red-700">
+                  <td className="py-4 px-4 font-bold text-slate-900 border-r-2 border-red-700">{item.name}</td>
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-red-700">{item.quantity} {item.unit}</td>
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-red-700">{item.rate.toFixed(2)}</td>
+                  <td className="py-4 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div className="border-t border-slate-200 pt-6 flex justify-between items-start">
-            <div className="flex-1 pr-8">
+          <div className="border-t-2 border-red-700 flex justify-between items-stretch">
+            <div className="flex-1 p-8 print:p-6 border-r-2 border-red-700">
               {settings?.bankName && (
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
@@ -5730,34 +5890,36 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
                 </div>
               )}
             </div>
-            <div className="w-64 space-y-2">
-              <div className="flex justify-between text-slate-500 font-bold text-sm">
+            <div className="w-80 p-8 print:p-6 space-y-2">
+              <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
                 <span>Taxable Value:</span>
                 <span>₹{debitNote.basicAmount.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-slate-500 font-bold text-sm">
+              <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
                 <span>GST ({debitNote.taxRate}%):</span>
                 <span>₹{debitNote.taxAmount.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-red-700 font-black text-xl pt-2 border-t border-red-100">
+              <div className="flex justify-between text-red-700 font-black text-xl pt-2 border-t-2 border-red-700 mt-2">
                 <span>Total Debit:</span>
                 <span>₹{debitNote.grandTotal.toLocaleString()}</span>
               </div>
             </div>
           </div>
 
-          <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
+          <div className="border-t-2 border-red-700 p-8 print:p-6 flex justify-between items-end">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Return Voucher I</div>
-            <div className="text-center min-w-[12rem] pt-2 border-t-2 border-red-700 relative">
+            <div className="text-center min-w-[12rem] relative">
               {settings?.signature ? (
-                <div className="h-20 flex items-end justify-center mb-1">
+                <div className="h-28 flex items-end justify-center mb-1">
                    <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
                 </div>
               ) : (
-                <div className="h-20" />
+                <div className="h-28" />
               )}
-              <div className="text-[10px] font-black uppercase tracking-widest text-red-700">Authorized Entry</div>
-              <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
+              <div className="pt-2 border-t-2 border-red-700">
+                <div className="text-[10px] font-black uppercase tracking-widest text-red-700">Authorized Entry</div>
+                <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
+              </div>
             </div>
           </div>
         </div>
@@ -5840,14 +6002,14 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-8 p-1 relative overflow-hidden">
+        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
               {settings?.companyName || "PRO BILLER"}
             </span>
           </div>
-          <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6">
+          <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 p-8 print:p-6 print:border-b-2">
             <div>
               <h1 className="text-3xl font-black text-slate-900 uppercase">{settings?.companyName || "PRO BILLER"}</h1>
               <p className="text-slate-500 font-bold text-sm tracking-widest">{settings?.gstin}</p>
@@ -5861,27 +6023,20 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
               <div className="text-slate-400 text-xs mt-1">{new Date(booking.date).toLocaleDateString()}</div>
               {booking.ewbNumber && (
                 <div className="text-slate-900 font-black text-[10px] mt-1 uppercase tracking-tighter bg-yellow-100 px-2 py-0.5 rounded inline-block">
-                  E-Way: {booking.ewbNumber}
-                </div>
-              )}
-              {booking.transportName && (
-                <div className="mt-2 text-left">
-                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Transport Details</div>
-                  <div className="text-[11px] font-black text-slate-900 leading-none">{booking.transportName}</div>
-                  {booking.transportGstin && <div className="text-[9px] text-slate-500 font-bold tracking-tighter uppercase">{booking.transportGstin}</div>}
+                   E-Way: {booking.ewbNumber}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-10">
-            <div>
+          <div className="grid grid-cols-2 print:grid-cols-2 gap-0 border-b-2 border-slate-900">
+            <div className="p-8 print:p-6 border-r-2 border-slate-900">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Billing Consignor</label>
               <div className="font-bold text-slate-900">{booking.consignorName}</div>
               <div className="text-slate-500 text-xs italic">{booking.consignorGstin}</div>
               <div className="text-slate-400 text-xs mt-1 leading-relaxed">{booking.consignorAddress}</div>
             </div>
-            <div className="text-right">
+            <div className="p-8 print:p-6 text-right">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Billing Consignee</label>
               <div className="font-bold text-slate-900">{booking.consigneeName}</div>
               <div className="text-slate-500 text-xs italic">{booking.consigneeGstin}</div>
@@ -5889,58 +6044,57 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
             </div>
           </div>
 
-          <table className="w-full text-sm">
+          <div className="p-0">
+          <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-y border-slate-200">
-                <th className="py-4 text-left font-black uppercase text-xs tracking-widest text-slate-500">Description</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">HSN</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">Taka/Pics</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">Qty / Unit</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">Rate</th>
-                <th className="py-4 text-center font-black uppercase text-xs tracking-widest text-slate-500">Disc</th>
-                <th className="py-4 text-right font-black uppercase text-xs tracking-widest text-slate-500">Value (₹)</th>
+              <tr className="border-b-2 border-slate-900 bg-slate-50">
+                <th className="py-4 px-4 text-left font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Description</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">HSN</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Taka</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Qty</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-l-2 border-slate-900">Rate</th>
+                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-x-2 border-slate-900">Disc</th>
+                <th className="py-4 px-4 text-right font-black uppercase text-xs tracking-widest text-slate-900">Value (₹)</th>
               </tr>
             </thead>
             <tbody>
               {(booking.items || []).map((item, idx) => (
-                <tr key={item.id} className="border-b border-slate-50">
-                  <td className="py-4">
+                <tr key={item.id} className="border-b-2 border-slate-900">
+                  <td className="py-4 px-4 border-r-2 border-slate-900">
                     <div className="font-bold text-slate-900">{item.name || 'Transport item'}</div>
                     {item.color && <div className="text-slate-500 text-[10px]">Color: {item.color}</div>}
-                    {idx === 0 && (
-                      <div className="text-slate-400 text-[9px] mt-0.5">LR No: {booking.lrNumber} | E-Way: {booking.ewbNumber || 'N/A'}</div>
-                    )}
                   </td>
-                  <td className="py-4 text-center font-bold text-slate-700">{item.hsnCode || '-'}</td>
-                  <td className="py-4 text-center font-bold text-slate-700">{item.taka || '-'}</td>
-                  <td className="py-4 text-center font-bold text-slate-700">
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.hsnCode || '-'}</td>
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.taka || '-'}</td>
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
                     {item.quantity !== undefined ? `${item.quantity.toFixed(2)} ${item.unit || ''}` : '-'}
                   </td>
-                  <td className="py-4 text-center font-bold text-slate-700">
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
                     {item.rate !== undefined ? item.rate.toFixed(2) : '-'}
                   </td>
-                  <td className="py-4 text-center font-bold text-slate-700">
+                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
                     {item.discount !== undefined && item.discount > 0 ? item.discount.toFixed(2) : '-'}
                   </td>
-                  <td className="py-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                  <td className="py-4 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 </tr>
               ))}
               {(!booking.items || booking.items.length === 0) && (
-                <tr>
-                  <td className="py-4 font-bold text-slate-900">Transport Charges</td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td className="py-4 text-right font-bold text-slate-900">{booking.basicAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                <tr className="border-b-2 border-slate-900">
+                  <td className="py-4 px-4 font-bold text-slate-900 border-r-2 border-slate-900">Transport Charges</td>
+                  <td className="border-r-2 border-slate-900"></td>
+                  <td className="border-r-2 border-slate-900"></td>
+                  <td className="border-r-2 border-slate-900"></td>
+                  <td className="border-r-2 border-slate-900"></td>
+                  <td className="border-r-2 border-slate-900"></td>
+                  <td className="py-4 px-4 text-right font-bold text-slate-900">{booking.basicAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 </tr>
               )}
             </tbody>
           </table>
+          </div>
 
-          <div className="border-t border-slate-200 pt-6 flex justify-between items-start">
-            <div className="flex-1 pr-8">
+          <div className="border-t-2 border-slate-900 flex justify-between items-stretch">
+            <div className="flex-1 p-8 print:p-6 border-r-2 border-slate-900">
               {settings?.bankName && (
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
@@ -5959,59 +6113,51 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
                 </div>
               )}
             </div>
-            <div className="w-64 space-y-2">
-              <div className="flex justify-between text-slate-500 font-bold text-sm">
-                <span>Total Items Value:</span>
-                <span>₹{booking.basicAmount.toLocaleString()}</span>
+          <div className="w-80 p-8 print:p-6 space-y-2">
+            <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
+              <span>Basic Value:</span>
+              <span>₹{booking.basicAmount.toLocaleString()}</span>
+            </div>
+            {booking.globalDiscount > 0 && (
+              <div className="flex justify-between text-pink-600 font-black text-xs uppercase">
+                <span>Discount:</span>
+                <span>- ₹{booking.globalDiscount.toLocaleString()}</span>
               </div>
-              {booking.globalDiscount > 0 && (
-                <div className="flex justify-between text-pink-500 font-bold text-sm">
-                  <span>Global Discount:</span>
-                  <span>- ₹{booking.globalDiscount.toLocaleString()}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-slate-500 font-bold text-sm">
-                <span>Taxable Value:</span>
-                <span>₹{(booking.basicAmount - (booking.globalDiscount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-              </div>
-              {booking.taxRate === 5 ? (
-                <>
-                  <div className="flex justify-between text-slate-500 font-bold text-sm">
-                    <span>CGST (2.5%):</span>
-                    <span>₹{(booking.taxAmount / 2).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-500 font-bold text-sm">
-                    <span>SGST (2.5%):</span>
-                    <span>₹{(booking.taxAmount / 2).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex justify-between text-slate-500 font-bold text-sm">
-                  <span>GST ({booking.taxRate}%):</span>
-                  <span>₹{booking.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-slate-900 font-black text-xl pt-2 border-t border-slate-100">
-                <span>Grand Total:</span>
-                <span className="text-[#00cec9]">₹{booking.grandTotal.toLocaleString()}</span>
-              </div>
+            )}
+            <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
+              <span>Taxable:</span>
+              <span>₹{(booking.basicAmount - (booking.globalDiscount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
+              <span>GST Total:</span>
+              <span>₹{booking.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between text-slate-900 font-black text-lg pt-2 border-t-2 border-slate-900 mt-2">
+              <span>Total:</span>
+              <span className="text-[#00cec9]">₹{booking.grandTotal.toLocaleString()}</span>
             </div>
           </div>
+        </div>
 
-          <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
-            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Generated via Pro Biller I</div>
-            <div className="text-center min-w-[12rem] pt-2 border-t-2 border-slate-900 relative">
-              {settings?.signature ? (
-                <div className="h-20 flex items-end justify-center mb-1">
-                  <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
-                </div>
-              ) : (
-                <div className="h-20" />
-              )}
+        <div className="border-t-2 border-slate-900 p-8 print:p-6 flex justify-between items-end">
+          <div className="space-y-4">
+             <p className="text-[9px] font-bold text-slate-400 italic">This is a computer generated invoice and does not require physical signature.</p>
+             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Generated via Pro Biller I</div>
+          </div>
+          <div className="text-center min-w-[12rem] relative">
+            {settings?.signature ? (
+              <div className="h-28 flex items-end justify-center mb-1">
+                <img src={settings.signature} alt="Sign" className="max-h-full max-w-full object-contain" />
+              </div>
+            ) : (
+              <div className="h-28" />
+            )}
+            <div className="pt-2 border-t-2 border-slate-900">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-900">Authorized Signatory</div>
               <div className="text-[9px] text-slate-400 mt-1 cursor-default select-none">E-Signature Verified</div>
             </div>
           </div>
+        </div>
         </div>
 
         <div className="mt-12 flex gap-4 print:hidden">
