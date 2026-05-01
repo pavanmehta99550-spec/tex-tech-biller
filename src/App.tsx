@@ -1636,6 +1636,14 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
     });
   }, [bookings, searchTerm, lrSearchTerm]);
 
+  const filteredPurchases = useMemo(() => {
+    return (purchases || []).filter((p: Purchase) => {
+      return p.billNumber?.toString().includes(searchTerm) || 
+             p.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             p.partyGstin.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  }, [purchases, searchTerm]);
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
@@ -1770,7 +1778,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest text-red-600">Recent Purchase Bills</h3>
-             <span className="bg-slate-50 text-slate-400 px-3 py-1 rounded text-[10px] font-bold tracking-tighter">Latest Inward</span>
+             <span className="bg-red-50 text-red-600 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">{searchTerm ? 'Search Results' : 'Latest Inward'}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -1783,7 +1791,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {(purchases || []).slice(0, 5).map((p: Purchase) => (
+                {filteredPurchases.slice(0, searchTerm ? 50 : 10).map((p: Purchase) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="font-bold text-slate-900"># {p.billNumber}</div>
@@ -1811,8 +1819,8 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                     </td>
                   </tr>
                 ))}
-                {(!purchases || purchases.length === 0) && (
-                  <tr><td colSpan={3} className="px-8 py-12 text-center text-slate-400 italic font-medium">No purchases recorded.</td></tr>
+                {filteredPurchases.length === 0 && (
+                  <tr><td colSpan={4} className="px-8 py-12 text-center text-slate-400 italic font-medium">No purchases recorded matching your search.</td></tr>
                 )}
               </tbody>
             </table>
