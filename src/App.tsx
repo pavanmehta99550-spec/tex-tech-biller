@@ -212,6 +212,36 @@ export default function App() {
       }
 
       if (isInput) return;
+
+      // ALT + KEY Shortcuts
+      if (e.altKey) {
+        const key = e.key.toLowerCase();
+        const shortcutMap: Record<string, View> = {
+          'd': 'dash',
+          'i': 'inv',
+          'h': 'salehistory',
+          's': 'saleparty',
+          'p': 'pur',
+          'j': 'purchasehistory',
+          'k': 'purchaseparty',
+          'e': 'expenses',
+          'm': 'items',
+          'r': 'pay',
+          'n': 'sendpay',
+          'l': 'ledg',
+          'g': 'gstreport',
+          't': 'transports',
+          'b': 'backup'
+        };
+
+        if (shortcutMap[key]) {
+          e.preventDefault();
+          setCurrentView(shortcutMap[key]);
+          setFocusedIdx(-1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+      }
       
       if (showLogoutConfirm) {
         if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
@@ -1024,7 +1054,25 @@ export default function App() {
                 v === 'bankdetails' ? "Bank Details" :
                 v === 'backup' ? "Data Backup" :
                 "Settings"
-              } 
+              }
+              shortcut={
+                v === 'dash' ? "Alt+D" :
+                v === 'inv' ? "Alt+I" :
+                v === 'salehistory' ? "Alt+H" :
+                v === 'saleparty' ? "Alt+S" :
+                v === 'pur' ? "Alt+P" :
+                v === 'purchasehistory' ? "Alt+J" :
+                v === 'purchaseparty' ? "Alt+K" :
+                v === 'expenses' ? "Alt+E" :
+                v === 'items' ? "Alt+M" :
+                v === 'pay' ? "Alt+R" :
+                v === 'sendpay' ? "Alt+N" :
+                v === 'ledg' ? "Alt+L" :
+                v === 'gstreport' ? "Alt+G" :
+                v === 'transports' ? "Alt+T" :
+                v === 'backup' ? "Alt+B" :
+                undefined
+              }
             />
           ))}
           <button 
@@ -1655,7 +1703,7 @@ function PurchaseHistoryView({ purchases, onEditPurchase, onDeletePurchase, onPr
   );
 }
 
-function NavBtn({ active, onClick, icon: Icon, label, focused }: any) {
+function NavBtn({ active, onClick, icon: Icon, label, focused, shortcut }: any) {
   const ref = useRef<HTMLButtonElement>(null);
   
   useEffect(() => {
@@ -1671,7 +1719,7 @@ function NavBtn({ active, onClick, icon: Icon, label, focused }: any) {
     <button 
       ref={ref}
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${
+      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold text-sm text-left ${
         active 
           ? "bg-[#00cec9] text-[#1e272e] shadow-xl shadow-[#00cec9]/10 scale-[1.02]" 
           : focused
@@ -1679,8 +1727,17 @@ function NavBtn({ active, onClick, icon: Icon, label, focused }: any) {
           : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
       }`}
     >
-      <Icon className={`flex-shrink-0 ${active ? "text-[#1e272e]" : (focused ? "text-white" : "text-slate-500")}`} size={20} />
-      {label}
+      <div className="flex items-center gap-4">
+        <Icon className={`flex-shrink-0 ${active ? "text-[#1e272e]" : (focused ? "text-white" : "text-slate-500")}`} size={20} />
+        {label}
+      </div>
+      {shortcut && (
+        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${
+          active ? "bg-black/10 border-black/5 text-black/50" : "bg-white/5 border-white/5 text-slate-500"
+        }`}>
+          {shortcut}
+        </span>
+      )}
     </button>
   );
 }
