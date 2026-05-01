@@ -216,6 +216,7 @@ export default function App() {
       // ALT + KEY Shortcuts (Navigation)
       if (e.altKey && !e.ctrlKey) {
         const key = e.key.toLowerCase();
+        // Allow standard browser/OS alt combinations if needed, but here we capture most
         const shortcutMap: Record<string, View> = {
           'd': 'dash',
           'i': 'inv',
@@ -240,12 +241,22 @@ export default function App() {
           setFocusedIdx(-1);
           window.scrollTo({ top: 0, behavior: 'smooth' });
           return;
+        } else if (key !== 'alt' && key !== 'control' && key !== 'shift') {
+          // It's an Alt combo but not in our map
+          e.preventDefault();
+          alert(`Alt + ${key.toUpperCase()} is not a shortcut in this app.`);
+          return;
         }
       }
 
       // CTRL + KEY Shortcuts (New Records)
       if (e.ctrlKey && !e.altKey) {
         const key = e.key.toLowerCase();
+        
+        // Whitelist common editing shortcuts so we don't break copy/paste
+        const editingKeys = ['c', 'v', 'x', 'a', 'z', 'y'];
+        if (editingKeys.includes(key)) return;
+
         // i: Sale, p: Purchase, d: Debit Note, c: Credit Note, e: Expense
         const ctrlShortcutMap: Record<string, View> = {
           'i': 'inv',
@@ -254,7 +265,8 @@ export default function App() {
           'c': 'cn',
           'e': 'expenses',
           'r': 'pay',
-          'n': 'sendpay'
+          'n': 'sendpay',
+          's': 'inv' // Common habit to save/new invoice
         };
 
         if (ctrlShortcutMap[key]) {
@@ -262,6 +274,11 @@ export default function App() {
           setCurrentView(ctrlShortcutMap[key]);
           setFocusedIdx(-1);
           window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        } else if (key !== 'control' && key !== 'alt' && key !== 'shift') {
+          // Block other browser shortcuts like Ctrl+N, Ctrl+T, Ctrl+P if not handled
+          e.preventDefault();
+          alert(`Ctrl + ${key.toUpperCase()} is not a shortcut in this app.`);
           return;
         }
       }
