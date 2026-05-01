@@ -31,6 +31,8 @@ import {
   PenTool,
   Edit,
   Landmark,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { auth, db } from './lib/firebase';
@@ -1788,6 +1790,7 @@ function NavBtn({ active, onClick, icon: Icon, label, focused, shortcut }: any) 
 function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, onPreviewSale, onEditPurchase, onDeletePurchase, onPreviewPurchase }: any) {
   const [searchTerm, setSearchTerm] = useState('');
   const [lrSearchTerm, setLrSearchTerm] = useState('');
+  const [isVisible, setIsVisible] = useState(true);
   
   const financialYear = useMemo(() => {
     const today = new Date();
@@ -1823,6 +1826,13 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-widest">FY {financialYear}</span>
+            <button 
+              onClick={() => setIsVisible(!isVisible)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-md transition-all active:scale-95"
+            >
+              {isVisible ? <EyeOff size={12} /> : <Eye size={12} />}
+              <span className="text-[10px] font-black uppercase tracking-widest">{isVisible ? 'Hide Data' : 'Show Data'}</span>
+            </button>
           </div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Vyapaar Summary</h2>
           <p className="text-slate-500 font-medium italic">Overview of all transactions and returns</p>
@@ -1850,156 +1860,186 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
           </div>
         </div>
       </header>
+      
+      {isVisible ? (
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key="dashboard-content"
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="space-y-8"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-[#2ed573] p-6 rounded-3xl text-white shadow-lg shadow-[#2ed573]/20 relative overflow-hidden group">
+                <TrendingUp className="absolute -top-4 -right-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Net Sales</h3>
+                <div className="text-3xl font-black tracking-tighter">₹ {stats.netSales.toLocaleString()}</div>
+                <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Excl. Returns</div>
+              </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-[#2ed573] p-6 rounded-3xl text-white shadow-lg shadow-[#2ed573]/20 relative overflow-hidden group">
-          <TrendingUp className="absolute -top-4 -right-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
-          <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Net Sales</h3>
-          <div className="text-3xl font-black tracking-tighter">₹ {stats.netSales.toLocaleString()}</div>
-          <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Excl. Returns</div>
-        </div>
+              <div className="bg-pink-500 p-6 rounded-3xl text-white shadow-lg shadow-pink-500/20 relative overflow-hidden group">
+                <AlertCircle className="absolute -top-4 -right-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Returns (CN)</h3>
+                <div className="text-3xl font-black tracking-tighter">₹ {stats.returnsSales.toLocaleString()}</div>
+                <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Sales Return</div>
+              </div>
 
-        <div className="bg-pink-500 p-6 rounded-3xl text-white shadow-lg shadow-pink-500/20 relative overflow-hidden group">
-          <AlertCircle className="absolute -top-4 -right-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
-          <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Returns (CN)</h3>
-          <div className="text-3xl font-black tracking-tighter">₹ {stats.returnsSales.toLocaleString()}</div>
-          <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Sales Return</div>
-        </div>
+              <div className="bg-blue-600 p-6 rounded-3xl text-white shadow-lg shadow-blue-600/20 relative overflow-hidden group">
+                <ShoppingBag className="absolute -top-4 -right-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Total Received</h3>
+                <div className="text-3xl font-black tracking-tighter">₹ {stats.totalReceived.toLocaleString()}</div>
+                <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Cash/Bank Receipt</div>
+              </div>
 
-        <div className="bg-blue-600 p-6 rounded-3xl text-white shadow-lg shadow-blue-600/20 relative overflow-hidden group">
-          <ShoppingBag className="absolute -top-4 -right-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
-          <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Total Received</h3>
-          <div className="text-3xl font-black tracking-tighter">₹ {stats.totalReceived.toLocaleString()}</div>
-          <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Cash/Bank Receipt</div>
-        </div>
+              <div className="bg-[#ff4757] p-6 rounded-3xl text-white shadow-lg shadow-[#ff4757]/20 relative overflow-hidden group">
+                <Lock className="absolute -top-4 -right-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Net Receivable</h3>
+                <div className="text-3xl font-black tracking-tighter">₹ {stats.totalPending.toLocaleString()}</div>
+                <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Pending Balance</div>
+              </div>
+            </div>
 
-        <div className="bg-[#ff4757] p-6 rounded-3xl text-white shadow-lg shadow-[#ff4757]/20 relative overflow-hidden group">
-          <Lock className="absolute -top-4 -right-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
-          <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Net Receivable</h3>
-          <div className="text-3xl font-black tracking-tighter">₹ {stats.totalPending.toLocaleString()}</div>
-          <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Pending Balance</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Sale Bills */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-             <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Sale Bills History</h3>
-             <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">{(searchTerm || lrSearchTerm) ? 'Search Results' : 'Recent Invoices'}</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                  <th className="px-8 py-4">Bill Details</th>
-                  <th className="px-8 py-4">Customer</th>
-                  <th className="px-8 py-4">LR Number</th>
-                  <th className="px-8 py-4 text-right">Amount</th>
-                  <th className="px-8 py-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filteredBookings.slice(0, (searchTerm || lrSearchTerm) ? 50 : 10).map((b: Booking) => (
-                  <tr key={b.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="font-bold text-slate-900"># {b.billNumber}</div>
-                      <div className="text-[10px] text-slate-400 uppercase font-black">{new Date(b.date).toLocaleDateString()}</div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="font-black text-slate-700 uppercase tracking-tight truncate max-w-[150px]">{b.consigneeName}</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase">{b.consigneeGstin}</div>
-                    </td>
-                    <td className="px-8 py-5">
-                      {b.lrNumber ? (
-                        <div className="flex items-center gap-1.5 ring-1 ring-blue-100 bg-blue-50/50 text-blue-700 px-2 py-1 rounded-md w-fit">
-                          <Truck size={12} />
-                          <span className="text-[10px] font-black tracking-tighter uppercase">{b.lrNumber}</span>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-slate-300 italic font-bold">N/A</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Recent Sale Bills */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                   <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Sale Bills History</h3>
+                   <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">{(searchTerm || lrSearchTerm) ? 'Search Results' : 'Recent Invoices'}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                        <th className="px-8 py-4">Bill Details</th>
+                        <th className="px-8 py-4">Customer</th>
+                        <th className="px-8 py-4">LR Number</th>
+                        <th className="px-8 py-4 text-right">Amount</th>
+                        <th className="px-8 py-4 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {filteredBookings.slice(0, (searchTerm || lrSearchTerm) ? 50 : 10).map((b: Booking) => (
+                        <tr key={b.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-8 py-5">
+                            <div className="font-bold text-slate-900"># {b.billNumber}</div>
+                            <div className="text-[10px] text-slate-400 uppercase font-black">{new Date(b.date).toLocaleDateString()}</div>
+                          </td>
+                          <td className="px-8 py-5">
+                            <div className="font-black text-slate-700 uppercase tracking-tight truncate max-w-[150px]">{b.consigneeName}</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">{b.consigneeGstin}</div>
+                          </td>
+                          <td className="px-8 py-5">
+                            {b.lrNumber ? (
+                              <div className="flex items-center gap-1.5 ring-1 ring-blue-100 bg-blue-50/50 text-blue-700 px-2 py-1 rounded-md w-fit">
+                                <Truck size={12} />
+                                <span className="text-[10px] font-black tracking-tighter uppercase">{b.lrNumber}</span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-300 italic font-bold">N/A</span>
+                            )}
+                          </td>
+                          <td className="px-8 py-5 text-right whitespace-nowrap">
+                            <span className="font-black text-indigo-600 tracking-tighter">₹ {b.grandTotal.toLocaleString()}</span>
+                          </td>
+                          <td className="px-8 py-5">
+                            <div className="flex items-center justify-center gap-2">
+                              <button onClick={() => onPreviewSale(b)} title="Print" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
+                                <Printer size={16} />
+                              </button>
+                              <button onClick={() => onEditSale(b)} title="Edit" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all">
+                                <Edit size={16} />
+                              </button>
+                              <button onClick={() => onDeleteSale(b.id)} title="Delete" className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                                <AlertCircle size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredBookings.length === 0 && (
+                        <tr><td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic font-medium">No sales recorded matching your search.</td></tr>
                       )}
-                    </td>
-                    <td className="px-8 py-5 text-right whitespace-nowrap">
-                      <span className="font-black text-indigo-600 tracking-tighter">₹ {b.grandTotal.toLocaleString()}</span>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => onPreviewSale(b)} title="Print" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
-                          <Printer size={16} />
-                        </button>
-                        <button onClick={() => onEditSale(b)} title="Edit" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all">
-                          <Edit size={16} />
-                        </button>
-                        <button onClick={() => onDeleteSale(b.id)} title="Delete" className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                          <AlertCircle size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredBookings.length === 0 && (
-                  <tr><td colSpan={5} className="px-8 py-12 text-center text-slate-400 italic font-medium">No sales recorded matching your search.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    </tbody>
+                  </table>
+                </div>
 
-        </div>
+              </div>
 
-        {/* Recent Purchase Bills */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-             <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest text-red-600">Recent Purchase Bills</h3>
-             <span className="bg-red-50 text-red-600 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">{searchTerm ? 'Search Results' : 'Latest Inward'}</span>
+              {/* Recent Purchase Bills */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                   <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest text-red-600">Recent Purchase Bills</h3>
+                   <span className="bg-red-50 text-red-600 px-3 py-1 rounded text-[10px] font-black tracking-widest uppercase">{searchTerm ? 'Search Results' : 'Latest Inward'}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                        <th className="px-8 py-4">Bill Details</th>
+                        <th className="px-8 py-4">Supplier</th>
+                        <th className="px-8 py-4 text-right">Amount</th>
+                        <th className="px-8 py-4 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {filteredPurchases.slice(0, searchTerm ? 50 : 10).map((p: Purchase) => (
+                        <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-8 py-5">
+                            <div className="font-bold text-slate-900"># {p.billNumber}</div>
+                            <div className="text-[10px] text-slate-400 uppercase font-black">{new Date(p.date).toLocaleDateString()}</div>
+                          </td>
+                          <td className="px-8 py-5">
+                            <div className="font-black text-slate-700 uppercase tracking-tight truncate max-w-[200px]">{p.partyName}</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">{p.partyGstin}</div>
+                          </td>
+                          <td className="px-8 py-5 text-right whitespace-nowrap">
+                            <span className="font-black text-red-600 tracking-tighter">₹ {p.grandTotal.toLocaleString()}</span>
+                          </td>
+                          <td className="px-8 py-5">
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => onPreviewPurchase(p)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="View">
+                                <Printer size={14} />
+                              </button>
+                              <button onClick={() => onEditPurchase(p)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Edit">
+                                <Plus size={14} className="rotate-45" />
+                              </button>
+                              <button onClick={() => onDeletePurchase(p.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                                <AlertCircle size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredPurchases.length === 0 && (
+                        <tr><td colSpan={4} className="px-8 py-12 text-center text-slate-400 italic font-medium">No purchases recorded matching your search.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[40px] p-20 text-center"
+        >
+          <div className="bg-white w-20 h-20 rounded-3xl shadow-xl flex items-center justify-center mx-auto mb-6 text-slate-300">
+            <Lock size={32} />
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                  <th className="px-8 py-4">Bill Details</th>
-                  <th className="px-8 py-4">Supplier</th>
-                  <th className="px-8 py-4 text-right">Amount</th>
-                  <th className="px-8 py-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filteredPurchases.slice(0, searchTerm ? 50 : 10).map((p: Purchase) => (
-                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="font-bold text-slate-900"># {p.billNumber}</div>
-                      <div className="text-[10px] text-slate-400 uppercase font-black">{new Date(p.date).toLocaleDateString()}</div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="font-black text-slate-700 uppercase tracking-tight truncate max-w-[200px]">{p.partyName}</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase">{p.partyGstin}</div>
-                    </td>
-                    <td className="px-8 py-5 text-right whitespace-nowrap">
-                      <span className="font-black text-red-600 tracking-tighter">₹ {p.grandTotal.toLocaleString()}</span>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => onPreviewPurchase(p)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="View">
-                          <Printer size={14} />
-                        </button>
-                        <button onClick={() => onEditPurchase(p)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Edit">
-                          <Plus size={14} className="rotate-45" />
-                        </button>
-                        <button onClick={() => onDeletePurchase(p.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                          <AlertCircle size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredPurchases.length === 0 && (
-                  <tr><td colSpan={4} className="px-8 py-12 text-center text-slate-400 italic font-medium">No purchases recorded matching your search.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Dashboard Information Hidden</h3>
+          <p className="text-slate-500 font-bold max-w-xs mx-auto mt-2 italic">Data is currently hidden for privacy. Click "Show Data" to reveal.</p>
+          <button 
+            onClick={() => setIsVisible(true)}
+            className="mt-8 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+          >
+            Show Dashboard Info
+          </button>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
