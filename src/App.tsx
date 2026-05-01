@@ -124,6 +124,7 @@ export default function App() {
   useEffect(() => storage.set('debit-notes', debitNotes), [debitNotes]);
   useEffect(() => storage.set('credit-notes', creditNotes), [creditNotes]);
   useEffect(() => storage.set('payments', payments), [payments]);
+  useEffect(() => storage.set('purchasePayments', purchasePayments), [purchasePayments]);
   useEffect(() => storage.set('settings', settings), [settings]);
   useEffect(() => storage.set('lastBackupDate', lastBackupDate), [lastBackupDate]);
 
