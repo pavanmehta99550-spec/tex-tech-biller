@@ -5800,14 +5800,14 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-900">
+        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-900 print:scale-[0.98] print:origin-top print:h-[287mm]">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
               {settings?.companyName || "PRO BILLER"}
             </span>
           </div>
-          <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-6 p-8 print:p-6 print:border-b-2">
+          <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-4 p-8 print:p-4 print:border-b-2">
             <div>
               <h1 className="text-3xl font-black text-indigo-900 uppercase">PURCHASE VOUCHER</h1>
               <p className="text-slate-500 font-bold text-sm tracking-widest">Self Record Entry</p>
@@ -5825,48 +5825,48 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
           </div>
 
           <div className="border-b-2 border-indigo-900">
-            <div className="p-8 print:p-6 bg-indigo-50/10">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Supplier Details (Seller)</label>
+            <div className="p-8 print:p-4 bg-indigo-50/10">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Supplier Details (Seller)</label>
               <div className="font-black text-slate-900 text-lg uppercase">{purchase.partyName}</div>
               <div className="text-indigo-600 font-black text-xs italic tracking-wider">{purchase.partyGstin}</div>
-              <div className="text-slate-500 text-xs mt-1 leading-relaxed">{purchase.partyAddress}</div>
+              <div className="text-slate-500 text-xs mt-0.5 leading-relaxed">{purchase.partyAddress}</div>
             </div>
           </div>
 
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b-2 border-indigo-900 bg-indigo-50/50">
-                <th className="py-4 px-4 text-left font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Item Name</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">HSN</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Qty</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Rate</th>
-                <th className="py-4 px-4 text-right font-black uppercase text-xs tracking-widest text-indigo-900">Amount (₹)</th>
+                <th className="py-3 px-4 text-left font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Item Name</th>
+                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">HSN</th>
+                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Qty</th>
+                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Rate</th>
+                <th className="py-3 px-4 text-right font-black uppercase text-xs tracking-widest text-indigo-900">Amount (₹)</th>
               </tr>
             </thead>
             <tbody>
               {(purchase.items || []).map((item) => (
                 <tr key={item.id} className="border-b-2 border-indigo-900">
-                  <td className="py-4 px-4 font-bold text-slate-900 border-r-2 border-indigo-900">
+                  <td className="py-2.5 px-4 font-bold text-slate-900 border-r-2 border-indigo-900">
                     {item.name}
                   </td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">{item.hsnCode || '-'}</td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">
+                  <td className="py-2.5 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">{item.hsnCode || '-'}</td>
+                  <td className="py-2.5 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">
                     {item.quantity} {item.unit}
                   </td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">
+                  <td className="py-2.5 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">
                     {item.rate.toFixed(2)}
                   </td>
-                  <td className="py-4 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                  <td className="py-2.5 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
           <div className="border-t-2 border-indigo-900 flex justify-between items-stretch">
-            <div className="flex-1 p-8 print:p-6 border-r-2 border-indigo-900">
+            <div className="flex-1 p-8 print:p-4 border-r-2 border-indigo-900">
               {settings?.bankName && (
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
                     <Landmark size={12} className="text-indigo-600" /> Bank Details
                   </h4>
                   <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
@@ -5882,7 +5882,7 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
                 </div>
               )}
             </div>
-            <div className="w-80 p-8 print:p-6 space-y-2">
+            <div className="w-80 p-8 print:p-4 space-y-1.5">
               <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
                 <span>Basic Amount:</span>
                 <span>₹{purchase.basicAmount.toLocaleString()}</span>
@@ -5897,14 +5897,14 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
                 <span>GST Total:</span>
                 <span>₹{purchase.taxAmount.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-slate-900 font-black text-xl pt-2 border-t-2 border-indigo-900 mt-2">
+              <div className="flex justify-between text-slate-900 font-black text-xl pt-1 border-t-2 border-indigo-900 mt-1">
                 <span>Grand Total:</span>
                 <span className="text-indigo-600">₹{purchase.grandTotal.toLocaleString()}</span>
               </div>
             </div>
           </div>
 
-          <div className="border-t-2 border-indigo-900 p-8 print:p-6 flex justify-between items-end">
+          <div className="border-t-2 border-indigo-900 p-8 print:p-4 flex justify-between items-end">
              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Entry Logged I</div>
             <div className="text-center min-w-[12rem] relative">
               {settings?.signature ? (
@@ -6198,14 +6198,14 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900">
+        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 print:scale-[0.98] print:origin-top print:h-[287mm]">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
               {settings?.companyName || "PRO BILLER"}
             </span>
           </div>
-          <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 p-8 print:p-6 print:border-b-2">
+          <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 p-8 print:p-4 print:border-b-2">
             <div>
               <h1 className="text-3xl font-black text-slate-900 uppercase">{settings?.companyName || "PRO BILLER"}</h1>
               <p className="text-slate-500 font-bold text-sm tracking-widest">{settings?.gstin}</p>
@@ -6226,17 +6226,17 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           </div>
 
           <div className="grid grid-cols-2 print:grid-cols-2 gap-0 border-b-2 border-slate-900">
-            <div className="p-8 print:p-6 border-r-2 border-slate-900">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Billing Consignor</label>
+            <div className="p-8 print:p-4 border-r-2 border-slate-900">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Billing Consignor</label>
               <div className="font-bold text-slate-900">{booking.consignorName}</div>
               <div className="text-slate-500 text-xs italic">{booking.consignorGstin}</div>
-              <div className="text-slate-400 text-xs mt-1 leading-relaxed">{booking.consignorAddress}</div>
+              <div className="text-slate-400 text-xs mt-0.5 leading-relaxed">{booking.consignorAddress}</div>
             </div>
-            <div className="p-8 print:p-6 text-right">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Billing Consignee</label>
+            <div className="p-8 print:p-4 text-right">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Billing Consignee</label>
               <div className="font-bold text-slate-900">{booking.consigneeName}</div>
               <div className="text-slate-500 text-xs italic">{booking.consigneeGstin}</div>
-              <div className="text-slate-400 text-xs mt-1 leading-relaxed">{booking.consigneeAddress}</div>
+              <div className="text-slate-400 text-xs mt-0.5 leading-relaxed">{booking.consigneeAddress}</div>
             </div>
           </div>
 
@@ -6244,45 +6244,45 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b-2 border-slate-900 bg-slate-50">
-                <th className="py-4 px-4 text-left font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Description</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">HSN</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Taka</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Qty</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-l-2 border-slate-900">Rate</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-x-2 border-slate-900">Disc</th>
-                <th className="py-4 px-4 text-right font-black uppercase text-xs tracking-widest text-slate-900">Value (₹)</th>
+                <th className="py-3 px-4 text-left font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Description</th>
+                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">HSN</th>
+                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Taka</th>
+                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Qty</th>
+                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-l-2 border-slate-900">Rate</th>
+                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-x-2 border-slate-900">Disc</th>
+                <th className="py-3 px-4 text-right font-black uppercase text-xs tracking-widest text-slate-900">Value (₹)</th>
               </tr>
             </thead>
             <tbody>
               {(booking.items || []).map((item, idx) => (
                 <tr key={item.id} className="border-b-2 border-slate-900">
-                  <td className="py-4 px-4 border-r-2 border-slate-900">
+                  <td className="py-2 px-4 border-r-2 border-slate-900">
                     <div className="font-bold text-slate-900">{item.name || 'Transport item'}</div>
                     {item.color && <div className="text-slate-500 text-[10px]">Color: {item.color}</div>}
                   </td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.hsnCode || '-'}</td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.taka || '-'}</td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
+                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.hsnCode || '-'}</td>
+                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.taka || '-'}</td>
+                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
                     {item.quantity !== undefined ? `${item.quantity.toFixed(2)} ${item.unit || ''}` : '-'}
                   </td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
+                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
                     {item.rate !== undefined ? item.rate.toFixed(2) : '-'}
                   </td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
+                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
                     {item.discount !== undefined && item.discount > 0 ? item.discount.toFixed(2) : '-'}
                   </td>
-                  <td className="py-4 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                  <td className="py-2 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 </tr>
               ))}
               {(!booking.items || booking.items.length === 0) && (
                 <tr className="border-b-2 border-slate-900">
-                  <td className="py-4 px-4 font-bold text-slate-900 border-r-2 border-slate-900">Transport Charges</td>
+                  <td className="py-3 px-4 font-bold text-slate-900 border-r-2 border-slate-900">Transport Charges</td>
                   <td className="border-r-2 border-slate-900"></td>
                   <td className="border-r-2 border-slate-900"></td>
                   <td className="border-r-2 border-slate-900"></td>
                   <td className="border-r-2 border-slate-900"></td>
                   <td className="border-r-2 border-slate-900"></td>
-                  <td className="py-4 px-4 text-right font-bold text-slate-900">{booking.basicAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                  <td className="py-3 px-4 text-right font-bold text-slate-900">{booking.basicAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 </tr>
               )}
             </tbody>
@@ -6290,10 +6290,10 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           </div>
 
           <div className="border-t-2 border-slate-900 flex justify-between items-stretch">
-            <div className="flex-1 p-8 print:p-6 border-r-2 border-slate-900">
+            <div className="flex-1 p-8 print:p-4 border-r-2 border-slate-900">
               {settings?.bankName && (
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
                     <Landmark size={12} className="text-[#00cec9]" /> Bank Details
                   </h4>
                   <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
@@ -6309,7 +6309,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
                 </div>
               )}
             </div>
-          <div className="w-80 p-8 print:p-6 space-y-2">
+          <div className="w-80 p-8 print:p-4 space-y-1.5">
             <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
               <span>Basic Value:</span>
               <span>₹{booking.basicAmount.toLocaleString()}</span>
@@ -6328,25 +6328,25 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
               <span>GST Total:</span>
               <span>₹{booking.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
             </div>
-            <div className="flex justify-between text-slate-900 font-black text-lg pt-2 border-t-2 border-slate-900 mt-2">
+            <div className="flex justify-between text-slate-900 font-black text-lg pt-1 border-t-2 border-slate-900 mt-1">
               <span>Total:</span>
               <span className="text-[#00cec9]">₹{booking.grandTotal.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
-        <div className="border-t-2 border-slate-900 p-8 print:p-6 flex justify-between items-end">
-          <div className="space-y-4">
+        <div className="border-t-2 border-slate-900 p-8 print:p-4 flex justify-between items-end">
+          <div className="space-y-3">
              <p className="text-[9px] font-bold text-slate-400 italic">This is a computer generated invoice and does not require physical signature.</p>
              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Generated via Pro Biller I</div>
           </div>
           <div className="text-center min-w-[12rem] relative">
             {settings?.signature ? (
-              <div className="h-28 flex items-end justify-center mb-1">
+              <div className="h-24 flex items-end justify-center mb-1">
                 <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
               </div>
             ) : (
-              <div className="h-28 border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
+              <div className="h-24 border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
                 Sign / Stamp
               </div>
             )}

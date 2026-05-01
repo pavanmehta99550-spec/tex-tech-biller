@@ -13,3 +13,23 @@
     -moz-appearance: textfield;
   }
 }
+
+@media print {
+  @page {
+    margin: 5mm;
+    size: A4 portrait;
+  }
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  /* Global scaling for print to help fit on one page */
+  main, #root {
+    width: 100% !important;
+  }
+  /* Remove scrollbars in print */
+  * {
+    overflow: visible !important;
+  }
+}
