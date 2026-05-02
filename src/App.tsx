@@ -81,6 +81,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<View>('dash');
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
   const lastWriteTime = useRef<Record<string, number>>({});
+  const lastSyncedData = useRef<Record<string, string>>({});
   const loadedKeys = useRef<Set<string>>(new Set());
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
@@ -382,13 +383,15 @@ export default function App() {
       const [col, docId, subCol, subDocId, ...rest] = docPath.split('/');
       
       return onSnapshot(doc(db, col, docId, subCol, subDocId), (docSnap) => {
-        const now = Date.now();
-        const lastWrite = lastWriteTime.current[key] || 0;
-        
         if (docSnap.exists()) {
-          // If this is the server update and we don't have a blocking local write
-          if (!docSnap.metadata.hasPendingWrites && (now - lastWrite > 5000)) {
-            setter(docSnap.data().value);
+          const data = docSnap.data().value;
+          const stringified = JSON.stringify(data);
+          
+          // Only update local state if there are no pending local writes for this document
+          // and the incoming data is different from what we last thought we had synced.
+          if (!docSnap.metadata.hasPendingWrites && stringified !== lastSyncedData.current[key]) {
+            lastSyncedData.current[key] = stringified;
+            setter(data);
           }
         }
         
@@ -436,7 +439,6 @@ export default function App() {
     const syncData = async () => {
       setIsSyncing(true);
       try {
-        setSyncStatus('pending');
         const batch: any = {
           purchaseParties,
           saleParties,
@@ -454,15 +456,22 @@ export default function App() {
 
         const syncPromises = Object.entries(batch).map(async ([key, value]) => {
           if (value !== undefined) {
-             const docPath = user ? `users/${user.uid}/appData/${key}` : `custom_accounts/${customLoginId}/appData/${key}`;
-             const pathParts = docPath.split('/');
-             const [col, docId, subCol, subDocId] = pathParts;
-             await setDoc(doc(db, col, docId, subCol, subDocId), { value });
+             const stringified = JSON.stringify(value);
+             // ONLY sync if the current local value is different from what we last synced
+             // with the server (either via write or via snapshot).
+             if (stringified !== lastSyncedData.current[key]) {
+                const docPath = user ? `users/${user.uid}/appData/${key}` : `custom_accounts/${customLoginId}/appData/${key}`;
+                const pathParts = docPath.split('/');
+                const [col, docId, subCol, subDocId] = pathParts;
+                
+                await setDoc(doc(db, col, docId, subCol, subDocId), { value });
+                lastSyncedData.current[key] = stringified;
+                setSyncStatus('synced');
+             }
           }
         });
         
         await Promise.all(syncPromises);
-        setSyncStatus('synced');
         
         // Also ensure current password is synced if using custom ID
         if (customLoginId && settings?.adminPassword) {
@@ -482,7 +491,7 @@ export default function App() {
 
     const timer = setTimeout(syncData, 500); // Fast sync to prevent race conditions
     return () => clearTimeout(timer);
-  }, [user, customLoginId, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, settings, lastBackupDate, purchasePayments]);
+  }, [user, customLoginId, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, settings, lastBackupDate, purchasePayments, isDataLoaded]);
 
   useEffect(() => {
     if (isAuthenticated) {
