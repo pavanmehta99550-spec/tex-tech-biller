@@ -352,11 +352,20 @@ export default function App() {
       setIsFirebaseLoading(false);
     }, 5000);
 
+    // Safety timeout: Force data loaded state if it sticks for too long
+    const dataTimeout = setTimeout(() => {
+      if ((auth.currentUser || storage.get('customLoginId', null)) && !isDataLoaded) {
+        console.warn("App: Data sync timeout - forcing UI load");
+        setIsDataLoaded(true);
+      }
+    }, 12000);
+
     return () => {
       unsubscribe();
       clearTimeout(timeout);
+      clearTimeout(dataTimeout);
     };
-  }, []);
+  }, [isDataLoaded]);
 
   // Firebase Data Loader & Syncer
   useEffect(() => {
@@ -1101,9 +1110,45 @@ export default function App() {
       <h2 className="text-xl font-bold uppercase tracking-widest">
         {isFirebaseLoading ? "Securing Tunnel..." : "Accessing Cloud Data..."}
       </h2>
-      <p className="text-slate-400 text-xs mt-2 font-mono">
+      <p className="text-slate-400 text-[10px] mt-2 font-mono uppercase tracking-tighter opacity-80">
         {isFirebaseLoading ? "Initializing security handshake" : "Synchronizing your account with cloud backup"}
       </p>
+      {!isFirebaseLoading && (
+        <div className="flex flex-col items-center gap-3 mt-12">
+          <button 
+            onClick={() => setIsDataLoaded(true)}
+            className="px-8 py-3 bg-[#00cec9] hover:bg-[#00b5b5] text-[#1E272E] rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-[#00cec9]/20 active:scale-95"
+          >
+            Skip Sync & Enter App
+          </button>
+          
+          <div className="flex items-center gap-4 mt-4">
+            <button 
+              onClick={() => {
+                auth.signOut();
+                setCustomLoginId(null);
+                storage.remove('customLoginId');
+                window.location.reload();
+              }}
+              className="text-slate-500 hover:text-white text-[9px] font-black uppercase tracking-widest transition-colors"
+            >
+              Switch Account
+            </button>
+            <div className="w-1 h-1 bg-slate-700 rounded-full"></div>
+            <button 
+              onClick={() => {
+                if(confirm("Reset all local data? This will not delete your cloud backup.")) {
+                  localStorage.clear();
+                  window.location.reload();
+                }
+              }}
+              className="text-slate-500 hover:text-red-400 text-[9px] font-black uppercase tracking-widest transition-colors"
+            >
+              Clear Local Data
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 
