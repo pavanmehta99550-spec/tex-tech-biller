@@ -17,6 +17,14 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Global Anti-Crash Handlers
+process.on('uncaughtException', (err) => {
+    console.error('CRITICAL: Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 const logger = pino({ level: 'info' });
 
 async function startServer() {
@@ -100,19 +108,33 @@ async function startServer() {
             const currentSock = makeWASocket({
                 version,
                 logger,
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, logger),
-                },
+                auth: state,
                 printQRInTerminal: false,
                 browser: ["Desktop", "Chrome", "124.0.0.0"],
                 syncFullHistory: false,
-                qrTimeout: 45000,
+                qrTimeout: 60000,
                 connectTimeoutMs: 60000,
                 defaultQueryTimeoutMs: 0,
                 keepAliveIntervalMs: 30000,
                 markOnlineOnConnect: true,
                 retryRequestDelayMs: 5000,
+                patchMessageBeforeSending: (message) => {
+                    const requiresPatch = !!(message.buttonsMessage || message.listMessage || message.templateMessage);
+                    if (requiresPatch) {
+                        message = {
+                            viewOnceMessage: {
+                                message: {
+                                    messageContextInfo: {
+                                        deviceListMetadata: {},
+                                        deviceListMetadataVersion: 2
+                                    },
+                                    ...message
+                                }
+                            }
+                        };
+                    }
+                    return message;
+                },
             });
 
             sock = currentSock;
@@ -151,7 +173,7 @@ async function startServer() {
                     
                     if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession) {
                         detailedStatus = 'Session Reset';
-                        console.warn('WhatsApp: Critical session status. Clearing legacy auth data...');
+                        console.warn('WhatsApp: Critical session status. Clearing auth data...');
                         if (fs.existsSync(authPath)) {
                             fs.rmSync(authPath, { recursive: true, force: true });
                         }
@@ -160,14 +182,16 @@ async function startServer() {
                     } else if (shouldReconnect) {
                         failureCount++;
                         
-                        // Handle 'Connection Terminated' or 'Server Busy' specifically
-                        if (statusCode === 428 || statusCode === 500 || (error?.message?.includes('Terminated'))) {
-                            const cooldown = Math.min(15000 * failureCount, 120000); 
-                            detailedStatus = 'Rate Limited';
-                            console.warn(`WhatsApp: Server busy (428/Terminated). Cooldown: ${cooldown}ms`);
+                        // 428 is 'Connection Terminated'. Increase backoff significantly.
+                        const isTerminated = statusCode === 428 || error?.message?.includes('Terminated') || statusCode === 515;
+                        
+                        if (isTerminated) {
+                            const cooldown = Math.max(60000, Math.min(60000 * failureCount, 300000));
+                            detailedStatus = `Rate Limited (${Math.floor(cooldown/1000)}s)`;
+                            console.warn(`WhatsApp: 428/Terminated detection. FailCount: ${failureCount}. Cooldown: ${cooldown}ms`);
                             
-                            if (failureCount > 8) {
-                                console.error('WhatsApp: Excessive failures. Forcing session reset.');
+                            if (failureCount > 6) {
+                                console.error('WhatsApp: Excessive 428 failures. Force resetting session.');
                                 if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
                                 failureCount = 0;
                             }
@@ -175,7 +199,7 @@ async function startServer() {
                             reconnectTimer = setTimeout(() => connectToWhatsApp(), cooldown);
                         } else {
                             detailedStatus = 'Reconnecting...';
-                            const normalDelay = Math.min(5000 + (failureCount * 2000), 30000);
+                            const normalDelay = Math.min(10000 + (failureCount * 5000), 60000);
                             reconnectTimer = setTimeout(() => connectToWhatsApp(), normalDelay);
                         }
                     } else {
@@ -330,14 +354,6 @@ async function startServer() {
                 console.error('WhatsApp: Initial connection failure:', err);
             });
         }, 5000); // Wait 5s after boot
-    });
-
-    // Handle process errors to prevent total crash
-    process.on('uncaughtException', (err) => {
-        console.error('Uncaught Exception:', err);
-    });
-    process.on('unhandledRejection', (reason, promise) => {
-        console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     });
 }
 
