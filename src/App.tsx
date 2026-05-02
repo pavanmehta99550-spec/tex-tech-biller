@@ -107,37 +107,59 @@ export default function App() {
 
   const handleVoiceCommand = useCallback((command: string) => {
     const cmd = command.toLowerCase();
+    console.log("Voice Command Internal:", cmd);
     
-    if (cmd.includes('bill') || cmd.includes('invoice') || cmd.includes('khata')) {
+    // Billing / Invoice
+    if (cmd.includes('bill') || cmd.includes('invoice') || cmd.includes('बिल') || cmd.includes('बनाओ') || cmd.includes('invoice')) {
       setCurrentView('inv');
       speak("Ji bhai, billing screen khol di hai.");
-    } else if (cmd.includes('dash') || cmd.includes('home') || cmd.includes('main') || cmd.includes('shuru')) {
+    } 
+    // Dashboard / Home
+    else if (cmd.includes('dash') || cmd.includes('home') || cmd.includes('main') || cmd.includes('shuru') || cmd.includes('होम') || cmd.includes('डैशबोर्ड')) {
       setCurrentView('dash');
       speak("Dashboard par wapas aa gaye hain.");
-    } else if (cmd.includes('sale') || cmd.includes('becha') || cmd.includes('history')) {
+    } 
+    // Sales History
+    else if (cmd.includes('sale') || cmd.includes('becha') || cmd.includes('history') || cmd.includes('बिक्री') || cmd.includes('हिस्ट्री')) {
       setCurrentView('salehistory');
       speak("Sale history check kijiye.");
-    } else if (cmd.includes('purchase') || cmd.includes('kharid')) {
+    } 
+    // Purchase
+    else if (cmd.includes('purchase') || cmd.includes('kharid') || cmd.includes('खरीद') || cmd.includes('पर्चेज')) {
       setCurrentView('pur');
       speak("Purchase entry screen tayyar hai.");
-    } else if (cmd.includes('stock') || cmd.includes('item') || cmd.includes('maal') || cmd.includes('saree')) {
+    } 
+    // Stock / Items
+    else if (cmd.includes('stock') || cmd.includes('item') || cmd.includes('maal') || cmd.includes('saree') || cmd.includes('स्टॉक') || cmd.includes('आइटम')) {
       setCurrentView('items');
       speak("Item master khol diya hai.");
-    } else if (cmd.includes('whatsapp') || cmd.includes('wa') || cmd.includes('link')) {
+    } 
+    // WhatsApp
+    else if (cmd.includes('whatsapp') || cmd.includes('wa') || cmd.includes('link') || cmd.includes('व्हाट्सएप')) {
       setCurrentView('whatsapp');
       speak("WhatsApp settings screen par hain.");
-    } else if (cmd.includes('backup') || cmd.includes('save')) {
+    } 
+    // Backup
+    else if (cmd.includes('backup') || cmd.includes('save') || cmd.includes('बैकअप')) {
       setCurrentView('backup');
       speak("Backup screen khol di hai, data safe rakhein.");
-    } else if (cmd.includes('kharcha') || cmd.includes('expense')) {
+    } 
+    // Expenses
+    else if (cmd.includes('kharcha') || cmd.includes('expense') || cmd.includes('खर्चा')) {
       setCurrentView('expenses');
       speak("Kharcha entry screen khul gayi hai.");
-    } else if (cmd.includes('party') || cmd.includes('customer')) {
+    } 
+    // Parties
+    else if (cmd.includes('party') || cmd.includes('customer') || cmd.includes('पार्टी')) {
       setCurrentView('saleparty');
       speak("Party details check karein.");
-    } else if (cmd.includes('delete') || cmd.includes('hatao') || cmd.includes('clear')) {
+    } 
+    // Deletion
+    else if (cmd.includes('delete') || cmd.includes('hatao') || cmd.includes('clear') || cmd.includes('हटाओ') || cmd.includes('मिटाओ')) {
       speak("Bhai, kya delete karna hai? Kripya bataiye.");
-    } else if (cmd.includes('suggest') || cmd.includes('mashwara')) {
+    } 
+    // Suggestions
+    else if (cmd.includes('suggest') || cmd.includes('mashwara') || cmd.includes('सलाह') || cmd.includes('बताओ')) {
       speak("Bhai, aaj ki sale achhi hai. Stock check kar lijiye, kuch designs khatam ho rahe hain.");
     }
   }, [setCurrentView, speak]);

@@ -37,7 +37,7 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle }: Voice
     }
 
     const startRecognition = () => {
-      if (!isEnabled) return;
+      if (!isEnabled || (recognitionRef.current && isListening)) return;
       
       try {
         const recognition = new SpeechRecognition();
@@ -64,25 +64,24 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle }: Voice
           } else if (event.error === 'network') {
             setErrorHeader("Network Error");
           }
-          
-          if (event.error === 'aborted' && isEnabled) {
-            setTimeout(startRecognition, 1000);
-          }
         };
 
         recognition.onend = () => {
+          setIsListening(false);
+          recognitionRef.current = null;
+          
           if (isEnabled && !errorHeader) {
+            // Small delay before restarting to prevent rapid retry loops
             setTimeout(() => {
-              try { recognition.start(); } catch(e) { startRecognition(); }
-            }, 500);
-          } else {
-            setIsListening(false);
+              if (isEnabled) startRecognition();
+            }, 1000);
           }
         };
 
         recognition.start();
         recognitionRef.current = recognition;
       } catch (e) {
+        console.error("Speech recognition initialization failed:", e);
         setErrorHeader("Initialization Failed");
       }
     };
