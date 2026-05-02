@@ -109,58 +109,167 @@ export default function App() {
     const cmd = command.toLowerCase();
     console.log("Voice Command Internal:", cmd);
     
-    // Billing / Invoice
-    if (cmd.includes('bill') || cmd.includes('invoice') || cmd.includes('बिल') || cmd.includes('बनाओ') || cmd.includes('invoice')) {
+    let matched = false;
+
+    // Billing / Invoice - Handle both Hindi and Romanized Hindi
+    if (
+      cmd.includes('bill') || 
+      cmd.includes('invoice') || 
+      cmd.includes('बिल') || 
+      cmd.includes('बनाओ') || 
+      cmd.includes('banao') || 
+      cmd.includes('banae') ||
+      cmd.includes('inv') ||
+      cmd.includes('entry') ||
+      cmd.includes('bechna') ||
+      cmd.includes('naya')
+    ) {
       setCurrentView('inv');
       speak("Ji bhai, billing screen khol di hai.");
+      matched = true;
     } 
     // Dashboard / Home
-    else if (cmd.includes('dash') || cmd.includes('home') || cmd.includes('main') || cmd.includes('shuru') || cmd.includes('होम') || cmd.includes('डैशबोर्ड')) {
+    else if (
+      cmd.includes('dash') || 
+      cmd.includes('home') || 
+      cmd.includes('main') || 
+      cmd.includes('shuru') || 
+      cmd.includes('होम') || 
+      cmd.includes('डैशबोर्ड') ||
+      cmd.includes('wapas') ||
+      cmd.includes('piche') ||
+      cmd.includes('back')
+    ) {
       setCurrentView('dash');
       speak("Dashboard par wapas aa gaye hain.");
+      matched = true;
     } 
     // Sales History
-    else if (cmd.includes('sale') || cmd.includes('becha') || cmd.includes('history') || cmd.includes('बिक्री') || cmd.includes('हिस्ट्री')) {
+    else if (
+      cmd.includes('sale') || 
+      cmd.includes('becha') || 
+      cmd.includes('history') || 
+      cmd.includes('बिक्री') || 
+      cmd.includes('हिस्ट्री') ||
+      cmd.includes('bikri') ||
+      cmd.includes('purana') ||
+      cmd.includes('kamai') ||
+      cmd.includes('bika')
+    ) {
       setCurrentView('salehistory');
       speak("Sale history check kijiye.");
+      matched = true;
     } 
     // Purchase
-    else if (cmd.includes('purchase') || cmd.includes('kharid') || cmd.includes('खरीद') || cmd.includes('पर्चेज')) {
+    else if (
+      cmd.includes('purchase') || 
+      cmd.includes('kharid') || 
+      cmd.includes('खरीद') || 
+      cmd.includes('पर्चेज') ||
+      cmd.includes('khareed') ||
+      cmd.includes('aya')
+    ) {
       setCurrentView('pur');
       speak("Purchase entry screen tayyar hai.");
+      matched = true;
     } 
     // Stock / Items
-    else if (cmd.includes('stock') || cmd.includes('item') || cmd.includes('maal') || cmd.includes('saree') || cmd.includes('स्टॉक') || cmd.includes('आइटम')) {
+    else if (
+      cmd.includes('stock') || 
+      cmd.includes('item') || 
+      cmd.includes('maal') || 
+      cmd.includes('saree') || 
+      cmd.includes('स्टॉक') || 
+      cmd.includes('आइटम') ||
+      cmd.includes('mal') ||
+      cmd.includes('inventory') ||
+      cmd.includes('kitna')
+    ) {
       setCurrentView('items');
       speak("Item master khol diya hai.");
+      matched = true;
     } 
     // WhatsApp
-    else if (cmd.includes('whatsapp') || cmd.includes('wa') || cmd.includes('link') || cmd.includes('व्हाट्सएप')) {
+    else if (
+      cmd.includes('whatsapp') || 
+      cmd.includes('wa') || 
+      cmd.includes('link') || 
+      cmd.includes('व्हाट्सएप') ||
+      cmd.includes('connect') ||
+      cmd.includes('status')
+    ) {
       setCurrentView('whatsapp');
       speak("WhatsApp settings screen par hain.");
+      matched = true;
     } 
     // Backup
-    else if (cmd.includes('backup') || cmd.includes('save') || cmd.includes('बैकअप')) {
+    else if (
+      cmd.includes('backup') || 
+      cmd.includes('save') || 
+      cmd.includes('बैकअप') ||
+      cmd.includes('surakshit') ||
+      cmd.includes('print') ||
+      cmd.includes('pdf')
+    ) {
       setCurrentView('backup');
-      speak("Backup screen khol di hai, data safe rakhein.");
+      speak("Backup screen khol di hai.");
+      matched = true;
     } 
     // Expenses
-    else if (cmd.includes('kharcha') || cmd.includes('expense') || cmd.includes('खर्चा')) {
+    else if (
+      cmd.includes('kharcha') || 
+      cmd.includes('expense') || 
+      cmd.includes('खर्चा') ||
+      cmd.includes('kharch') ||
+      cmd.includes('payment') ||
+      cmd.includes('udhar')
+    ) {
       setCurrentView('expenses');
       speak("Kharcha entry screen khul gayi hai.");
+      matched = true;
     } 
     // Parties
-    else if (cmd.includes('party') || cmd.includes('customer') || cmd.includes('पार्टी')) {
+    else if (
+      cmd.includes('party') || 
+      cmd.includes('customer') || 
+      cmd.includes('पार्टी') ||
+      cmd.includes('grahak') ||
+      cmd.includes('vyapari') ||
+      cmd.includes('seth')
+    ) {
       setCurrentView('saleparty');
       speak("Party details check karein.");
+      matched = true;
     } 
     // Deletion
-    else if (cmd.includes('delete') || cmd.includes('hatao') || cmd.includes('clear') || cmd.includes('हटाओ') || cmd.includes('मिटाओ')) {
+    else if (
+      cmd.includes('delete') || 
+      cmd.includes('hatao') || 
+      cmd.includes('clear') || 
+      cmd.includes('हटाओ') || 
+      cmd.includes('मिटाओ') ||
+      cmd.includes('nikalo') ||
+      cmd.includes('galat')
+    ) {
       speak("Bhai, kya delete karna hai? Kripya bataiye.");
+      matched = true;
     } 
     // Suggestions
-    else if (cmd.includes('suggest') || cmd.includes('mashwara') || cmd.includes('सलाह') || cmd.includes('बताओ')) {
-      speak("Bhai, aaj ki sale achhi hai. Stock check kar lijiye, kuch designs khatam ho rahe hain.");
+    else if (
+      cmd.includes('suggest') || 
+      cmd.includes('mashwara') || 
+      cmd.includes('सलाह') || 
+      cmd.includes('बताओ') ||
+      cmd.includes('advise') ||
+      cmd.includes('idea') ||
+      cmd.includes('help')
+    ) {
+      speak("Bhai, aaj ki sale achhi hai. Stock check kar lijiye.");
+      matched = true;
+    }
+
+    if (!matched && cmd.length > 2) {
+      console.log("No specific command matched for:", cmd);
     }
   }, [setCurrentView, speak]);
   
