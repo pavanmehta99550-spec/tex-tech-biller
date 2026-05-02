@@ -6,9 +6,10 @@ interface VoiceAssistantProps {
   onCommand: (command: string) => void;
   isEnabled: boolean;
   onToggle: (enabled: boolean) => void;
+  isProcessing?: boolean;
 }
 
-export default function VoiceAssistant({ onCommand, isEnabled, onToggle }: VoiceAssistantProps) {
+export default function VoiceAssistant({ onCommand, isEnabled, onToggle, isProcessing }: VoiceAssistantProps) {
   const [isListening, setIsListening] = useState(false);
   const [lastTranscript, setLastTranscript] = useState('');
   const [errorHeader, setErrorHeader] = useState<string | null>(null);
@@ -162,7 +163,7 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle }: Voice
             isEnabled 
               ? 'bg-blue-600 text-white' 
               : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
-          }`}
+          } ${isProcessing ? 'animate-pulse' : ''}`}
           title={isEnabled ? "Voice Assistant Band Karein" : "Voice Assistant Chalu Karein"}
         >
           {isEnabled ? (
@@ -209,7 +210,7 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle }: Voice
             className="mt-2 text-center"
           >
             <div className="text-[10px] font-black uppercase tracking-[0.2em] bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent drop-shadow-sm">
-              {isListening ? "Listening..." : "Processing"}
+              {isProcessing ? "Bhai soch raha hai..." : isListening ? "Bolte rahiye..." : "Partner Active"}
             </div>
           </motion.div>
         )}
