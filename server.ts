@@ -62,6 +62,11 @@ async function startServer() {
             generateHighQualityLinkPreview: true,
             syncFullHistory: false,
             qrTimeout: 60000,
+            connectTimeoutMs: 60000,
+            defaultQueryTimeoutMs: 60000,
+            keepAliveIntervalMs: 30000,
+            markOnlineOnConnect: true,
+            retryRequestDelayMs: 5000,
         });
 
         sock.ev.on('connection.update', async (update: any) => {
@@ -86,12 +91,13 @@ async function startServer() {
                 connectionStatus = 'disconnected';
                 detailedStatus = statusCode === DisconnectReason.loggedOut 
                     ? 'Logged out' 
-                    : `Disconnected (${statusCode})`;
+                    : `Disconnected (${statusCode || 'Server Terminated'})`;
                 qrCode = null;
 
                 if (shouldReconnect) {
-                    detailedStatus = 'Retrying in 5s...';
-                    setTimeout(connectToWhatsApp, 5000); 
+                    detailedStatus = 'Reconnecting...';
+                    const delay = statusCode === DisconnectReason.connectionLost ? 2000 : 5000;
+                    setTimeout(connectToWhatsApp, delay); 
                 }
             } else if (connection === 'open') {
                 console.log('WhatsApp connection opened successfully');
