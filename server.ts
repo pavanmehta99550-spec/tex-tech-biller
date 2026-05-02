@@ -133,15 +133,14 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: Browsers.ubuntu('Chrome'), // More consistent browser ID
+                browser: ["Ubuntu", "Chrome", "20.0.04"], 
                 syncFullHistory: false,
                 qrTimeout: 60000,
                 connectTimeoutMs: 60000,
-                defaultQueryTimeoutMs: 15000, // Reduced from 0 (infinity) to avoid hangs
-                keepAliveIntervalMs: 20000, // Slightly more frequent to prevent silent drops
+                defaultQueryTimeoutMs: 30000,
+                keepAliveIntervalMs: 10000,
                 markOnlineOnConnect: true,
                 retryRequestDelayMs: 5000,
-                // Add better error handling for the socket itself
                 patchMessageBeforeSending: (message) => {
                     const requiresPatch = !!(message.buttonsMessage || message.listMessage || message.templateMessage);
                     if (requiresPatch) {
@@ -211,14 +210,14 @@ async function startServer() {
                         failureCount++;
                         
                         if (isTerminated) {
-                            // Exponential backoff for termination errors
+                            // Minimum 20s gap to avoid spam flags as per user request
                             const cooldown = Math.max(20000, Math.min(20000 * Math.pow(2, failureCount - 1), 300000));
-                            setStatus('disconnected', `Restarting (${Math.floor(cooldown/1000)}s)`);
+                            setStatus('disconnected', `Security Gap (${Math.floor(cooldown/1000)}s)`);
                             console.warn(`WhatsApp: Server Termination detected. FailCount: ${failureCount}. Cooldown: ${cooldown}ms`);
                             reconnectTimer = setTimeout(() => connectToWhatsApp(), cooldown);
                         } else {
                             setStatus('disconnected', 'Reconnecting...');
-                            const normalDelay = Math.min(10000 + (failureCount * 5000), 60000);
+                            const normalDelay = Math.max(20000, Math.min(20000 + (failureCount * 5000), 60000));
                             reconnectTimer = setTimeout(() => connectToWhatsApp(), normalDelay);
                         }
                     } else {
