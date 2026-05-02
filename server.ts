@@ -23,6 +23,9 @@ async function startServer() {
     const app = express();
     const PORT = 3000;
 
+    // Health check
+    app.get('/health', (req, res) => res.send('OK'));
+
     app.use(express.json({ limit: '50mb' }));
 
     let sock: any = null;
@@ -181,6 +184,7 @@ async function startServer() {
 
     // API Routes
     app.get('/api/whatsapp/status', (req, res) => {
+        console.log('API: GET /whatsapp/status');
         res.json({ 
             status: connectionStatus, 
             detailedStatus, 
@@ -279,9 +283,19 @@ async function startServer() {
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running at http://localhost:${PORT}`);
         // Connect to WhatsApp after server has started to avoid blocking startup
-        connectToWhatsApp().catch(err => {
-            console.error('Initial WhatsApp connection failure:', err);
-        });
+        setTimeout(() => {
+            connectToWhatsApp().catch(err => {
+                console.error('WhatsApp: Initial connection failure:', err);
+            });
+        }, 3000); // Wait 3s after boot
+    });
+
+    // Handle process errors to prevent total crash
+    process.on('uncaughtException', (err) => {
+        console.error('Uncaught Exception:', err);
+    });
+    process.on('unhandledRejection', (reason, promise) => {
+        console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     });
 }
 

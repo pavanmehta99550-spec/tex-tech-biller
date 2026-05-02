@@ -541,14 +541,27 @@ export default function App() {
   });
 
   useEffect(() => {
+    let retryCount = 0;
     const pollStatus = async () => {
       try {
-        const res = await fetch('/api/whatsapp/status');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const res = await fetch('/api/whatsapp/status', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
         if (!res.ok) throw new Error('Status fetch failed');
         const data = await res.json();
         setWaStatus(data);
-      } catch (err) {
-        console.error("WhatsApp Gateway connection poll failed:", err);
+        retryCount = 0; // Reset on success
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.warn("WhatsApp status poll timed out");
+        } else {
+          console.error("WhatsApp Gateway connection poll failed:", err);
+          retryCount++;
+          // If we fail many times, maybe slow down polling
+        }
       }
     };
 
