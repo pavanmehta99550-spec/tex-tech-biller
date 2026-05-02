@@ -6,7 +6,8 @@ import makeWASocket, {
     DisconnectReason, 
     useMultiFileAuthState,
     fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore
+    makeCacheableSignalKeyStore,
+    Browsers
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
@@ -27,13 +28,27 @@ async function startServer() {
     let sock: any = null;
     let qrCode: string | null = null;
     let connectionStatus: string = 'disconnected';
+    let detailedStatus: string = 'Initializing...';
 
     async function connectToWhatsApp() {
         const authPath = '/tmp/wa_auth';
+        if (!fs.existsSync(authPath)) {
+            fs.mkdirSync(authPath, { recursive: true });
+        }
+
+        let version;
+        try {
+            const latest = await fetchLatestBaileysVersion();
+            version = latest.version;
+            console.log(`using latest WA v${version.join('.')}`);
+        } catch (err) {
+            console.error('Failed to fetch latest Baileys version, using fallback:', err);
+            version = [2, 3000, 1017531287]; 
+        }
+
         const { state, saveCreds } = await useMultiFileAuthState(authPath);
-        const { version, isLatest } = await fetchLatestBaileysVersion();
-        
-        console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`);
+
+        detailedStatus = 'Connecting to WhatsApp...';
 
         sock = makeWASocket({
             version,
@@ -43,27 +58,45 @@ async function startServer() {
                 keys: makeCacheableSignalKeyStore(state.keys, logger),
             },
             printQRInTerminal: false,
-            browser: ['Tex-Tech Biller', 'Chrome', '1.0.0']
+            browser: Browsers.ubuntu('Chrome'),
+            generateHighQualityLinkPreview: true,
+            syncFullHistory: false,
+            qrTimeout: 60000,
         });
 
         sock.ev.on('connection.update', async (update: any) => {
             const { connection, lastDisconnect, qr } = update;
             
             if (qr) {
-                qrCode = await QRCode.toDataURL(qr);
+                try {
+                    qrCode = await QRCode.toDataURL(qr);
+                    detailedStatus = 'Scan QR code to link';
+                    console.log('New QR code generated');
+                } catch (err) {
+                    console.error('Failed to generate QR data URL:', err);
+                }
             }
 
             if (connection === 'close') {
-                const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-                console.log('connection closed due to ', lastDisconnect?.error, ', reconnecting ', shouldReconnect);
+                const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+                const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+                
+                console.log(`Connection closed. Reason: ${statusCode}, Reconnecting: ${shouldReconnect}`);
+                
                 connectionStatus = 'disconnected';
+                detailedStatus = statusCode === DisconnectReason.loggedOut 
+                    ? 'Logged out' 
+                    : `Disconnected (${statusCode})`;
                 qrCode = null;
+
                 if (shouldReconnect) {
-                    connectToWhatsApp();
+                    detailedStatus = 'Retrying in 5s...';
+                    setTimeout(connectToWhatsApp, 5000); 
                 }
             } else if (connection === 'open') {
-                console.log('opened connection');
+                console.log('WhatsApp connection opened successfully');
                 connectionStatus = 'connected';
+                detailedStatus = 'Authenticated & Ready';
                 qrCode = null;
             }
         });
@@ -75,7 +108,7 @@ async function startServer() {
 
     // API Routes
     app.get('/api/whatsapp/status', (req, res) => {
-        res.json({ status: connectionStatus, hasQr: !!qrCode });
+        res.json({ status: connectionStatus, detailedStatus, hasQr: !!qrCode });
     });
 
     app.get('/api/whatsapp/qr', (req, res) => {
@@ -89,17 +122,27 @@ async function startServer() {
     app.post('/api/whatsapp/logout', async (req, res) => {
         try {
             if (sock) {
-                await sock.logout();
-                const authPath = '/tmp/wa_auth';
-                if (fs.existsSync(authPath)) {
-                    fs.rmSync(authPath, { recursive: true, force: true });
+                try {
+                    await sock.logout();
+                } catch (e) {
+                    console.error('Logout error:', e);
                 }
-                res.json({ success: true });
-                connectToWhatsApp(); // Restart to get new QR
-            } else {
-                res.status(400).json({ error: 'No active session' });
             }
+            
+            const authPath = '/tmp/wa_auth';
+            if (fs.existsSync(authPath)) {
+                fs.rmSync(authPath, { recursive: true, force: true });
+            }
+            
+            qrCode = null;
+            connectionStatus = 'disconnected';
+            
+            res.json({ success: true });
+            
+            // Re-initialize to show fresh QR
+            setTimeout(connectToWhatsApp, 2000);
         } catch (error) {
+            console.error('Logout handler error:', error);
             res.status(500).json({ error: String(error) });
         }
     });

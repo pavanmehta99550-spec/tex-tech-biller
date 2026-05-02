@@ -236,11 +236,13 @@ export default function App() {
           'g': 'gstreport',
           't': 'transports',
           'b': 'backup',
-          'w': 'whatsapp'
+          'w': 'whatsapp',
+          'W': 'whatsapp'
         };
 
         if (shortcutMap[key]) {
           e.preventDefault();
+          e.stopPropagation();
           setCurrentView(shortcutMap[key]);
           setFocusedIdx(-1);
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -536,7 +538,7 @@ export default function App() {
           setWaQr(null);
         }
       } catch (err) {
-        console.error("WhatsApp Gateway connection failed. Please ensure the server is running.");
+        console.error("WhatsApp Gateway connection poll failed:", err);
       }
     };
 
@@ -7335,6 +7337,14 @@ function BankDetailsView({ settings, onUpdateSettings }: any) {
 }
 
 function WhatsAppSettingsView({ status, qr, onLogout }: { status: any, qr: string | null, onLogout: () => void, key?: string }) {
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await onLogout();
+    setIsLoggingOut(false);
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto">
       <div className="bg-white rounded-[40px] border border-slate-200 shadow-2xl overflow-hidden p-8 lg:p-12">
@@ -7348,28 +7358,34 @@ function WhatsAppSettingsView({ status, qr, onLogout }: { status: any, qr: strin
             <p className="text-slate-500 font-medium italic">Link your account to send invoices automatically</p>
           </div>
 
-          <div className="w-full flex items-center justify-center gap-2 py-4">
-            <div className={`px-4 py-2 rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 border ${
-              status.status === 'connected' 
-                ? 'bg-green-50 text-green-600 border-green-200' 
-                : 'bg-slate-50 text-slate-400 border-slate-200'
-            }`}>
-              <div className={`w-2 h-2 rounded-full ${status.status === 'connected' ? 'bg-green-500' : 'bg-slate-300'}`} />
-              {status.status === 'connected' ? 'Connected' : 'Disconnected'}
+          <div className="w-full space-y-2">
+            <div className="flex items-center justify-center gap-2">
+              <div className={`px-4 py-2 rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 border ${
+                status.status === 'connected' 
+                  ? 'bg-green-50 text-green-600 border-green-200' 
+                  : 'bg-slate-50 text-slate-400 border-slate-200'
+              }`}>
+                <div className={`w-2 h-2 rounded-full ${status.status === 'connected' ? 'bg-green-500' : 'bg-slate-500 animate-pulse'}`} />
+                {status.status === 'connected' ? 'Connected' : 'Disconnected'}
+              </div>
             </div>
+            {status.detailedStatus && (
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{status.detailedStatus}</p>
+            )}
           </div>
 
           {status.status === 'connected' ? (
             <div className="w-full space-y-6">
-              <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl text-center">
-                <p className="text-blue-900 font-black text-sm uppercase tracking-tight">System Linked Successfully!</p>
-                <p className="text-blue-600/70 text-xs mt-1">You can now send bills directly to WhatsApp numbers.</p>
+              <div className="bg-green-50 border border-green-100 p-6 rounded-3xl text-center">
+                <p className="text-green-900 font-black text-sm uppercase tracking-tight">System Linked Successfully!</p>
+                <p className="text-green-600/70 text-xs mt-1">You can now send bills directly to WhatsApp numbers.</p>
               </div>
               <button 
-                onClick={onLogout}
-                className="w-full py-4 bg-red-50 text-red-600 hover:bg-red-100 font-black rounded-2xl transition-all flex items-center justify-center gap-2"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="w-full py-4 bg-red-50 text-red-600 hover:bg-red-100 font-black rounded-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <LogOut size={20} />
+                {isLoggingOut ? <RefreshCw className="animate-spin" size={20} /> : <LogOut size={20} />}
                 Disconnect Account
               </button>
             </div>
@@ -7380,17 +7396,33 @@ function WhatsAppSettingsView({ status, qr, onLogout }: { status: any, qr: strin
                   <div className="bg-white p-4 rounded-3xl border-4 border-slate-900 shadow-2xl">
                     <img src={qr} alt="WA QR Code" className="w-64 h-64" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 text-center">
                     <p className="text-slate-900 font-black text-sm uppercase tracking-tight">Scan this QR Code</p>
                     <p className="text-slate-500 text-xs leading-relaxed max-w-xs mx-auto">
                       Open WhatsApp on your phone, go to Linked Devices and scan this code to link your account.
                     </p>
                   </div>
+                  <button 
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-widest flex items-center gap-2"
+                  >
+                    {isLoggingOut ? <RefreshCw className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+                    Reset Connection
+                  </button>
                 </div>
               ) : (
                 <div className="flex flex-col items-center py-10 space-y-4">
                   <RefreshCw size={32} className="text-slate-300 animate-spin" />
-                  <p className="text-slate-400 font-bold text-sm uppercase tracking-widest italic">Initializing Gateway...</p>
+                  <p className="text-slate-400 font-bold text-sm uppercase tracking-widest italic">
+                    {status.detailedStatus || 'Initializing Gateway...'}
+                  </p>
+                  <button 
+                    onClick={handleLogout}
+                    className="mt-4 text-[10px] font-black text-slate-300 hover:text-slate-500 uppercase tracking-[0.2em]"
+                  >
+                    Force Restart
+                  </button>
                 </div>
               )}
             </div>
