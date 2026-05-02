@@ -136,7 +136,7 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: Browsers.macOS('Desktop'), 
+                browser: ["Ubuntu", "Chrome", "20.0.04"], 
                 syncFullHistory: false,
                 qrTimeout: 60000,
                 connectTimeoutMs: 60000,

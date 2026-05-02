@@ -20,10 +20,13 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle }: Voice
     window.speechSynthesis.speak(utterance);
   }, []);
 
+  const recognitionRef = React.useRef<any>(null);
+
   useEffect(() => {
     if (!isEnabled) {
       setIsListening(false);
       setErrorHeader(null);
+      if (recognitionRef.current) recognitionRef.current.stop();
       return;
     }
 
@@ -33,49 +36,63 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle }: Voice
       return;
     }
 
-    let recognition: any;
-    try {
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = false;
-      recognition.lang = 'hi-IN';
+    const startRecognition = () => {
+      if (!isEnabled) return;
+      
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.lang = 'hi-IN';
 
-      recognition.onstart = () => {
-        setIsListening(true);
-        setErrorHeader(null);
-      };
+        recognition.onstart = () => {
+          setIsListening(true);
+          setErrorHeader(null);
+        };
 
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-        setLastTranscript(transcript);
-        onCommand(transcript);
-      };
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+          setLastTranscript(transcript);
+          onCommand(transcript);
+        };
 
-      recognition.onerror = (event: any) => {
-        console.error("Speech recognition error:", event.error);
-        if (event.error === 'not-allowed') {
-          setErrorHeader("Mic Access Denied");
-          onToggle(false);
-        } else if (event.error === 'network') {
-          setErrorHeader("Network Error");
-        }
-      };
+        recognition.onerror = (event: any) => {
+          console.error("Speech recognition error:", event.error);
+          if (event.error === 'not-allowed') {
+            setErrorHeader("Mic Access Denied");
+            onToggle(false);
+          } else if (event.error === 'network') {
+            setErrorHeader("Network Error");
+          }
+          
+          if (event.error === 'aborted' && isEnabled) {
+            setTimeout(startRecognition, 1000);
+          }
+        };
 
-      recognition.onend = () => {
-        if (isEnabled && !errorHeader) {
-          try { recognition.start(); } catch(e) {}
-        } else {
-          setIsListening(false);
-        }
-      };
+        recognition.onend = () => {
+          if (isEnabled && !errorHeader) {
+            setTimeout(() => {
+              try { recognition.start(); } catch(e) { startRecognition(); }
+            }, 500);
+          } else {
+            setIsListening(false);
+          }
+        };
 
-      recognition.start();
-    } catch (e) {
-      setErrorHeader("Initialization Failed");
-    }
+        recognition.start();
+        recognitionRef.current = recognition;
+      } catch (e) {
+        setErrorHeader("Initialization Failed");
+      }
+    };
+
+    startRecognition();
 
     return () => {
-      if (recognition) recognition.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
     };
   }, [isEnabled, onCommand, onToggle, errorHeader]);
 
