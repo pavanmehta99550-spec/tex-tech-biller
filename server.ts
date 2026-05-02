@@ -126,6 +126,9 @@ async function startServer() {
 
             setStatus('disconnected', 'Loading Account...');
             const { state, saveCreds } = await useMultiFileAuthState(authPath);
+            
+            // Wrap the keys with a cache to prevent unnecessary disk reads and potential corruption during high-frequency handshakes
+            state.keys = makeCacheableSignalKeyStore(state.keys, logger);
 
             setStatus('disconnected', 'Connecting...');
             const currentSock = makeWASocket({
@@ -133,7 +136,7 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: ["Ubuntu", "Chrome", "20.0.04"], 
+                browser: Browsers.macOS('Desktop'), 
                 syncFullHistory: false,
                 qrTimeout: 60000,
                 connectTimeoutMs: 60000,
