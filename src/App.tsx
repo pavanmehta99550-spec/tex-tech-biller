@@ -1532,6 +1532,13 @@ export default function App() {
                     console.error('Logout failed:', e);
                   }
                 }}
+                onRestart={async () => {
+                  try {
+                    await fetch('/api/whatsapp/restart', { method: 'POST' });
+                  } catch (e) {
+                    console.error('Restart failed:', e);
+                  }
+                }}
               />
             )}
             {currentView === 'signature' && <SignatureAndBankView 
@@ -7414,13 +7421,25 @@ function BankDetailsView({ settings, onUpdateSettings }: any) {
   );
 }
 
-function WhatsAppSettingsView({ status, qr, onLogout }: { status: any, qr: string | null, onLogout: () => void, key?: string }) {
+function WhatsAppSettingsView({ status, qr, onLogout, onRestart }: { status: any, qr: string | null, onLogout: () => void, onRestart?: () => void, key?: string }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await onLogout();
     setIsLoggingOut(false);
+  };
+
+  const handleRestart = async () => {
+    if (onRestart) {
+      setIsRestarting(true);
+      await onRestart();
+      setIsRestarting(false);
+    } else {
+      // Fallback if prop not provided
+      await handleLogout();
+    }
   };
 
   return (
@@ -7496,10 +7515,11 @@ function WhatsAppSettingsView({ status, qr, onLogout }: { status: any, qr: strin
                     {status.detailedStatus || 'Initializing Gateway...'}
                   </p>
                   <button 
-                    onClick={handleLogout}
-                    className="mt-4 text-[10px] font-black text-slate-300 hover:text-slate-500 uppercase tracking-[0.2em]"
+                    onClick={handleRestart}
+                    disabled={isRestarting}
+                    className="mt-4 text-[10px] font-black text-slate-300 hover:text-slate-500 uppercase tracking-[0.2em] disabled:opacity-50"
                   >
-                    Force Restart
+                    {isRestarting ? 'Restarting...' : 'Force Restart'}
                   </button>
                 </div>
               )}
