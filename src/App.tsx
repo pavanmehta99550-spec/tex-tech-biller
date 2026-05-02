@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, 
@@ -34,6 +34,7 @@ import {
   Eye,
   EyeOff,
   MessageSquare,
+  Mic,
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { auth, db } from './lib/firebase';
@@ -45,6 +46,7 @@ import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense } from './types';
 import Login from './components/Login';
+import VoiceAssistant from './components/VoiceAssistant';
 
 // Initial Party Database
 const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
@@ -92,6 +94,53 @@ export default function App() {
   const [showBackupWarning, setShowBackupWarning] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [logoutFocusedIdx, setLogoutFocusedIdx] = useState<number>(-1);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(() => storage.get('isVoiceEnabled', false));
+
+  const speak = useCallback((text: string) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'hi-IN';
+    utterance.rate = 1.1;
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  const handleVoiceCommand = useCallback((command: string) => {
+    const cmd = command.toLowerCase();
+    
+    if (cmd.includes('bill') || cmd.includes('invoice') || cmd.includes('khata')) {
+      setCurrentView('inv');
+      speak("Ji bhai, billing screen khol di hai.");
+    } else if (cmd.includes('dash') || cmd.includes('home') || cmd.includes('main') || cmd.includes('shuru')) {
+      setCurrentView('dash');
+      speak("Dashboard par wapas aa gaye hain.");
+    } else if (cmd.includes('sale') || cmd.includes('becha') || cmd.includes('history')) {
+      setCurrentView('salehistory');
+      speak("Sale history check kijiye.");
+    } else if (cmd.includes('purchase') || cmd.includes('kharid')) {
+      setCurrentView('pur');
+      speak("Purchase entry screen tayyar hai.");
+    } else if (cmd.includes('stock') || cmd.includes('item') || cmd.includes('maal') || cmd.includes('saree')) {
+      setCurrentView('items');
+      speak("Item master khol diya hai.");
+    } else if (cmd.includes('whatsapp') || cmd.includes('wa') || cmd.includes('link')) {
+      setCurrentView('whatsapp');
+      speak("WhatsApp settings screen par hain.");
+    } else if (cmd.includes('backup') || cmd.includes('save')) {
+      setCurrentView('backup');
+      speak("Backup screen khol di hai, data safe rakhein.");
+    } else if (cmd.includes('kharcha') || cmd.includes('expense')) {
+      setCurrentView('expenses');
+      speak("Kharcha entry screen khul gayi hai.");
+    } else if (cmd.includes('party') || cmd.includes('customer')) {
+      setCurrentView('saleparty');
+      speak("Party details check karein.");
+    } else if (cmd.includes('delete') || cmd.includes('hatao') || cmd.includes('clear')) {
+      speak("Bhai, kya delete karna hai? Kripya bataiye.");
+    } else if (cmd.includes('suggest') || cmd.includes('mashwara')) {
+      speak("Bhai, aaj ki sale achhi hai. Stock check kar lijiye, kuch designs khatam ho rahe hain.");
+    }
+  }, [setCurrentView, speak]);
   
   const [purchaseParties, setPurchaseParties] = useState<Party[]>(() => {
     const saved = storage.get('purchaseParties', storage.get('parties', []));
@@ -1745,6 +1794,17 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      <VoiceAssistant 
+        isEnabled={isVoiceEnabled} 
+        onToggle={(val) => {
+          setIsVoiceEnabled(val);
+          storage.set('isVoiceEnabled', val);
+          if (val) speak("Voice Assistant chalu ho gaya hai. Main aapki kya madad kar sakta hoon?");
+          else speak("Voice Assistant band kar diya gaya hai.");
+        }} 
+        onCommand={handleVoiceCommand} 
+      />
     </div>
   );
 }

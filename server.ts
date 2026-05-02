@@ -194,24 +194,24 @@ async function startServer() {
                     console.log(`WhatsApp: Socket closed (${statusCode}). Reconnecting: ${shouldReconnect}. Msg: ${errorMsg}`);
                     
                     // If server terminates often, it usually means the Noise handshake failed or keys are invalid.
-                    // 428: Precondition Required (often used for Termination), 515: Connection Lost
-                    const isTerminated = statusCode === 428 || statusCode === 515 || errorMsg.toLowerCase().includes('terminated');
+                    // 428: Precondition Required, 515: Connection Lost, 503: Service Unavailable
+                    const isTerminated = statusCode === 428 || statusCode === 515 || statusCode === 503 || errorMsg.toLowerCase().includes('terminated');
 
-                    // If we get frequent terminations (more than 2 in a row), we force a reset.
-                    if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || (isTerminated && failureCount > 2)) {
+                    // If we get frequent terminations (failureCount >= 2), we force a reset immediately
+                    if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || (isTerminated && failureCount >= 2)) {
                         setStatus('disconnected', 'Session Reset');
-                        console.warn('WhatsApp: Critical session status or repeated termination. Clearing auth data to force fresh link...');
+                        console.warn('WhatsApp: Critical session status or repeated termination. HARD RESETTING auth data...');
                         if (fs.existsSync(authPath)) {
                             fs.rmSync(authPath, { recursive: true, force: true });
                         }
                         failureCount = 0;
-                        reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000);
+                        reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000); 
                     } else if (shouldReconnect) {
                         failureCount++;
                         
                         if (isTerminated) {
-                            // Minimum 20s gap to avoid spam flags as per user request
-                            const cooldown = Math.max(20000, Math.min(20000 * Math.pow(2, failureCount - 1), 300000));
+                            // Minimum 30s gap to avoid spam flags
+                            const cooldown = Math.max(30000, Math.min(30000 * Math.pow(2, failureCount - 1), 300000));
                             setStatus('disconnected', `Security Gap (${Math.floor(cooldown/1000)}s)`);
                             console.warn(`WhatsApp: Server Termination detected. FailCount: ${failureCount}. Cooldown: ${cooldown}ms`);
                             reconnectTimer = setTimeout(() => connectToWhatsApp(), cooldown);
