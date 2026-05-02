@@ -179,8 +179,6 @@ async function startServer() {
         }
     }
 
-    connectToWhatsApp();
-
     // API Routes
     app.get('/api/whatsapp/status', (req, res) => {
         res.json({ 
@@ -280,6 +278,10 @@ async function startServer() {
 
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running at http://localhost:${PORT}`);
+        // Connect to WhatsApp after server has started to avoid blocking startup
+        connectToWhatsApp().catch(err => {
+            console.error('Initial WhatsApp connection failure:', err);
+        });
     });
 }
 
