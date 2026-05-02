@@ -518,25 +518,19 @@ export default function App() {
     };
   }, [bookings, purchases, creditNotes, debitNotes, payments]);
 
-  const [waStatus, setWaStatus] = useState<{status: string, hasQr: boolean}>({ status: 'disconnected', hasQr: false });
-  const [waQr, setWaQr] = useState<string | null>(null);
+  const [waStatus, setWaStatus] = useState<{status: string, detailedStatus?: string, hasQr: boolean, qr: string | null}>({ 
+    status: 'disconnected', 
+    hasQr: false,
+    qr: null
+  });
 
   useEffect(() => {
     const pollStatus = async () => {
       try {
         const res = await fetch('/api/whatsapp/status');
+        if (!res.ok) throw new Error('Status fetch failed');
         const data = await res.json();
         setWaStatus(data);
-        
-        if (data.hasQr) {
-          const qrRes = await fetch('/api/whatsapp/qr');
-          if (qrRes.ok) {
-            const qrData = await qrRes.json();
-            setWaQr(qrData.qr);
-          }
-        } else {
-          setWaQr(null);
-        }
       } catch (err) {
         console.error("WhatsApp Gateway connection poll failed:", err);
       }
@@ -1448,10 +1442,12 @@ export default function App() {
               <WhatsAppSettingsView 
                 key="whatsapp"
                 status={waStatus}
-                qr={waQr}
+                qr={waStatus.qr}
                 onLogout={async () => {
-                  if (confirm("Are you sure you want to disconnect WhatsApp?")) {
+                  try {
                     await fetch('/api/whatsapp/logout', { method: 'POST' });
+                  } catch (e) {
+                    console.error('Logout failed:', e);
                   }
                 }}
               />

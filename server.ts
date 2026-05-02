@@ -31,6 +31,19 @@ async function startServer() {
     let detailedStatus: string = 'Initializing...';
 
     async function connectToWhatsApp() {
+        // Cleanup existing socket if any
+        if (sock) {
+            console.log('Cleaning up existing WhatsApp socket...');
+            try {
+                sock.ev.removeAllListeners();
+                sock.terminate();
+            } catch (e) {
+                console.error('Error during socket cleanup:', e);
+            }
+            sock = null;
+        }
+
+        qrCode = null;
         const authPath = '/tmp/wa_auth';
         if (!fs.existsSync(authPath)) {
             fs.mkdirSync(authPath, { recursive: true });
@@ -98,6 +111,13 @@ async function startServer() {
                     detailedStatus = 'Reconnecting...';
                     const delay = statusCode === DisconnectReason.connectionLost ? 2000 : 5000;
                     setTimeout(connectToWhatsApp, delay); 
+                } else if (statusCode === DisconnectReason.loggedOut) {
+                    console.log('Logged out from phone. Clearing auth and restarting...');
+                    const authPath = '/tmp/wa_auth';
+                    if (fs.existsSync(authPath)) {
+                        fs.rmSync(authPath, { recursive: true, force: true });
+                    }
+                    setTimeout(connectToWhatsApp, 2000);
                 }
             } else if (connection === 'open') {
                 console.log('WhatsApp connection opened successfully');
@@ -114,7 +134,12 @@ async function startServer() {
 
     // API Routes
     app.get('/api/whatsapp/status', (req, res) => {
-        res.json({ status: connectionStatus, detailedStatus, hasQr: !!qrCode });
+        res.json({ 
+            status: connectionStatus, 
+            detailedStatus, 
+            hasQr: !!qrCode,
+            qr: qrCode 
+        });
     });
 
     app.get('/api/whatsapp/qr', (req, res) => {
