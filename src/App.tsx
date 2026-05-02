@@ -147,7 +147,7 @@ export default function App() {
   }, [bookings, purchases, creditNotes, debitNotes, payments]);
 
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(() => storage.get('isVoiceEnabled', false));
-  const [voiceContext, setVoiceContext] = useState<'idle' | 'bill_party' | 'bill_item' | 'bill_rate' | 'bill_qty' | 'bill_gst' | 'bill_confirm'>('idle');
+  const [voiceContext, setVoiceContext] = useState<'idle' | 'bill_party' | 'bill_item' | 'bill_rate' | 'bill_discount' | 'bill_qty' | 'bill_gst' | 'bill_confirm'>('idle');
   const [voiceDraft, setVoiceDraft] = useState<any>({});
 
   const speak = useCallback((text: string) => {
@@ -155,7 +155,8 @@ export default function App() {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'hi-IN';
-    utterance.rate = 1.1;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.1; // Slightly higher pitch for friendliness
     window.speechSynthesis.speak(utterance);
   }, []);
 
@@ -168,21 +169,22 @@ export default function App() {
     // --- CONVERSATIONAL FLOWS ---
 
     // 1. BILLING FLOW (Interactive)
-    if (voiceContext === 'idle' && (cmd.includes('bill') || cmd.includes('invoice') || cmd.includes('नया') || cmd.includes('banao'))) {
+    if (voiceContext === 'idle' && (cmd.includes('bill') || cmd.includes('invoice') || cmd.includes('नया') || cmd.includes('banao') || cmd.includes('bechna'))) {
       setCurrentView('inv');
       setVoiceContext('bill_party');
-      speak("Bilkul bhai, naya bill shuru karte hain. Party ka naam bataiye? Aapke paas " + (saleParties.length > 0 ? saleParties.map(p => p.name).join(", ") : "koi party saved nahi hai") + " hain.");
+      const partyCount = saleParties.length;
+      speak(`Bilkul bhai, naya bill shuru karte hain. Sabse pehle, party ka poora naam kya dalna hai? Mere paas ${partyCount} party hain, jaise ${saleParties.slice(0, 3).map(p => p.name).join(", ")}. Kise select karu?`);
       return;
     }
 
     if (voiceContext === 'bill_party') {
       const party = saleParties.find(p => cmd.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(cmd));
       if (party) {
-        setVoiceDraft({ ...voiceDraft, partyName: party.name, gstin: party.gstin });
+        setVoiceDraft({ ...voiceDraft, partyName: party.name, gstin: party.gstin, partyId: party.id });
         setVoiceContext('bill_item');
-        speak(`${party.name} select kar liya hai. Kaunse kapde ya item ka entry karna hai?`);
+        speak(`${party.name} pakka! Ab item ka naam kya daloge? Ya phir list mein se pasand karoge?`);
       } else {
-        speak("Bhai, ye party samajh nahi aayi. Phir se batayiye ya party select kar lijiye.");
+        speak("Bhai, ye party list mein nahi mili. Kya aap naya naam bolna chahte hain ya main phir se parties ke naam sunaoo?");
       }
       return;
     }
@@ -193,7 +195,7 @@ export default function App() {
         const itemName = item ? item.name : cmd;
         setVoiceDraft({ ...voiceDraft, itemName });
         setVoiceContext('bill_qty');
-        speak(`${itemName} theek hai. Kitna quantity ya thaan hai?`);
+        speak(`${itemName} select ho gaya. Quantity kitni dalu? Jaise thaan ya pieces?`);
       }
       return;
     }
@@ -203,9 +205,9 @@ export default function App() {
       if (!isNaN(qty)) {
         setVoiceDraft({ ...voiceDraft, qty });
         setVoiceContext('bill_rate');
-        speak(`${qty} quantity set ho gayi. Rate kya daloon?`);
+        speak(`${qty} quantity theek hai. Iska rate kya dalu bhai?`);
       } else {
-        speak("Bhai quantity number mein bataiye.");
+        speak("Bhai quantity number mein bataiye, jaise 10 ya 50.");
       }
       return;
     }
@@ -214,11 +216,20 @@ export default function App() {
       const rate = parseFloat(cmd.replace(/[^0-9.]/g, ''));
       if (!isNaN(rate)) {
         setVoiceDraft({ ...voiceDraft, rate });
-        setVoiceContext('bill_gst');
-        speak(`Rate ${rate} laga diya hai. GST kitna percent hoga? 5 percent ya 12?`);
+        setVoiceContext('bill_discount');
+        speak(`Rate ${rate} laga diya. Kuch extra discount bhi dalna hai ya nahi?`);
       } else {
-        speak("Rate samajh nahi aaya, kripya number mein kahein.");
+        speak("Bhai rate samajh nahi aaya, kripya sahi number kahein.");
       }
+      return;
+    }
+
+    if (voiceContext === 'bill_discount') {
+      const discArr = cmd.match(/\d+/);
+      const discount = discArr ? parseFloat(discArr[0]) : 0;
+      setVoiceDraft({ ...voiceDraft, discount });
+      setVoiceContext('bill_gst');
+      speak(`${discount > 0 ? discount + ' percent discount set ho gaya.' : 'Theek hai, koi discount nahi.'} GST kitna percent hoga? 5 ya 12?`);
       return;
     }
 
@@ -227,23 +238,30 @@ export default function App() {
       if (gstArr) {
         const gst = parseInt(gstArr[0]);
         const subtotal = voiceDraft.qty * voiceDraft.rate;
-        const total = subtotal + (subtotal * gst / 100);
+        const discValue = (subtotal * (voiceDraft.discount || 0) / 100);
+        const taxable = subtotal - discValue;
+        const total = taxable + (taxable * gst / 100);
+        
         setVoiceDraft({ ...voiceDraft, gst, total });
         setVoiceContext('bill_confirm');
-        speak(`Total bill ${total.toFixed(2)} ban raha hai. Save kar doon ya print nikaloon?`);
+        speak(`Zabardast! Total bill ${total.toFixed(0)} rupees ka ban raha hai. Ab bataiye, print nikalna hai ya seedha PDF banayein?`);
       } else {
-        speak("GST percent bataiye, jaise 5 ya 12.");
+        speak("GST percentage bataiye bhai.");
       }
       return;
     }
 
     if (voiceContext === 'bill_confirm') {
-      if (cmd.includes('save') || cmd.includes('kar do') || cmd.includes('करो')) {
-        speak("Bhai, order save ho gaya hai. Agla kya kaam hai?");
+      if (cmd.includes('save') || cmd.includes('kar do') || cmd.includes('करो') || cmd.includes('han')) {
+        speak("Bilkul bhai, naya bill save kar diya hai. Agla kya hukum hai?");
         setVoiceContext('idle');
         setVoiceDraft({});
       } else if (cmd.includes('print') || cmd.includes('pdf')) {
-        speak("Ji, PDF generate kar raha hoon.");
+        speak("Ji, PDF taiyar kar raha hoon. Desktop par check karein.");
+        setVoiceContext('idle');
+        setVoiceDraft({});
+      } else if (cmd.includes('bas') || cmd.includes('cancel')) {
+        speak("Theek hai bhai, draft clear kar diya.");
         setVoiceContext('idle');
         setVoiceDraft({});
       }
@@ -251,68 +269,67 @@ export default function App() {
     }
 
     // 2. STATUS UPDATES (Stock / Payment)
-    if (cmd.includes('stock') || cmd.includes('maal') || cmd.includes('kitna bacha')) {
+    if (cmd.includes('stock') || cmd.includes('maal') || cmd.includes('samann') || cmd.includes('kitna bacha')) {
       const totalItems = itemsMaster.length;
       if (totalItems === 0) {
-        speak("Bhai, stock mein abhi kuch nahi hai. Pehle items add kijiye.");
+        speak("Bhai, abhi list khali hai. Pehle items add kijiye.");
       } else {
-        const topItem = itemsMaster[0];
-        speak(`Bhai, total ${totalItems} items hain. Sabse zyada ${topItem.name} bacha hai.`);
+        const itemsSummary = itemsMaster.slice(0, 2).map(i => `${i.name}`).join(" aur ");
+        speak(`Bhai, stock mein total ${totalItems} items hain. Aapka ${itemsSummary} kaafi demand mein hai.`);
       }
       matched = true;
     }
 
-    if (cmd.includes('payment') || cmd.includes('paisa') || cmd.includes('baki')) {
-      const pending = stats.totalPending;
-      if (pending > 0) {
-        speak(`Bhai, abhi market mein approximately ${pending.toFixed(0)} rupees baki hain. Kaafi recovery karni hai.`);
+    if (cmd.includes('payment') || cmd.includes('paisa') || cmd.includes('udhar') || cmd.includes('baki')) {
+      // Check if user specifically asked for a party name
+      const party = saleParties.find(p => cmd.includes(p.name.toLowerCase()));
+      if (party) {
+        const partySales = bookings.filter(b => b.partyId === party.id).reduce((s, b) => s + b.grandTotal, 0);
+        const partyPaid = payments.filter(p => p.partyId === party.id).reduce((s, p) => p.partyId === party.id ? s + p.amount : s, 0);
+        const bal = partySales - partyPaid;
+        speak(`${party.name} ka payment status ye hai: total sale ${partySales.toFixed(0)} aur mil chuke hain ${partyPaid.toFixed(0)}. Inka balance abhi ${bal.toFixed(0)} rupees baki hai.`);
       } else {
-        speak("Bhai, payment wise sab clear hai, tension mat lijiye.");
+        const pending = stats.totalPending;
+        if (pending > 0) {
+          speak(`Bhai, market mein abhi total ${pending.toFixed(0)} rupees pending hain. Sabse pehle recovery karni hogi.`);
+        } else {
+          speak("Bhai, payment wise sab up-to-date hai, badhiya chal raha hai.");
+        }
       }
       matched = true;
     }
 
-    // 3. NAVIGATION (Fallback)
-    if (cmd.includes('shuru') || cmd.includes('home') || cmd.includes('cancel') || cmd.includes('bas')) {
+    // 3. NAVIGATION & HELP
+    if (cmd.includes('help') || cmd.includes('madad')) {
+      speak("Puchiye bhai! Main bill bana sakta hoon, stock bata sakta hoon, aur party ka balance bhi check kar sakta hoon.");
+      matched = true;
+    }
+
+    if (cmd.includes('shuru') || cmd.includes('home') || cmd.includes('dash') || cmd.includes('wapas')) {
       setVoiceContext('idle');
       setVoiceDraft({});
       setCurrentView('dash');
-      speak("Ji bhai, normal mode par aa gaye.");
+      speak("Ji bhai, dashboard par wapas aa gaye hain.");
       matched = true;
-      return;
+    }
+    
+    // Quick jumps if context is idle
+    if (voiceContext === 'idle') {
+      if (cmd.includes('party') || cmd.includes('customer')) {
+        setCurrentView('saleparty');
+        speak("Party list khol di hai.");
+        matched = true;
+      } else if (cmd.includes('bikri') || cmd.includes('sale history')) {
+        setCurrentView('salehistory');
+        speak("Purana sale record ye raha.");
+        matched = true;
+      }
     }
 
-    // Default Keyword Navigation (Existing Logic)
-    if (cmd.includes('bill') || cmd.includes('invoice') || cmd.includes('बिल')) {
-      setCurrentView('inv');
-      speak("Billing screen khol di hai.");
-      matched = true;
-    } 
-    else if (cmd.includes('dash') || cmd.includes('home') || cmd.includes('डैशबोर्ड')) {
-      setCurrentView('dash');
-      speak("Dashboard par wapas aa gaye hain.");
-      matched = true;
-    } 
-    else if (cmd.includes('sale') || cmd.includes('bikri')) {
-      setCurrentView('salehistory');
-      speak("Sale history check kijiye.");
-      matched = true;
-    } 
-    else if (cmd.includes('party') || cmd.includes('customer')) {
-      setCurrentView('saleparty');
-      speak("Party details khol di hain.");
-      matched = true;
-    }
-    else if (cmd.includes('whatsapp')) {
-      setCurrentView('whatsapp');
-      speak("WhatsApp settings check karein.");
-      matched = true;
-    }
-
-    if (!matched && cmd.length > 2) {
+    if (!matched && cmd.length > 2 && voiceContext === 'idle') {
       console.log("No specific command matched for:", cmd);
     }
-  }, [setCurrentView, speak, voiceContext, voiceDraft, saleParties, itemsMaster, stats]);
+  }, [setCurrentView, speak, voiceContext, voiceDraft, saleParties, itemsMaster, stats, bookings, payments]);
   
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
   const [previewPurchase, setPreviewPurchase] = useState<Purchase | null>(null);
