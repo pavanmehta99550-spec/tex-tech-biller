@@ -7512,7 +7512,7 @@ function WhatsAppSettingsView({ status, qr, onLogout, onRestart }: { status: any
                 <div className="flex flex-col items-center py-10 space-y-4">
                   <RefreshCw size={32} className="text-slate-300 animate-spin" />
                   <p className="text-slate-400 font-bold text-sm uppercase tracking-widest italic">
-                    {status.detailedStatus || 'Initializing Gateway...'}
+                    {status.detailedStatus || 'Waiting for Session...'}
                   </p>
                   <button 
                     onClick={handleRestart}

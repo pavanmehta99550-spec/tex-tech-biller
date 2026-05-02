@@ -32,31 +32,44 @@ async function startServer() {
     let qrCode: string | null = null;
     let connectionStatus: string = 'disconnected';
     let detailedStatus: string = 'Idle';
+    let failureCount = 0;
+    let backoffDelay = 5000;
 
     let isInitializing = false;
+    let initWatchdog: NodeJS.Timeout | null = null;
+    let reconnectTimer: NodeJS.Timeout | null = null;
 
     async function connectToWhatsApp() {
         if (isInitializing) {
-            console.log('WhatsApp: Already initializing, skipping...');
+            console.log('WhatsApp: Initialization already in progress...');
             return;
         }
 
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
+
         isInitializing = true;
-        console.log('WhatsApp: Starting connection process...');
-        detailedStatus = 'Connecting...';
+        console.log(`WhatsApp: Attempting connection (Retry: ${failureCount})...`);
+        detailedStatus = 'Initializing...';
+
+        if (initWatchdog) clearTimeout(initWatchdog);
+        initWatchdog = setTimeout(() => {
+            if (isInitializing && connectionStatus !== 'connected') {
+                console.warn('WhatsApp: Initialization watchdog. Resetting state.');
+                isInitializing = false;
+                connectToWhatsApp();
+            }
+        }, 60000);
         
         try {
-            // Cleanup existing socket if any
             if (sock) {
-                console.log('WhatsApp: Cleaning up existing socket...');
+                console.log('WhatsApp: Cleaning up old socket...');
                 try {
                     sock.ev.removeAllListeners();
-                    if (typeof sock.end === 'function') {
-                        sock.end(undefined);
-                    }
-                } catch (e) {
-                    console.error('WhatsApp: Error during socket cleanup:', e);
-                }
+                    sock.end(undefined);
+                } catch (e) {}
                 sock = null;
             }
 
@@ -68,38 +81,41 @@ async function startServer() {
 
             let version;
             try {
-                const { version: latestVersion, isLatest } = await fetchLatestBaileysVersion();
-                version = latestVersion;
-                console.log(`WhatsApp: Using WA version v${version.join('.')} (latest: ${isLatest})`);
+                const versionPromise = fetchLatestBaileysVersion();
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Timeout')), 10000)
+                );
+                const result: any = await Promise.race([versionPromise, timeoutPromise]);
+                version = result.version;
+                console.log(`WhatsApp: Using fetched version v${version.join('.')}`);
             } catch (err) {
-                console.error('WhatsApp: Version fetch failed, using fallback:', err);
-                version = [2, 3000, 1017531287]; 
+                console.warn('WhatsApp: Version fetch failed, using fallback:', err);
+                version = [2, 3100, 1015951305]; 
             }
 
             detailedStatus = 'Loading Account...';
             const { state, saveCreds } = await useMultiFileAuthState(authPath);
 
-            detailedStatus = 'Opening Session...';
+            detailedStatus = 'Connecting...';
             const currentSock = makeWASocket({
                 version,
                 logger,
                 auth: {
                     creds: state.creds,
-                    keys: state.keys,
+                    keys: makeCacheableSignalKeyStore(state.keys, logger),
                 },
                 printQRInTerminal: false,
                 browser: ["Desktop", "Chrome", "124.0.0.0"],
                 syncFullHistory: false,
-                qrTimeout: 60000,
+                qrTimeout: 45000,
                 connectTimeoutMs: 60000,
-                defaultQueryTimeoutMs: 60000,
+                defaultQueryTimeoutMs: 0,
                 keepAliveIntervalMs: 30000,
                 markOnlineOnConnect: true,
                 retryRequestDelayMs: 5000,
             });
 
             sock = currentSock;
-            detailedStatus = 'Authenticating...';
 
             currentSock.ev.on('connection.update', async (update: any) => {
                 const { connection, lastDisconnect, qr } = update;
@@ -107,54 +123,73 @@ async function startServer() {
                 if (qr) {
                     try {
                         qrCode = await QRCode.toDataURL(qr);
-                        detailedStatus = 'Scan QR code';
-                        console.log('WhatsApp: New QR code generated');
+                        detailedStatus = 'Scan QR Code';
+                        console.log('WhatsApp: QR code updated');
                     } catch (err) {
-                        console.error('WhatsApp: Failed to generate QR:', err);
+                        console.error('WhatsApp: QR error:', err);
                     }
+                    isInitializing = false; 
+                    failureCount = 0;
+                    backoffDelay = 5000;
+                    if (initWatchdog) { clearTimeout(initWatchdog); initWatchdog = null; }
                 }
 
                 if (connection === 'close') {
                     isInitializing = false;
-                    if (sock !== currentSock) {
-                        console.log('WhatsApp: Ignoring close for old socket');
-                        return;
-                    }
+                    qrCode = null;
+                    if (initWatchdog) { clearTimeout(initWatchdog); initWatchdog = null; }
+
+                    if (sock !== currentSock) return;
 
                     const error = lastDisconnect?.error as Boom;
                     const statusCode = error?.output?.statusCode;
-                    
-                    // Detailed handling of disconnect reasons
                     const shouldReconnect = statusCode !== DisconnectReason.loggedOut && 
                                           statusCode !== DisconnectReason.badSession;
                     
-                    console.log(`WhatsApp: Connection closed. Reason: ${statusCode}, Reconnecting: ${shouldReconnect}, Msg: ${error?.message}`);
-                    
+                    console.log(`WhatsApp: Socket closed (${statusCode}). Reconnecting: ${shouldReconnect}. Msg: ${error?.message}`);
                     connectionStatus = 'disconnected';
                     
                     if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession) {
-                        detailedStatus = 'Session Ended';
-                        const authPath = '/tmp/wa_auth';
+                        detailedStatus = 'Session Reset';
+                        console.warn('WhatsApp: Critical session status. Clearing legacy auth data...');
                         if (fs.existsSync(authPath)) {
                             fs.rmSync(authPath, { recursive: true, force: true });
                         }
-                        qrCode = null;
-                        setTimeout(() => connectToWhatsApp(), 3000);
+                        failureCount = 0;
+                        reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000);
                     } else if (shouldReconnect) {
-                        detailedStatus = statusCode === 428 ? 'Server Rejected' : 'Reconnecting...';
-                        // For 428 (Connection Terminated), use a much longer delay to allow server cooling
-                        const delay = statusCode === 428 ? 30000 : 5000;
-                        setTimeout(() => connectToWhatsApp(), delay);
+                        failureCount++;
+                        
+                        // Handle 'Connection Terminated' or 'Server Busy' specifically
+                        if (statusCode === 428 || statusCode === 500 || (error?.message?.includes('Terminated'))) {
+                            const cooldown = Math.min(15000 * failureCount, 120000); 
+                            detailedStatus = 'Rate Limited';
+                            console.warn(`WhatsApp: Server busy (428/Terminated). Cooldown: ${cooldown}ms`);
+                            
+                            if (failureCount > 8) {
+                                console.error('WhatsApp: Excessive failures. Forcing session reset.');
+                                if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
+                                failureCount = 0;
+                            }
+                            
+                            reconnectTimer = setTimeout(() => connectToWhatsApp(), cooldown);
+                        } else {
+                            detailedStatus = 'Reconnecting...';
+                            const normalDelay = Math.min(5000 + (failureCount * 2000), 30000);
+                            reconnectTimer = setTimeout(() => connectToWhatsApp(), normalDelay);
+                        }
                     } else {
-                        detailedStatus = `Error ${statusCode || 'Unknown'}`;
-                        qrCode = null;
+                        detailedStatus = `Offline (${statusCode})`;
                     }
                 } else if (connection === 'open') {
                     isInitializing = false;
+                    failureCount = 0;
+                    backoffDelay = 5000;
+                    if (initWatchdog) { clearTimeout(initWatchdog); initWatchdog = null; }
                     if (sock !== currentSock) return;
-                    console.log('WhatsApp: Connection opened successfully');
+                    console.log('WhatsApp: Authentication Successful');
                     connectionStatus = 'connected';
-                    detailedStatus = 'Active';
+                    detailedStatus = 'Connected';
                     qrCode = null;
                 }
             });
@@ -162,8 +197,11 @@ async function startServer() {
             currentSock.ev.on('creds.update', saveCreds);
         } catch (e) {
             isInitializing = false;
-            console.error('WhatsApp: Fatal connection error:', e);
-            detailedStatus = 'Connection Error';
+            failureCount++;
+            if (initWatchdog) { clearTimeout(initWatchdog); initWatchdog = null; }
+            console.error('WhatsApp: Connection Error:', e);
+            detailedStatus = 'Offline';
+            setTimeout(() => connectToWhatsApp(), backoffDelay);
         }
     }
 
