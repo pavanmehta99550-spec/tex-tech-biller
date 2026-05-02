@@ -40,7 +40,6 @@ async function startServer() {
             console.log('Cleaning up existing WhatsApp socket...');
             try {
                 sock.ev.removeAllListeners();
-                // Baileys socket uses end() or logout(), not terminate()
                 if (typeof sock.end === 'function') {
                     sock.end(undefined);
                 }
@@ -70,26 +69,28 @@ async function startServer() {
 
         detailedStatus = 'Connecting to WhatsApp...';
 
-        sock = makeWASocket({
+        const currentSock = makeWASocket({
             version,
             logger,
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, logger),
+                keys: state.keys, // Simplified: removed CacheableSignalKeyStore for stability
             },
             printQRInTerminal: false,
-            browser: Browsers.ubuntu('Chrome'),
+            browser: ["Ubuntu", "Chrome", "20.0.04"],
             generateHighQualityLinkPreview: true,
             syncFullHistory: false,
             qrTimeout: 60000,
-            connectTimeoutMs: 60000,
-            defaultQueryTimeoutMs: 60000,
-            keepAliveIntervalMs: 30000,
+            connectTimeoutMs: 120000, // Increased to 2 mins
+            defaultQueryTimeoutMs: 90000,
+            keepAliveIntervalMs: 10000,
             markOnlineOnConnect: true,
             retryRequestDelayMs: 5000,
         });
 
-        sock.ev.on('connection.update', async (update: any) => {
+        sock = currentSock;
+
+        currentSock.ev.on('connection.update', async (update: any) => {
             const { connection, lastDisconnect, qr } = update;
             
             if (qr) {
@@ -103,38 +104,50 @@ async function startServer() {
             }
 
             if (connection === 'close') {
-                const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-                const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+                if (sock !== currentSock) {
+                    console.log('Ignoring close event for non-current socket');
+                    return;
+                }
+
+                const error = lastDisconnect?.error as Boom;
+                const statusCode = error?.output?.statusCode;
                 
-                console.log(`Connection closed. Reason: ${statusCode}, Reconnecting: ${shouldReconnect}`);
+                // Detailed handling of disconnect reasons
+                const shouldReconnect = statusCode !== DisconnectReason.loggedOut && 
+                                      statusCode !== DisconnectReason.badSession;
+                
+                console.log(`Connection closed. Reason: ${statusCode}, Reconnecting: ${shouldReconnect}, Error: ${error?.message}`);
                 
                 connectionStatus = 'disconnected';
-                detailedStatus = statusCode === DisconnectReason.loggedOut 
-                    ? 'Logged out' 
-                    : `Disconnected (${statusCode || 'Server Terminated'})`;
-                qrCode = null;
-
-                if (shouldReconnect) {
-                    detailedStatus = 'Reconnecting...';
-                    isReconnecting = true;
-                    const delay = statusCode === DisconnectReason.connectionLost ? 2000 : 5000;
-                    setTimeout(() => {
-                        isReconnecting = false;
-                        connectToWhatsApp();
-                    }, delay); 
-                } else if (statusCode === DisconnectReason.loggedOut) {
-                    console.log('Logged out from phone. Clearing auth and restarting...');
+                
+                if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession) {
+                    detailedStatus = statusCode === DisconnectReason.loggedOut ? 'Logged out' : 'Bad session';
+                    console.log('Clearing auth due to logout or bad session...');
                     const authPath = '/tmp/wa_auth';
                     if (fs.existsSync(authPath)) {
                         fs.rmSync(authPath, { recursive: true, force: true });
                     }
+                    qrCode = null;
                     isReconnecting = true;
                     setTimeout(() => {
                         isReconnecting = false;
                         connectToWhatsApp();
-                    }, 2000);
+                    }, 3000);
+                } else if (shouldReconnect) {
+                    detailedStatus = 'Reconnecting...';
+                    isReconnecting = true;
+                    // Exponential backoff or simple delay
+                    const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 5000;
+                    setTimeout(() => {
+                        isReconnecting = false;
+                        connectToWhatsApp();
+                    }, delay);
+                } else {
+                    detailedStatus = `Disconnected (${statusCode || 'Unknown'})`;
+                    qrCode = null;
                 }
             } else if (connection === 'open') {
+                if (sock !== currentSock) return;
                 console.log('WhatsApp connection opened successfully');
                 connectionStatus = 'connected';
                 detailedStatus = 'Authenticated & Ready';
@@ -143,7 +156,7 @@ async function startServer() {
             }
         });
 
-        sock.ev.on('creds.update', saveCreds);
+        currentSock.ev.on('creds.update', saveCreds);
     }
 
     connectToWhatsApp();
