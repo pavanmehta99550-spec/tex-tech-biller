@@ -550,33 +550,37 @@ export default function App() {
   });
 
   useEffect(() => {
-    let retryCount = 0;
-    const pollStatus = async () => {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
-        const res = await fetch('/api/whatsapp/status', { signal: controller.signal });
-        clearTimeout(timeoutId);
-        
-        if (!res.ok) throw new Error('Status fetch failed');
-        const data = await res.json();
-        setWaStatus(data);
-        retryCount = 0; // Reset on success
-      } catch (err: any) {
-        if (err.name === 'AbortError') {
-          console.warn("WhatsApp status poll timed out");
-        } else {
-          console.error("WhatsApp Gateway connection poll failed:", err);
-          retryCount++;
-          // If we fail many times, maybe slow down polling
+    let eventSource: EventSource | null = null;
+    let retryTimeout: NodeJS.Timeout | null = null;
+
+    const connectSse = () => {
+      if (eventSource) eventSource.close();
+      
+      eventSource = new EventSource('/api/whatsapp/sse');
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setWaStatus(data);
+        } catch (err) {
+          console.error("WhatsApp SSE Parse Error:", err);
         }
-      }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error("WhatsApp SSE Connection Error:", err);
+        if (eventSource) eventSource.close();
+        // Retry after 5 seconds if connection drops
+        retryTimeout = setTimeout(connectSse, 5000);
+      };
     };
 
-    pollStatus();
-    const timer = setInterval(pollStatus, 5000);
-    return () => clearInterval(timer);
+    connectSse();
+
+    return () => {
+      if (eventSource) eventSource.close();
+      if (retryTimeout) clearTimeout(retryTimeout);
+    };
   }, []);
 
   const financialYear = useMemo(() => {
