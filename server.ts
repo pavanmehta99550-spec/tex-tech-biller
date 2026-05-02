@@ -68,18 +68,11 @@ async function startServer() {
 
             let version;
             try {
-                console.log('WhatsApp: Fetching latest version...');
-                // Set a timeout for version fetching to prevent hangs
-                const versionPromise = fetchLatestBaileysVersion();
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Version fetch timeout')), 8000)
-                );
-                
-                const latest: any = await Promise.race([versionPromise, timeoutPromise]);
-                version = latest.version;
-                console.log(`WhatsApp: Using latest WA v${version.join('.')}`);
+                const { version: latestVersion, isLatest } = await fetchLatestBaileysVersion();
+                version = latestVersion;
+                console.log(`WhatsApp: Using WA version v${version.join('.')} (latest: ${isLatest})`);
             } catch (err) {
-                console.error('WhatsApp: Failed to fetch latest version, using fallback:', err);
+                console.error('WhatsApp: Version fetch failed, using fallback:', err);
                 version = [2, 3000, 1017531287]; 
             }
 
@@ -92,15 +85,15 @@ async function startServer() {
                 logger,
                 auth: {
                     creds: state.creds,
-                    keys: state.keys, // Revert to plain keys to test if cache is causing file lock issues
+                    keys: state.keys,
                 },
                 printQRInTerminal: false,
-                browser: Browsers.ubuntu('Chrome'),
+                browser: ["Desktop", "Chrome", "124.0.0.0"],
                 syncFullHistory: false,
                 qrTimeout: 60000,
                 connectTimeoutMs: 60000,
                 defaultQueryTimeoutMs: 60000,
-                keepAliveIntervalMs: 15000,
+                keepAliveIntervalMs: 30000,
                 markOnlineOnConnect: true,
                 retryRequestDelayMs: 5000,
             });
@@ -228,6 +221,14 @@ async function startServer() {
     app.post('/api/whatsapp/restart', (req, res) => {
         console.log('API: POST /whatsapp/restart');
         isInitializing = false;
+        qrCode = null;
+        if (sock) {
+            try {
+                sock.ev.removeAllListeners('connection.update');
+                sock.end(undefined);
+            } catch (e) {}
+            sock = null;
+        }
         connectToWhatsApp();
         res.json({ success: true });
     });
