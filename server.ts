@@ -30,13 +30,20 @@ async function startServer() {
     let connectionStatus: string = 'disconnected';
     let detailedStatus: string = 'Initializing...';
 
+    let isReconnecting = false;
+
     async function connectToWhatsApp() {
+        if (isReconnecting) return;
+        
         // Cleanup existing socket if any
         if (sock) {
             console.log('Cleaning up existing WhatsApp socket...');
             try {
                 sock.ev.removeAllListeners();
-                sock.terminate();
+                // Baileys socket uses end() or logout(), not terminate()
+                if (typeof sock.end === 'function') {
+                    sock.end(undefined);
+                }
             } catch (e) {
                 console.error('Error during socket cleanup:', e);
             }
@@ -109,21 +116,30 @@ async function startServer() {
 
                 if (shouldReconnect) {
                     detailedStatus = 'Reconnecting...';
+                    isReconnecting = true;
                     const delay = statusCode === DisconnectReason.connectionLost ? 2000 : 5000;
-                    setTimeout(connectToWhatsApp, delay); 
+                    setTimeout(() => {
+                        isReconnecting = false;
+                        connectToWhatsApp();
+                    }, delay); 
                 } else if (statusCode === DisconnectReason.loggedOut) {
                     console.log('Logged out from phone. Clearing auth and restarting...');
                     const authPath = '/tmp/wa_auth';
                     if (fs.existsSync(authPath)) {
                         fs.rmSync(authPath, { recursive: true, force: true });
                     }
-                    setTimeout(connectToWhatsApp, 2000);
+                    isReconnecting = true;
+                    setTimeout(() => {
+                        isReconnecting = false;
+                        connectToWhatsApp();
+                    }, 2000);
                 }
             } else if (connection === 'open') {
                 console.log('WhatsApp connection opened successfully');
                 connectionStatus = 'connected';
                 detailedStatus = 'Authenticated & Ready';
                 qrCode = null;
+                isReconnecting = false;
             }
         });
 

@@ -387,9 +387,16 @@ export default function App() {
           const data = docSnap.data().value;
           const stringified = JSON.stringify(data);
           
-          // Only update local state if there are no pending local writes for this document
-          // and the incoming data is different from what we last thought we had synced.
+          const now = Date.now();
+          const lastWrite = lastWriteTime.current[key] || 0;
+          const isRecentlyWrittenLocally = (now - lastWrite) < 2000; // Ignore snapshots for 2 seconds after a local write
+          
           if (!docSnap.metadata.hasPendingWrites && stringified !== lastSyncedData.current[key]) {
+            if (isRecentlyWrittenLocally) {
+              // We just wrote this locally, wait for our own write to hit the server and come back in a future snapshot
+              // or just rely on our local setDoc to eventually sync.
+              return;
+            }
             lastSyncedData.current[key] = stringified;
             setter(data);
           }
@@ -466,12 +473,12 @@ export default function App() {
                 
                 await setDoc(doc(db, col, docId, subCol, subDocId), { value });
                 lastSyncedData.current[key] = stringified;
-                setSyncStatus('synced');
              }
           }
         });
         
         await Promise.all(syncPromises);
+        setSyncStatus('synced');
         
         // Also ensure current password is synced if using custom ID
         if (customLoginId && settings?.adminPassword) {
@@ -489,7 +496,7 @@ export default function App() {
       }
     };
 
-    const timer = setTimeout(syncData, 500); // Fast sync to prevent race conditions
+    const timer = setTimeout(syncData, 200); // Super fast sync to prevent race conditions
     return () => clearTimeout(timer);
   }, [user, customLoginId, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, settings, lastBackupDate, purchasePayments, isDataLoaded]);
 
@@ -624,34 +631,57 @@ export default function App() {
     };
 
     if (isUpdate) {
-      const oldBooking = bookings.find(b => b.id === data.id)!;
-      const customerGstin = oldBooking.consigneeGstin;
+      setBookings(prev => prev.map(b => b.id === data.id ? newBooking : b));
       
-      const revertedParties = updatedSaleParties.map(p => 
-        p.gstin === customerGstin 
-          ? { ...p, totalSales: p.totalSales - oldBooking.grandTotal } 
-          : p
-      );
-
-      setBookings(bookings.map(b => b.id === data.id ? newBooking : b));
-
-      const newCustomerGstin = data.consigneeGstin;
-
-      setSaleParties(revertedParties.map(p => 
-        p.gstin === newCustomerGstin 
-          ? { ...p, totalSales: p.totalSales + newBooking.grandTotal } 
-          : p
-      ));
+      setSaleParties(prev => {
+        const oldBooking = bookings.find(b => b.id === data.id);
+        if (!oldBooking) return prev;
+        
+        const customerGstin = oldBooking.consigneeGstin;
+        const newCustomerGstin = data.consigneeGstin;
+        
+        return prev.map(p => {
+          let total = p.totalSales || 0;
+          if (p.gstin === customerGstin) {
+            total -= oldBooking.grandTotal || 0;
+          }
+          if (p.gstin === newCustomerGstin) {
+            total += newBooking.grandTotal || 0;
+          }
+          return { ...p, totalSales: total };
+        });
+      });
       setEditingBooking(null);
     } else {
-      setBookings([newBooking, ...bookings]);
+      setBookings(prev => [newBooking, ...prev]);
       const customerGstin = data.consigneeGstin;
 
-      setSaleParties(updatedSaleParties.map(p => 
-        p.gstin === customerGstin 
-          ? { ...p, totalSales: p.totalSales + newBooking.grandTotal } 
-          : p
-      ));
+      setSaleParties(prev => {
+        // If party was just added to local `updatedSaleParties` above, it might be in `prev`
+        // but we need to find it and update it.
+        const gstinExists = prev.some(p => p.gstin === customerGstin);
+        if (gstinExists) {
+            return prev.map(p => 
+              p.gstin === customerGstin 
+                ? { ...p, totalSales: (p.totalSales || 0) + newBooking.grandTotal } 
+                : p
+            );
+        } else if (customerGstin) {
+            // This case should be handled by the logic at the top of the function
+            // which adds the party to updatedSaleParties. 
+            // But if we are being purely functional:
+            return [...prev, {
+              id: Math.random().toString(36).substr(2, 9),
+              name: data.consigneeName || "New Party",
+              gstin: data.consigneeGstin || "",
+              address: data.consigneeAddress || "",
+              totalSales: newBooking.grandTotal,
+              totalPaid: 0,
+              totalPurchases: 0
+            }];
+        }
+        return prev;
+      });
     }
 
     setPreviewBooking(newBooking);
@@ -766,28 +796,47 @@ export default function App() {
     };
 
     if (isUpdate) {
-      const oldPurchase = purchases.find(b => b.id === data.id)!;
-      const revertedParties = updatedParties.map(p => 
-        p.gstin === oldPurchase.partyGstin 
-          ? { ...p, totalPurchases: (p.totalPurchases || 0) - oldPurchase.grandTotal } 
-          : p
-      );
-
-      setPurchases(purchases.map(b => b.id === data.id ? newPurchase : b));
-
-      setPurchaseParties(revertedParties.map(p => 
-        p.gstin === data.partyGstin 
-          ? { ...p, totalPurchases: (p.totalPurchases || 0) + newPurchase.grandTotal } 
-          : p
-      ));
+      setPurchases(prev => prev.map(b => b.id === data.id ? newPurchase : b));
+      
+      setPurchaseParties(prev => {
+        const oldPurchase = purchases.find(b => b.id === data.id);
+        if (!oldPurchase) return prev;
+        
+        return prev.map(p => {
+          let total = p.totalPurchases || 0;
+          if (p.gstin === oldPurchase.partyGstin) {
+            total -= oldPurchase.grandTotal || 0;
+          }
+          if (p.gstin === data.partyGstin) {
+            total += newPurchase.grandTotal || 0;
+          }
+          return { ...p, totalPurchases: total };
+        });
+      });
       setEditingPurchase(null);
     } else {
-      setPurchases([newPurchase, ...purchases]);
-      setPurchaseParties(updatedParties.map(p => 
-        p.gstin === data.partyGstin 
-          ? { ...p, totalPurchases: (p.totalPurchases || 0) + newPurchase.grandTotal } 
-          : p
-      ));
+      setPurchases(prev => [newPurchase, ...prev]);
+      setPurchaseParties(prev => {
+        const partyExists = prev.some(p => p.gstin === data.partyGstin);
+        if (partyExists) {
+            return prev.map(p => 
+              p.gstin === data.partyGstin 
+                ? { ...p, totalPurchases: (p.totalPurchases || 0) + newPurchase.grandTotal } 
+                : p
+            );
+        } else if (data.partyGstin) {
+            return [...prev, {
+              id: Math.random().toString(36).substr(2, 9),
+              name: data.partyName || "New Party",
+              gstin: data.partyGstin,
+              address: data.partyAddress || "",
+              totalSales: 0,
+              totalPaid: 0,
+              totalPurchases: newPurchase.grandTotal
+            }];
+        }
+        return prev;
+      });
     }
 
     alert(isUpdate ? "Purchase Bill Updated Successfully!" : "Purchase Bill Saved Successfully!");
@@ -824,24 +873,27 @@ export default function App() {
     };
 
     if (isUpdate) {
-      const oldNote = debitNotes.find(b => b.id === data.id)!;
-      const revertedParties = updatedParties.map(p => 
-        p.gstin === oldNote.partyGstin 
-          ? { ...p, totalPurchases: (p.totalPurchases || 0) + oldNote.grandTotal } 
-          : p
-      );
-
-      setDebitNotes(debitNotes.map(b => b.id === data.id ? newDebitNote : b));
-
-      setPurchaseParties(revertedParties.map(p => 
-        p.gstin === data.partyGstin 
-          ? { ...p, totalPurchases: (p.totalPurchases || 0) - newDebitNote.grandTotal } 
-          : p
-      ));
+      setDebitNotes(prev => prev.map(b => b.id === data.id ? newDebitNote : b));
+      
+      setPurchaseParties(prev => {
+        const oldNote = debitNotes.find(b => b.id === data.id);
+        if (!oldNote) return prev;
+        
+        return prev.map(p => {
+          let total = p.totalPurchases || 0;
+          if (p.gstin === oldNote.partyGstin) {
+            total += oldNote.grandTotal || 0;
+          }
+          if (p.gstin === data.partyGstin) {
+            total -= newDebitNote.grandTotal || 0;
+          }
+          return { ...p, totalPurchases: total };
+        });
+      });
       setEditingDebitNote(null);
     } else {
-      setDebitNotes([newDebitNote, ...debitNotes]);
-      setPurchaseParties(updatedParties.map(p => 
+      setDebitNotes(prev => [newDebitNote, ...prev]);
+      setPurchaseParties(prev => prev.map(p => 
         p.gstin === data.partyGstin 
           ? { ...p, totalPurchases: (p.totalPurchases || 0) - newDebitNote.grandTotal } 
           : p
@@ -883,26 +935,29 @@ export default function App() {
     };
 
     if (isUpdate) {
-      const oldNote = creditNotes.find(b => b.id === data.id)!;
-      const revertedParties = updatedParties.map(p => 
-        p.gstin === oldNote.partyGstin 
-          ? { ...p, totalSales: p.totalSales + oldNote.grandTotal } 
-          : p
-      );
-
-      setCreditNotes(creditNotes.map(b => b.id === data.id ? newCreditNote : b));
-
-      setSaleParties(revertedParties.map(p => 
-        p.gstin === data.partyGstin 
-          ? { ...p, totalSales: p.totalSales - newCreditNote.grandTotal } 
-          : p
-      ));
+      setCreditNotes(prev => prev.map(b => b.id === data.id ? newCreditNote : b));
+      
+      setSaleParties(prev => {
+        const oldNote = creditNotes.find(b => b.id === data.id);
+        if (!oldNote) return prev;
+        
+        return prev.map(p => {
+          let total = p.totalSales || 0;
+          if (p.gstin === oldNote.partyGstin) {
+            total += oldNote.grandTotal || 0;
+          }
+          if (p.gstin === data.partyGstin) {
+            total -= newCreditNote.grandTotal || 0;
+          }
+          return { ...p, totalSales: total };
+        });
+      });
       setEditingCreditNote(null);
     } else {
-      setCreditNotes([newCreditNote, ...creditNotes]);
-      setSaleParties(updatedParties.map(p => 
+      setCreditNotes(prev => [newCreditNote, ...prev]);
+      setSaleParties(prev => prev.map(p => 
         p.gstin === data.partyGstin 
-          ? { ...p, totalSales: p.totalSales - newCreditNote.grandTotal } 
+          ? { ...p, totalSales: (p.totalSales || 0) - newCreditNote.grandTotal } 
           : p
       ));
     }
@@ -931,26 +986,27 @@ export default function App() {
     };
 
     if (isUpdate) {
-      const oldPayment = payments.find(p => p.id === data.id)!;
-      // Revert old party balance
-      const revertedParties = saleParties.map(p => 
-        p.id === oldPayment.partyId 
-          ? { ...p, totalPaid: (p.totalPaid || 0) - oldPayment.amount } 
-          : p
-      );
+      setPayments(prev => prev.map(p => p.id === data.id ? newPayment : p));
       
-      setPayments(payments.map(p => p.id === data.id ? newPayment : p));
-      
-      // Apply new party balance
-      setSaleParties(revertedParties.map(p => 
-        p.id === data.partyId 
-          ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } 
-          : p
-      ));
+      setSaleParties(prev => {
+        const oldPayment = payments.find(p => p.id === data.id);
+        if (!oldPayment) return prev;
+        
+        return prev.map(p => {
+          let total = p.totalPaid || 0;
+          if (p.id === oldPayment.partyId) {
+            total -= oldPayment.amount || 0;
+          }
+          if (p.id === data.partyId) {
+            total += data.amount || 0;
+          }
+          return { ...p, totalPaid: total };
+        });
+      });
       setEditingPayment(null);
     } else {
-      setPayments([newPayment, ...payments]);
-      setSaleParties(saleParties.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
+      setPayments(prev => [newPayment, ...prev]);
+      setSaleParties(prev => prev.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
     }
 
     alert(isUpdate ? "Payment Record Updated Successfully!" : "Payment Record Saved Successfully!");
@@ -977,23 +1033,27 @@ export default function App() {
     };
 
     if (isUpdate) {
-      const oldPayment = purchasePayments.find(p => p.id === data.id)!;
-      const revertedParties = purchaseParties.map(p => 
-        p.id === oldPayment.partyId 
-          ? { ...p, totalPaid: (p.totalPaid || 0) - oldPayment.amount } 
-          : p
-      );
+      setPurchasePayments(prev => prev.map(p => p.id === data.id ? newPayment : p));
       
-      setPurchasePayments(purchasePayments.map(p => p.id === data.id ? newPayment : p));
-      setPurchaseParties(revertedParties.map(p => 
-        p.id === data.partyId 
-          ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } 
-          : p
-      ));
+      setPurchaseParties(prev => {
+        const oldPayment = purchasePayments.find(p => p.id === data.id);
+        if (!oldPayment) return prev;
+        
+        return prev.map(p => {
+          let total = p.totalPaid || 0;
+          if (p.id === oldPayment.partyId) {
+            total -= oldPayment.amount || 0;
+          }
+          if (p.id === data.partyId) {
+            total += data.amount || 0;
+          }
+          return { ...p, totalPaid: total };
+        });
+      });
       setEditingPayment(null);
     } else {
-      setPurchasePayments([newPayment, ...purchasePayments]);
-      setPurchaseParties(purchaseParties.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
+      setPurchasePayments(prev => [newPayment, ...prev]);
+      setPurchaseParties(prev => prev.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
     }
 
     alert(isUpdate ? "Send Payment Record Updated Successfully!" : "Send Payment Record Saved Successfully!");
