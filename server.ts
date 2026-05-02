@@ -136,14 +136,15 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: ["Ubuntu", "Chrome", "20.0.04"], 
+                browser: Browsers.macOS('Chrome'), 
                 syncFullHistory: false,
                 qrTimeout: 60000,
-                connectTimeoutMs: 60000,
-                defaultQueryTimeoutMs: 30000,
-                keepAliveIntervalMs: 30000,
+                connectTimeoutMs: 90000,
+                defaultQueryTimeoutMs: 60000,
+                keepAliveIntervalMs: 20000,
                 markOnlineOnConnect: true,
                 retryRequestDelayMs: 5000,
+                generateHighQualityLinkPreview: false,
                 patchMessageBeforeSending: (message) => {
                     const requiresPatch = !!(message.buttonsMessage || message.listMessage || message.templateMessage);
                     if (requiresPatch) {
@@ -193,38 +194,36 @@ async function startServer() {
                     const statusCode = error?.output?.statusCode;
                     const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
                     
-                    const errorMsg = error?.message || '';
-                    console.log(`WhatsApp: Socket closed (${statusCode}). Reconnecting: ${shouldReconnect}. Msg: ${errorMsg}`);
+                    const errorMsg = error?.message || error?.stack || '';
+                    console.error(`WhatsApp: Socket closed (${statusCode}). Msg: ${errorMsg}`);
                     
-                    // If server terminates often, it usually means the Noise handshake failed or keys are invalid.
-                    // 428: Precondition Required, 515: Connection Lost, 503: Service Unavailable
-                    const isTerminated = statusCode === 428 || statusCode === 515 || statusCode === 503 || errorMsg.toLowerCase().includes('terminated') || errorMsg.includes('Connection Terminated');
+                    // Specific check for Connection Terminated or other unrecoverable handshake errors
+                    const isTerminated = statusCode === 428 || statusCode === 515 || statusCode === 503 || 
+                                       errorMsg.toLowerCase().includes('terminated') || 
+                                       errorMsg.includes('Connection Terminated') ||
+                                       errorMsg.includes('hangup');
 
-                    // If we get frequent terminations (failureCount >= 3), we force a reset immediately
+                    // If we get frequent terminations, we force a reset
                     if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || (isTerminated && failureCount >= 3)) {
-                        setStatus('disconnected', 'Session Reset');
-                        console.warn('WhatsApp: Critical session status or repeated termination. HARD RESETTING auth data...');
+                        setStatus('disconnected', isTerminated ? 'Session Rejected' : 'Session Reset');
+                        console.warn('WhatsApp: Repeated termination or logged out. Resetting session...');
                         if (fs.existsSync(authPath)) {
                             fs.rmSync(authPath, { recursive: true, force: true });
                         }
                         failureCount = 0;
-                        reconnectTimer = setTimeout(() => connectToWhatsApp(), 10000); 
+                        reconnectTimer = setTimeout(() => connectToWhatsApp(), 15000); 
                     } else if (shouldReconnect) {
                         failureCount++;
                         
-                        if (isTerminated) {
-                            // Longer gap for terminations to prevent ban
-                            const cooldown = Math.max(45000, Math.min(45000 * Math.pow(2, failureCount - 1), 600000));
-                            setStatus('disconnected', `Gap (${Math.floor(cooldown/1000)}s)`);
-                            console.warn(`WhatsApp: Server Termination detected (#${failureCount}). Delaying for ${cooldown}ms`);
-                            reconnectTimer = setTimeout(() => connectToWhatsApp(), cooldown);
-                        } else {
-                            setStatus('disconnected', 'Reconnecting...');
-                            const normalDelay = Math.max(20000, Math.min(20000 + (failureCount * 10000), 120000));
-                            reconnectTimer = setTimeout(() => connectToWhatsApp(), normalDelay);
-                        }
+                        // Progressive backoff with higher delays for terminations
+                        const delayBase = isTerminated ? 45000 : 15000;
+                        const cooldown = Math.min(delayBase * Math.pow(1.5, failureCount - 1), 300000);
+                        
+                        setStatus('disconnected', `Retrying in ${Math.floor(cooldown/1000)}s`);
+                        console.log(`WhatsApp: Scheduling reconnect (#${failureCount}) in ${cooldown}ms...`);
+                        reconnectTimer = setTimeout(() => connectToWhatsApp(), cooldown);
                     } else {
-                        setStatus('disconnected', `Offline (${statusCode})`);
+                        setStatus('disconnected', 'Logged Out');
                     }
                 } else if (connection === 'open') {
                     isInitializing = false;

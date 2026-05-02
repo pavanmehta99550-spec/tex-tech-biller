@@ -122,7 +122,13 @@ export default function App() {
       cmd.includes('inv') ||
       cmd.includes('entry') ||
       cmd.includes('bechna') ||
-      cmd.includes('naya')
+      cmd.includes('naya') ||
+      cmd.includes('inwais') ||
+      cmd.includes('parcha') ||
+      cmd.includes('bill banao') ||
+      cmd.includes('bill banae') ||
+      cmd.includes('बनाओ बिल') ||
+      cmd.includes('invoice banao')
     ) {
       setCurrentView('inv');
       speak("Ji bhai, billing screen khol di hai.");
@@ -138,7 +144,8 @@ export default function App() {
       cmd.includes('डैशबोर्ड') ||
       cmd.includes('wapas') ||
       cmd.includes('piche') ||
-      cmd.includes('back')
+      cmd.includes('back') ||
+      cmd.includes('screen')
     ) {
       setCurrentView('dash');
       speak("Dashboard par wapas aa gaye hain.");
@@ -154,7 +161,9 @@ export default function App() {
       cmd.includes('bikri') ||
       cmd.includes('purana') ||
       cmd.includes('kamai') ||
-      cmd.includes('bika')
+      cmd.includes('bika') ||
+      cmd.includes('purane') ||
+      cmd.includes('record')
     ) {
       setCurrentView('salehistory');
       speak("Sale history check kijiye.");
@@ -167,7 +176,9 @@ export default function App() {
       cmd.includes('खरीद') || 
       cmd.includes('पर्चेज') ||
       cmd.includes('khareed') ||
-      cmd.includes('aya')
+      cmd.includes('aya') ||
+      cmd.includes('mal aya') ||
+      cmd.includes('kharcha purchase')
     ) {
       setCurrentView('pur');
       speak("Purchase entry screen tayyar hai.");
@@ -183,7 +194,9 @@ export default function App() {
       cmd.includes('आइटम') ||
       cmd.includes('mal') ||
       cmd.includes('inventory') ||
-      cmd.includes('kitna')
+      cmd.includes('kitna') ||
+      cmd.includes('samann') ||
+      cmd.includes('kapda')
     ) {
       setCurrentView('items');
       speak("Item master khol diya hai.");
@@ -196,7 +209,9 @@ export default function App() {
       cmd.includes('link') || 
       cmd.includes('व्हाट्सएप') ||
       cmd.includes('connect') ||
-      cmd.includes('status')
+      cmd.includes('status') ||
+      cmd.includes('message') ||
+      cmd.includes('bhejna')
     ) {
       setCurrentView('whatsapp');
       speak("WhatsApp settings screen par hain.");
@@ -209,7 +224,8 @@ export default function App() {
       cmd.includes('बैकअप') ||
       cmd.includes('surakshit') ||
       cmd.includes('print') ||
-      cmd.includes('pdf')
+      cmd.includes('pdf') ||
+      cmd.includes('download')
     ) {
       setCurrentView('backup');
       speak("Backup screen khol di hai.");
@@ -222,7 +238,8 @@ export default function App() {
       cmd.includes('खर्चा') ||
       cmd.includes('kharch') ||
       cmd.includes('payment') ||
-      cmd.includes('udhar')
+      cmd.includes('udhar') ||
+      cmd.includes('len dain')
     ) {
       setCurrentView('expenses');
       speak("Kharcha entry screen khul gayi hai.");
@@ -235,7 +252,9 @@ export default function App() {
       cmd.includes('पार्टी') ||
       cmd.includes('grahak') ||
       cmd.includes('vyapari') ||
-      cmd.includes('seth')
+      cmd.includes('seth') ||
+      cmd.includes('log') ||
+      cmd.includes('shahar')
     ) {
       setCurrentView('saleparty');
       speak("Party details check karein.");
@@ -249,7 +268,8 @@ export default function App() {
       cmd.includes('हटाओ') || 
       cmd.includes('मिटाओ') ||
       cmd.includes('nikalo') ||
-      cmd.includes('galat')
+      cmd.includes('galat') ||
+      cmd.includes('saaf')
     ) {
       speak("Bhai, kya delete karna hai? Kripya bataiye.");
       matched = true;
@@ -262,7 +282,9 @@ export default function App() {
       cmd.includes('बताओ') ||
       cmd.includes('advise') ||
       cmd.includes('idea') ||
-      cmd.includes('help')
+      cmd.includes('help') ||
+      cmd.includes('madad') ||
+      cmd.includes('kya karu')
     ) {
       speak("Bhai, aaj ki sale achhi hai. Stock check kar lijiye.");
       matched = true;
