@@ -207,11 +207,46 @@ export default function App() {
       case 'ADD_ITEM':
         // logic to add item to invoice
         if (result.params) {
-          // If we have full details, we could auto-save or just update draft
           setCurrentView('inv');
           setVoiceDraft((prev: any) => ({ ...prev, ...result.params }));
           setVoiceContext('bill_confirm');
         }
+        break;
+      case 'CONFIRM_SAVE':
+        // Construct minimum booking from draft
+        if (voiceDraft.partyName && (voiceDraft.itemName || voiceDraft.qty)) {
+          const party = saleParties.find(p => p.name === voiceDraft.partyName);
+          const newBooking: Partial<Booking> = {
+            date: new Date().toISOString(),
+            consigneeName: voiceDraft.partyName,
+            consigneeAddress: party?.address || '',
+            consigneeGstin: party?.gstin || '',
+            taxRate: voiceDraft.gst || 5,
+            items: [{
+              id: Math.random().toString(36).substr(2, 9),
+              name: voiceDraft.itemName || 'Item',
+              quantity: voiceDraft.qty || 0,
+              rate: voiceDraft.rate || 0,
+              discount: voiceDraft.discount || 0,
+              amount: (voiceDraft.qty || 0) * (voiceDraft.rate || 0),
+              unit: 'PCS',
+              color: '',
+              hsnCode: '',
+              taka: ''
+            }]
+          };
+          handleSaveBooking(newBooking);
+          speak("Ji bhai, bill save ho gaya hai.");
+        } else {
+          speak("Bhai, bill ki details adhuri hain. Pehle party aur item confirm kijiye.");
+        }
+        setVoiceContext('idle');
+        setVoiceDraft({});
+        break;
+      case 'CANCEL':
+        setVoiceContext('idle');
+        setVoiceDraft({});
+        speak("Theek hai bhai, cancel kar diya.");
         break;
       case 'QUERY_STOCK':
         setCurrentView('items');
@@ -1456,6 +1491,8 @@ export default function App() {
               transports={transports}
               editingBooking={editingBooking}
               waStatus={waStatus}
+              voiceDraft={voiceDraft}
+              voiceContext={voiceContext}
               onViewHistory={() => setCurrentView('salehistory')}
               onCancel={() => {
                 setEditingBooking(null);
@@ -3427,7 +3464,20 @@ function QtyCalculator({ value, onChange, onApply, onBlur, isLocked }: { value: 
   );
 }
 
-function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], transports = [], editingBooking, onViewHistory, onCancel, waStatus }: any) {
+function BookingView({ 
+  onSave, 
+  parties, 
+  settings, 
+  bookings, 
+  itemsMaster = [], 
+  transports = [], 
+  editingBooking, 
+  onViewHistory, 
+  onCancel, 
+  waStatus,
+  voiceDraft,
+  voiceContext
+}: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
 
@@ -3463,10 +3513,61 @@ function BookingView({ onSave, parties, settings, bookings, itemsMaster = [], tr
       items: editingBooking?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }],
       basicAmount: editingBooking?.basicAmount || 0,
       globalDiscount: editingBooking?.globalDiscount || 0,
-      taxRate: editingBooking?.taxRate || 18,
+      taxRate: editingBooking?.taxRate || 5,
       date: editingBooking?.date || new Date().toISOString()
     };
   });
+
+  // Sync Voice Draft to Form Data
+  useEffect(() => {
+    if (voiceDraft) {
+      setFormData(prev => {
+        let updated = { ...prev };
+        
+        // Party selection
+        if (voiceDraft.partyName && voiceDraft.partyName !== prev.consigneeName) {
+          const party = parties.find((p: any) => p.name === voiceDraft.partyName);
+          updated.consigneeName = voiceDraft.partyName;
+          if (party) {
+            updated.consigneeAddress = party.address || '';
+            updated.consigneeGstin = party.gstin || '';
+            updated.consigneeMobile = party.phone || '';
+          }
+        }
+
+        // Item addition / update
+        if (voiceDraft.itemName || voiceDraft.qty || voiceDraft.rate) {
+          const lastItem = updated.items[updated.items.length - 1];
+          const hasEmptyRow = !lastItem.name && !lastItem.quantity;
+          
+          let targetItemIdx = updated.items.length - 1;
+          
+          const newItems = updated.items.map((item, idx) => {
+            if (idx === targetItemIdx) {
+              const updatedItem = { ...item };
+              if (voiceDraft.itemName) updatedItem.name = voiceDraft.itemName;
+              if (voiceDraft.qty) updatedItem.quantity = voiceDraft.qty;
+              if (voiceDraft.rate) updatedItem.rate = voiceDraft.rate;
+              if (voiceDraft.discount) updatedItem.discount = voiceDraft.discount;
+              
+              const gross = (updatedItem.quantity || 0) * (updatedItem.rate || 0);
+              updatedItem.amount = gross - (updatedItem.discount || 0);
+              return updatedItem;
+            }
+            return item;
+          });
+
+          updated.items = newItems;
+        }
+
+        if (voiceDraft.gst) {
+          updated.taxRate = voiceDraft.gst;
+        }
+
+        return updated;
+      });
+    }
+  }, [voiceDraft, parties]);
 
   const isLocked = useMemo(() => {
     if (navigatedBillLocked) return true;

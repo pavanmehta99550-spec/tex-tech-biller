@@ -84,11 +84,20 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle, isProce
         recognitionRef.current = null;
         
         // Restart logic if still enabled
+        // Wait if still processing or speaking
+        const checkAndRestart = () => {
+          if (isEnabled && !errorHeader && !isProcessing) {
+            startRecognition();
+          } else if (isEnabled && !errorHeader) {
+            // Check again in 1 second
+            if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
+            restartTimeoutRef.current = setTimeout(checkAndRestart, 1000);
+          }
+        };
+
         if (isEnabled && !errorHeader) {
           if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
-          restartTimeoutRef.current = setTimeout(() => {
-            if (isEnabled) startRecognition();
-          }, 1000);
+          restartTimeoutRef.current = setTimeout(checkAndRestart, 1000);
         }
       };
 

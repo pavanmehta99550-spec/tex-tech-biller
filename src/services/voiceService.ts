@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export interface VoiceAction {
-  action: 'NAVIGATE' | 'ADD_ITEM' | 'QUERY_STOCK' | 'QUERY_PAYMENT' | 'UNKNOWN' | 'CONTINUE_CONVERSATION';
+  action: 'NAVIGATE' | 'ADD_ITEM' | 'QUERY_STOCK' | 'QUERY_PAYMENT' | 'UNKNOWN' | 'CONTINUE_CONVERSATION' | 'CONFIRM_SAVE' | 'CANCEL';
   params?: any;
   textResponse: string;
 }
@@ -40,10 +40,12 @@ export const processVoiceTranscript = async (
     - ADD_ITEM: If user says full detail like "10 piece cotton 500 bhav se", parse it.
     - QUERY_STOCK: User asks about maal or inventory.
     - QUERY_PAYMENT: User asks about paisa, udhari, or balance.
+    - CONFIRM_SAVE: User confirms to save the bill (e.g., "Han save kar do", "Banao bill").
+    - CANCEL: User wants to stop or discard draft.
     
     OUTPUT FORMAT: Strictly JSON.
     {
-      "action": "NAVIGATE" | "ADD_ITEM" | "QUERY_STOCK" | "QUERY_PAYMENT" | "UNKNOWN" | "CONTINUE_CONVERSATION",
+      "action": "NAVIGATE" | "ADD_ITEM" | "QUERY_STOCK" | "QUERY_PAYMENT" | "UNKNOWN" | "CONTINUE_CONVERSATION" | "CONFIRM_SAVE" | "CANCEL",
       "params": object,
       "textResponse": "Friendly Hinglish response (e.g., 'Ji bhai, Pankaj bhai ka bill add kar diya hai')"
     }
