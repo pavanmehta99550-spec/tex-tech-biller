@@ -91,13 +91,13 @@ async function startServer() {
                     keys: state.keys,
                 },
                 printQRInTerminal: false,
-                browser: ["Ubuntu", "Chrome", "20.0.04"],
+                browser: Browsers.ubuntu('Chrome'),
                 generateHighQualityLinkPreview: true,
                 syncFullHistory: false,
                 qrTimeout: 60000,
-                connectTimeoutMs: 120000,
-                defaultQueryTimeoutMs: 90000,
-                keepAliveIntervalMs: 10000,
+                connectTimeoutMs: 60000,
+                defaultQueryTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000,
                 markOnlineOnConnect: true,
                 retryRequestDelayMs: 5000,
             });
@@ -112,15 +112,15 @@ async function startServer() {
                 try {
                     qrCode = await QRCode.toDataURL(qr);
                     detailedStatus = 'Scan QR code to link';
-                    console.log('New QR code generated');
+                    console.log('WhatsApp: New QR code generated');
                 } catch (err) {
-                    console.error('Failed to generate QR data URL:', err);
+                    console.error('WhatsApp: Failed to generate QR data URL:', err);
                 }
             }
 
             if (connection === 'close') {
                 if (sock !== currentSock) {
-                    console.log('Ignoring close event for non-current socket');
+                    console.log('WhatsApp: Ignoring close event for non-current socket');
                     return;
                 }
 
@@ -131,13 +131,13 @@ async function startServer() {
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut && 
                                       statusCode !== DisconnectReason.badSession;
                 
-                console.log(`Connection closed. Reason: ${statusCode}, Reconnecting: ${shouldReconnect}, Error: ${error?.message}`);
+                console.log(`WhatsApp: Connection closed. Reason: ${statusCode}, Reconnecting: ${shouldReconnect}, Error: ${error?.message}`);
                 
                 connectionStatus = 'disconnected';
                 
                 if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession) {
                     detailedStatus = statusCode === DisconnectReason.loggedOut ? 'Logged out' : 'Bad session';
-                    console.log('Clearing auth due to logout or bad session...');
+                    console.log('WhatsApp: Clearing auth due to logout or bad session...');
                     const authPath = '/tmp/wa_auth';
                     if (fs.existsSync(authPath)) {
                         fs.rmSync(authPath, { recursive: true, force: true });
@@ -147,12 +147,12 @@ async function startServer() {
                     setTimeout(() => {
                         isReconnecting = false;
                         connectToWhatsApp();
-                    }, 3000);
+                    }, 5000);
                 } else if (shouldReconnect) {
                     detailedStatus = 'Reconnecting...';
                     isReconnecting = true;
-                    // Exponential backoff or simple delay
-                    const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 5000;
+                    // For 428 (Connection Terminated), use a slightly longer delay
+                    const delay = statusCode === 428 ? 10000 : 5000;
                     setTimeout(() => {
                         isReconnecting = false;
                         connectToWhatsApp();
@@ -163,7 +163,7 @@ async function startServer() {
                 }
             } else if (connection === 'open') {
                 if (sock !== currentSock) return;
-                console.log('WhatsApp connection opened successfully');
+                console.log('WhatsApp: Connection opened successfully');
                 connectionStatus = 'connected';
                 detailedStatus = 'Authenticated & Ready';
                 qrCode = null;
