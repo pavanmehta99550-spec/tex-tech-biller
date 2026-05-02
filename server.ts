@@ -33,64 +33,79 @@ async function startServer() {
     let isReconnecting = false;
 
     async function connectToWhatsApp() {
-        if (isReconnecting) return;
+        if (isReconnecting) {
+            console.log('WhatsApp: Already connecting/reconnecting, skipping...');
+            return;
+        }
+
+        console.log('WhatsApp: Starting connection process...');
+        detailedStatus = 'Starting connection...';
         
-        // Cleanup existing socket if any
-        if (sock) {
-            console.log('Cleaning up existing WhatsApp socket...');
-            try {
-                sock.ev.removeAllListeners();
-                if (typeof sock.end === 'function') {
-                    sock.end(undefined);
-                }
-            } catch (e) {
-                console.error('Error during socket cleanup:', e);
-            }
-            sock = null;
-        }
-
-        qrCode = null;
-        const authPath = '/tmp/wa_auth';
-        if (!fs.existsSync(authPath)) {
-            fs.mkdirSync(authPath, { recursive: true });
-        }
-
-        let version;
         try {
-            const latest = await fetchLatestBaileysVersion();
-            version = latest.version;
-            console.log(`using latest WA v${version.join('.')}`);
-        } catch (err) {
-            console.error('Failed to fetch latest Baileys version, using fallback:', err);
-            version = [2, 3000, 1017531287]; 
-        }
+            // Cleanup existing socket if any
+            if (sock) {
+                console.log('WhatsApp: Cleaning up existing socket...');
+                try {
+                    sock.ev.removeAllListeners();
+                    if (typeof sock.end === 'function') {
+                        sock.end(undefined);
+                    }
+                } catch (e) {
+                    console.error('WhatsApp: Error during socket cleanup:', e);
+                }
+                sock = null;
+            }
 
-        const { state, saveCreds } = await useMultiFileAuthState(authPath);
+            qrCode = null;
+            const authPath = '/tmp/wa_auth';
+            if (!fs.existsSync(authPath)) {
+                fs.mkdirSync(authPath, { recursive: true });
+            }
 
-        detailedStatus = 'Connecting to WhatsApp...';
+            let version;
+            try {
+                console.log('WhatsApp: Fetching latest version...');
+                // Set a timeout for version fetching to prevent hangs
+                const versionPromise = fetchLatestBaileysVersion();
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Version fetch timeout')), 10000)
+                );
+                
+                const latest: any = await Promise.race([versionPromise, timeoutPromise]);
+                version = latest.version;
+                console.log(`WhatsApp: Using latest WA v${version.join('.')}`);
+            } catch (err) {
+                console.error('WhatsApp: Failed to fetch latest version, using fallback:', err);
+                version = [2, 3000, 1017531287]; 
+            }
 
-        const currentSock = makeWASocket({
-            version,
-            logger,
-            auth: {
-                creds: state.creds,
-                keys: state.keys, // Simplified: removed CacheableSignalKeyStore for stability
-            },
-            printQRInTerminal: false,
-            browser: ["Ubuntu", "Chrome", "20.0.04"],
-            generateHighQualityLinkPreview: true,
-            syncFullHistory: false,
-            qrTimeout: 60000,
-            connectTimeoutMs: 120000, // Increased to 2 mins
-            defaultQueryTimeoutMs: 90000,
-            keepAliveIntervalMs: 10000,
-            markOnlineOnConnect: true,
-            retryRequestDelayMs: 5000,
-        });
+            detailedStatus = 'Loading auth state...';
+            const { state, saveCreds } = await useMultiFileAuthState(authPath);
 
-        sock = currentSock;
+            detailedStatus = 'Initializing socket...';
+            const currentSock = makeWASocket({
+                version,
+                logger,
+                auth: {
+                    creds: state.creds,
+                    keys: state.keys,
+                },
+                printQRInTerminal: false,
+                browser: ["Ubuntu", "Chrome", "20.0.04"],
+                generateHighQualityLinkPreview: true,
+                syncFullHistory: false,
+                qrTimeout: 60000,
+                connectTimeoutMs: 120000,
+                defaultQueryTimeoutMs: 90000,
+                keepAliveIntervalMs: 10000,
+                markOnlineOnConnect: true,
+                retryRequestDelayMs: 5000,
+            });
 
-        currentSock.ev.on('connection.update', async (update: any) => {
+            sock = currentSock;
+            detailedStatus = 'Waiting for connection update...';
+
+            currentSock.ev.on('connection.update', async (update: any) => {
             const { connection, lastDisconnect, qr } = update;
             
             if (qr) {
@@ -157,6 +172,11 @@ async function startServer() {
         });
 
         currentSock.ev.on('creds.update', saveCreds);
+        } catch (e) {
+            console.error('WhatsApp: Fatal connection error:', e);
+            detailedStatus = 'Connection error: ' + (e as Error).message;
+            isReconnecting = false;
+        }
     }
 
     connectToWhatsApp();
