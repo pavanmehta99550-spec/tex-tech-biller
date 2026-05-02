@@ -28,6 +28,7 @@ process.on('unhandledRejection', (reason, promise) => {
 const logger = pino({ level: 'info' });
 
 async function startServer() {
+    console.log('App: Starting server initialization...');
     const app = express();
     const PORT = 3000;
 
@@ -331,21 +332,27 @@ async function startServer() {
         }
     });
 
-    // Vite integration
-    if (process.env.NODE_ENV !== 'production') {
+    const distPath = path.join(process.cwd(), 'dist');
+    const isProd = process.env.NODE_ENV === 'production' && fs.existsSync(distPath);
+    
+    console.log(`App: Environment: ${process.env.NODE_ENV || 'development'}. Using Prod Mode: ${isProd}`);
+    
+    if (!isProd) {
+        console.log('App: Initializing Vite dev server...');
         const vite = await createViteServer({
             server: { middlewareMode: true },
             appType: 'spa'
         });
         app.use(vite.middlewares);
     } else {
-        const distPath = path.join(process.cwd(), 'dist');
+        console.log('App: Serving static files from dist/');
         app.use(express.static(distPath));
         app.get('*', (req, res) => {
             res.sendFile(path.join(distPath, 'index.html'));
         });
     }
 
+    console.log('App: Setting up Vite and starting listener...');
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running at http://localhost:${PORT}`);
         // Connect to WhatsApp after server has started
@@ -357,4 +364,7 @@ async function startServer() {
     });
 }
 
-startServer();
+startServer().catch(err => {
+    console.error('CRITICAL: Server failed to start:', err);
+    process.exit(1);
+});
