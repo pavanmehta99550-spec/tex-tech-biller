@@ -136,14 +136,14 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: Browsers.ubuntu('Chrome'), 
+                browser: ['Mac OS', 'Chrome', '131.0.0.0'], // More modern version
                 syncFullHistory: false,
                 qrTimeout: 60000,
-                connectTimeoutMs: 120000,
-                defaultQueryTimeoutMs: 60000,
-                keepAliveIntervalMs: 15000,
+                connectTimeoutMs: 180000, // 3 minutes for slow networks
+                defaultQueryTimeoutMs: 90000,
+                keepAliveIntervalMs: 30000, // Standard keep-alive
                 markOnlineOnConnect: true,
-                retryRequestDelayMs: 5000,
+                retryRequestDelayMs: 10000, // Longer retry gap
                 generateHighQualityLinkPreview: false,
                 patchMessageBeforeSending: (message) => {
                     const requiresPatch = !!(message.buttonsMessage || message.listMessage || message.templateMessage);
