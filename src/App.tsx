@@ -59,7 +59,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses' | 'millchallan' | 'partychallan' | 'challancompare';
+type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'weaverparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses' | 'millchallan' | 'partychallan' | 'weaverchallan' | 'challancompare';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -89,7 +89,7 @@ export default function App() {
   const loadedKeys = useRef<Set<string>>(new Set());
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
-    'dn', 'cn', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
+    'dn', 'cn', 'weaverchallan', 'weaverparty', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
     'signature', 'bankdetails', 'backup', 'settings'
   ], []);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
@@ -118,6 +118,8 @@ export default function App() {
   const [transports, setTransports] = useState<Transport[]>(() => storage.get('transports', []));
   const [millChallans, setMillChallans] = useState<Challan[]>(() => storage.get('millChallans', []));
   const [partyChallans, setPartyChallans] = useState<Challan[]>(() => storage.get('partyChallans', []));
+  const [weaverChallans, setWeaverChallans] = useState<Challan[]>(() => storage.get('weaverChallans', []));
+  const [weaverParties, setWeaverParties] = useState<Party[]>(() => storage.get('weaverParties', []));
 
   const [bookings, setBookings] = useState<Booking[]>(() => storage.get('bookings', []));
   const [purchases, setPurchases] = useState<Purchase[]>(() => storage.get('purchases', []));
@@ -329,6 +331,8 @@ export default function App() {
   useEffect(() => storage.set('transports', transports), [transports]);
   useEffect(() => storage.set('millChallans', millChallans), [millChallans]);
   useEffect(() => storage.set('partyChallans', partyChallans), [partyChallans]);
+  useEffect(() => storage.set('weaverChallans', weaverChallans), [weaverChallans]);
+  useEffect(() => storage.set('weaverParties', weaverParties), [weaverParties]);
   useEffect(() => storage.set('bookings', bookings), [bookings]);
   useEffect(() => storage.set('purchases', purchases), [purchases]);
   useEffect(() => storage.set('debit-notes', debitNotes), [debitNotes]);
@@ -1130,17 +1134,19 @@ export default function App() {
     const isUpdate = !!data.id;
     const millMaxSerial = millChallans.length > 0 ? Math.max(...millChallans.map(c => c.serialNo || 0)) : 0;
     const partyMaxSerial = partyChallans.length > 0 ? Math.max(...partyChallans.map(c => c.serialNo || 0)) : 0;
+    const weaverMaxSerial = weaverChallans.length > 0 ? Math.max(...weaverChallans.map(c => c.serialNo || 0)) : 0;
 
     const newChallan: Challan = {
       id: data.id || Math.random().toString(36).substr(2, 9),
-      serialNo: data.serialNo || (data.type === 'MILL' ? millMaxSerial + 1 : partyMaxSerial + 1),
+      serialNo: data.serialNo || (data.type === 'MILL' ? millMaxSerial + 1 : data.type === 'PARTY' ? partyMaxSerial + 1 : weaverMaxSerial + 1),
       challanNumber: data.challanNumber || '',
       date: data.date || new Date().toISOString(),
       type: data.type || 'MILL',
       partyName: data.partyName || '',
       partyGstin: data.partyGstin || '',
       items: data.items || [],
-      notes: data.notes || ''
+      notes: data.notes || '',
+      weaverChallanNumber: data.weaverChallanNumber || ''
     };
 
     if (data.type === 'MILL') {
@@ -1149,22 +1155,30 @@ export default function App() {
       } else {
         setMillChallans(prev => [newChallan, ...prev]);
       }
-    } else {
+    } else if (data.type === 'PARTY') {
       if (isUpdate) {
         setPartyChallans(prev => prev.map(c => c.id === data.id ? newChallan : c));
       } else {
         setPartyChallans(prev => [newChallan, ...prev]);
       }
+    } else if (data.type === 'WEAVER') {
+      if (isUpdate) {
+        setWeaverChallans(prev => prev.map(c => c.id === data.id ? newChallan : c));
+      } else {
+        setWeaverChallans(prev => [newChallan, ...prev]);
+      }
     }
-    alert(`${data.type === 'MILL' ? 'Mill' : 'Party'} Challan saved successfully!`);
+    alert(`${data.type === 'MILL' ? 'Mill' : data.type === 'PARTY' ? 'Party' : 'Weaver'} Challan saved successfully!`);
   };
 
-  const handleDeleteChallan = (id: string, type: 'MILL' | 'PARTY') => {
+  const handleDeleteChallan = (id: string, type: 'MILL' | 'PARTY' | 'WEAVER') => {
     if (confirm("Are you sure you want to delete this challan?")) {
       if (type === 'MILL') {
         setMillChallans(prev => prev.filter(c => c.id !== id));
-      } else {
+      } else if (type === 'PARTY') {
         setPartyChallans(prev => prev.filter(c => c.id !== id));
+      } else if (type === 'WEAVER') {
+        setWeaverChallans(prev => prev.filter(c => c.id !== id));
       }
     }
   };
@@ -1402,6 +1416,7 @@ export default function App() {
                 v === 'cn' ? TrendingUp :
                 v === 'millchallan' ? Package :
                 v === 'partychallan' ? Download :
+                v === 'weaverchallan' ? Package :
                 v === 'challancompare' ? Calculator :
                 v === 'items' ? Package :
                 v === 'expenses' ? Calculator :
@@ -1425,6 +1440,8 @@ export default function App() {
                 v === 'cn' ? "Credit Note" :
                 v === 'millchallan' ? "Mill Challan Entry" :
                 v === 'partychallan' ? "Party Challan Entry" :
+                v === 'weaverchallan' ? "Weaver Challan Entry" :
+                v === 'weaverparty' ? "Weaver Party Entry" :
                 v === 'challancompare' ? "Compare Challans" :
                 v === 'items' ? "Items Master" :
                 v === 'expenses' ? "Business Expenses" :
@@ -1451,6 +1468,8 @@ export default function App() {
                 v === 'expenses' ? "Ctrl+E" :
                 v === 'millchallan' ? "Alt+8" :
                 v === 'partychallan' ? "Alt+9" :
+                v === 'weaverchallan' ? "Alt+7" :
+                v === 'weaverparty' ? "Alt+6" :
                 v === 'challancompare' ? "Alt+0" :
                 v === 'items' ? "Alt+M" :
                 v === 'pay' ? "Ctrl+R" :
@@ -1761,6 +1780,8 @@ export default function App() {
               onDelete={(id: string) => handleDeleteChallan(id, 'MILL')}
               parties={purchaseParties}
               itemsMaster={itemsMaster}
+              weaverChallans={weaverChallans}
+              settings={settings}
             />}
             {currentView === 'partychallan' && <ChallanEntryView 
               key="partychallan"
@@ -1770,11 +1791,31 @@ export default function App() {
               onDelete={(id: string) => handleDeleteChallan(id, 'PARTY')}
               parties={saleParties}
               itemsMaster={itemsMaster}
+              settings={settings}
             />}
+            {currentView === 'weaverchallan' && <ChallanEntryView 
+              key="weaverchallan"
+              type="WEAVER"
+              challans={weaverChallans}
+              onSave={handleSaveChallan}
+              onDelete={(id: string) => handleDeleteChallan(id, 'WEAVER')}
+              parties={weaverParties}
+              itemsMaster={itemsMaster}
+              settings={settings}
+            />}
+            {currentView === 'weaverparty' && (
+              <PartyMasterView 
+                key="weaverparty" 
+                parties={weaverParties} 
+                title="Weaver Party Entry" 
+                onUpdateParties={setWeaverParties}
+              />
+            )}
             {currentView === 'challancompare' && <ChallanCompareView 
               key="challancompare"
               millChallans={millChallans}
               partyChallans={partyChallans}
+              weaverChallans={weaverChallans}
             />}
             {currentView === 'signature' && <SignatureAndBankView 
               key="signature"
@@ -8874,10 +8915,81 @@ function MeterEntryModal({ isOpen, onClose, onSave, initialValue, unit }: any) {
   );
 }
 
-function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMaster = [] }: any) {
+function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMaster = [], weaverChallans = [], settings }: any) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isMeterModalOpen, setIsMeterModalOpen] = useState(false);
+
+  const handlePrint = (challan: Challan) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.text(settings?.companyName || "CHALLAN", pageWidth / 2, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(settings?.address || "", pageWidth / 2, 28, { align: 'center' });
+    doc.text(`GSTIN: ${settings?.gstin || ""}`, pageWidth / 2, 34, { align: 'center' });
+    
+    doc.setLineWidth(0.5);
+    doc.line(10, 40, pageWidth - 10, 40);
+    
+    // Challan Details
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${type} CHALLAN`, 10, 50);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Serial No: ${challan.serialNo}`, 10, 60);
+    doc.text(`Challan No: ${challan.challanNumber}`, 10, 66);
+    doc.text(`Date: ${new Date(challan.date).toLocaleDateString()}`, 10, 72);
+    
+    doc.text(`Party Name: ${challan.partyName}`, pageWidth - 10, 60, { align: 'right' });
+    if (challan.partyGstin) {
+        doc.text(`GSTIN: ${challan.partyGstin}`, pageWidth - 10, 66, { align: 'right' });
+    }
+    
+    // Items Table
+    const tableData = challan.items.map((item, idx) => [
+      idx + 1,
+      item.name,
+      item.meters || "-",
+      item.taka || "-",
+      `${item.quantity} ${item.unit}`
+    ]);
+    
+    autoTable(doc, {
+      startY: 80,
+      head: [['Sr.', 'Item Name', 'Meters/Cuts', 'Taka', 'Total Qty']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 206, 201] as any }, // Theme color #00cec9
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 80 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 35 }
+      },
+      styles: { fontSize: 8, cellPadding: 2, font: "helvetica" }
+    });
+    
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    
+    if (challan.notes) {
+      doc.setFontSize(9);
+      doc.text(`Notes: ${challan.notes}`, 10, finalY);
+    }
+    
+    doc.setFontSize(10);
+    doc.text("Authorized Signatory", pageWidth - 10, finalY + 30, { align: 'right' });
+    
+    doc.save(`${type}_Challan_${challan.challanNumber}.pdf`);
+  };
 
   const [formData, setFormData] = useState<Partial<Challan>>({
     serialNo: (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 1,
@@ -8957,7 +9069,8 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
       partyName: '',
       type: type,
       items: [],
-      notes: ''
+      notes: '',
+      weaverChallanNumber: ''
     });
     setShowAdd(false);
     setEditingId(null);
@@ -9025,7 +9138,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Party / Mill Name</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{type === 'WEAVER' ? 'Weaver Name' : 'Party / Mill Name'}</label>
                   <input 
                     list="party-list-challan"
                     type="text" 
@@ -9040,6 +9153,27 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                   </datalist>
                 </div>
               </div>
+
+              {type === 'MILL' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Weaver Challan Number (For Comparison)</label>
+                    <input 
+                      list="weaver-challan-suggestions"
+                      type="text" 
+                      value={formData.weaverChallanNumber || ''}
+                      onChange={e => setFormData({ ...formData, weaverChallanNumber: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
+                      placeholder="Link to Weaver Challan #"
+                    />
+                    <datalist id="weaver-challan-suggestions">
+                      {weaverChallans.map((c: any) => (
+                        <option key={c.id} value={c.challanNumber}>{c.partyName} ({new Date(c.date).toLocaleDateString()})</option>
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-slate-50 p-8 rounded-[32px] border border-slate-100">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 px-1">Add Items</h3>
@@ -9187,10 +9321,16 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
               )}
             </div>
 
-            <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+               <button 
+                onClick={() => handlePrint(c)}
+                className="bg-indigo-600 text-white p-3 rounded-xl shadow-lg hover:bg-black transition-all"
+               >
+                 <Printer size={16} />
+               </button>
                <button 
                 onClick={() => { setEditingId(c.id); setFormData(c); setShowAdd(true); }}
-                className="bg-slate-900 text-white p-3 rounded-xl shadow-lg"
+                className="bg-slate-900 text-white p-3 rounded-xl shadow-lg hover:bg-black transition-all"
                >
                  <Edit size={16} />
                </button>
@@ -9208,21 +9348,33 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
   );
 }
 
-function ChallanCompareView({ millChallans, partyChallans }: any) {
+function ChallanCompareView({ millChallans, partyChallans, weaverChallans = [] }: any) {
   const [searchChallan, setSearchChallan] = useState('');
+  const [compareMode, setCompareMode] = useState<'party' | 'weaver'>('party');
   
   const comparison = useMemo(() => {
     if (!searchChallan) return null;
     
     const mill = (millChallans || []).find((c: Challan) => c.challanNumber.toLowerCase() === searchChallan.toLowerCase());
-    const party = (partyChallans || []).find((c: Challan) => c.challanNumber.toLowerCase() === searchChallan.toLowerCase());
     
-    if (!mill && !party) return null;
+    let compareTarget = null;
+    if (compareMode === 'party') {
+      compareTarget = (partyChallans || []).find((c: Challan) => c.challanNumber.toLowerCase() === searchChallan.toLowerCase());
+    } else {
+      // Find weaver by number linked in mill challan or by exact match
+      const weaverLink = mill?.weaverChallanNumber;
+      compareTarget = (weaverChallans || []).find((c: Challan) => 
+        (weaverLink && c.challanNumber.toLowerCase() === weaverLink.toLowerCase()) || 
+        (c.challanNumber.toLowerCase() === searchChallan.toLowerCase())
+      );
+    }
+    
+    if (!mill && !compareTarget) return null;
     
     // Helper to group items by name to handle multiple entries of same item
     const groupItems = (items: any[]) => {
       const grouped: Record<string, { quantity: number; taka: number; unit: string }> = {};
-      items.forEach(item => {
+      (items || []).forEach(item => {
         const name = item.name.trim().toUpperCase();
         if (!grouped[name]) {
           grouped[name] = { quantity: 0, taka: 0, unit: item.unit || 'MTR' };
@@ -9234,26 +9386,26 @@ function ChallanCompareView({ millChallans, partyChallans }: any) {
     };
 
     const millGroups = groupItems(mill?.items || []);
-    const partyGroups = groupItems(party?.items || []);
+    const targetGroups = groupItems(compareTarget?.items || []);
 
     const allItemNames = Array.from(new Set([
       ...Object.keys(millGroups),
-      ...Object.keys(partyGroups)
+      ...Object.keys(targetGroups)
     ]));
     
     const items = allItemNames.map(name => {
       const millItem = millGroups[name] || { quantity: 0, taka: 0, unit: 'MTR' };
-      const partyItem = partyGroups[name] || { quantity: 0, taka: 0, unit: 'MTR' };
-      const diffQty = partyItem.quantity - millItem.quantity;
-      const diffTaka = partyItem.taka - millItem.taka;
+      const targetItem = targetGroups[name] || { quantity: 0, taka: 0, unit: 'MTR' };
+      const diffQty = targetItem.quantity - millItem.quantity;
+      const diffTaka = targetItem.taka - millItem.taka;
       
       return {
         name,
         millQty: millItem.quantity,
-        partyQty: partyItem.quantity,
+        targetQty: targetItem.quantity,
         millTaka: millItem.taka,
-        partyTaka: partyItem.taka,
-        unit: partyItem.unit || millItem.unit || 'MTR',
+        targetTaka: targetItem.taka,
+        unit: targetItem.unit || millItem.unit || 'MTR',
         diffQty: parseFloat(diffQty.toFixed(2)),
         diffTaka
       };
@@ -9261,10 +9413,10 @@ function ChallanCompareView({ millChallans, partyChallans }: any) {
     
     return {
       mill,
-      party,
+      compareTarget,
       items
     };
-  }, [searchChallan, millChallans, partyChallans]);
+  }, [searchChallan, millChallans, partyChallans, weaverChallans, compareMode]);
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8 pb-20">
@@ -9273,13 +9425,26 @@ function ChallanCompareView({ millChallans, partyChallans }: any) {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div>
             <h2 className="text-4xl font-black tracking-tighter uppercase mb-2">Challan Comparison</h2>
-            <p className="text-indigo-300 font-bold tracking-widest text-xs uppercase">Find differences between mill and party records</p>
+            <div className="flex bg-white/10 p-1 rounded-2xl w-fit mt-4">
+              <button 
+                onClick={() => setCompareMode('party')}
+                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${compareMode === 'party' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              >
+                Mill vs Party
+              </button>
+              <button 
+                onClick={() => setCompareMode('weaver')}
+                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${compareMode === 'weaver' ? 'bg-[#00cec9] text-slate-900' : 'text-slate-400 hover:text-white'}`}
+              >
+                Mill vs Weaver
+              </button>
+            </div>
           </div>
           <div className="relative w-full md:w-96">
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input 
               type="text" 
-              placeholder="Enter Challan Number..."
+              placeholder="Enter Mill Challan Number..."
               value={searchChallan}
               onChange={e => setSearchChallan(e.target.value)}
               className="w-full pl-14 pr-8 py-5 bg-white/5 border border-white/10 rounded-3xl font-black text-lg outline-none focus:bg-white focus:text-slate-900 transition-all placeholder:text-slate-600 shadow-2xl"
@@ -9296,28 +9461,28 @@ function ChallanCompareView({ millChallans, partyChallans }: any) {
               {comparison.mill ? (
                 <>
                   <div className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{comparison.mill.partyName}</div>
-                  <div className="text-xs font-bold text-slate-500 mt-1 italic">{new Date(comparison.mill.date).toLocaleDateString()}</div>
+                  <div className="text-xs font-bold text-slate-500 mt-1 italic">#{comparison.mill.challanNumber} | {new Date(comparison.mill.date).toLocaleDateString()}</div>
                 </>
               ) : (
-                <div className="text-red-500 font-black uppercase text-sm italic">Mill record not found for this challan number</div>
+                <div className="text-red-500 font-black uppercase text-sm italic">Mill record not found</div>
               )}
             </div>
-            <div className={`p-8 rounded-[40px] border shadow-sm ${comparison.party ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
-              <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2 px-1">Party Record</div>
-              {comparison.party ? (
+            <div className={`p-8 rounded-[40px] border shadow-sm ${comparison.compareTarget ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+              <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2 px-1">{compareMode === 'party' ? 'Party' : 'Weaver'} Record</div>
+              {comparison.compareTarget ? (
                 <>
-                  <div className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{comparison.party.partyName}</div>
-                  <div className="text-xs font-bold text-slate-500 mt-1 italic">{new Date(comparison.party.date).toLocaleDateString()}</div>
+                  <div className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{comparison.compareTarget.partyName}</div>
+                  <div className="text-xs font-bold text-slate-500 mt-1 italic">#{comparison.compareTarget.challanNumber} | {new Date(comparison.compareTarget.date).toLocaleDateString()}</div>
                 </>
               ) : (
-                <div className="text-red-500 font-black uppercase text-sm italic">Party record not found for this challan number</div>
+                <div className="text-red-500 font-black uppercase text-sm italic">{compareMode === 'party' ? 'Party' : 'Weaver'} record not found</div>
               )}
             </div>
           </div>
 
           <div className="bg-white rounded-[40px] border border-slate-200 shadow-xl overflow-hidden">
             <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-              <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Comparison Summary</h3>
+              <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Comparison Summary ({compareMode === 'party' ? 'Party' : 'Weaver'})</h3>
               <div className="flex gap-4">
                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"><div className="w-3 h-3 bg-red-400 rounded-full"></div> Shortage</div>
                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"><div className="w-3 h-3 bg-emerald-400 rounded-full"></div> Excess</div>
@@ -9329,10 +9494,10 @@ function ChallanCompareView({ millChallans, partyChallans }: any) {
                   <tr className="bg-slate-900">
                     <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Item Name</th>
                     <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Mill Qty</th>
-                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Party Qty</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{compareMode === 'party' ? 'Party' : 'Weaver'} Qty</th>
                     <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Qty Difference</th>
                     <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right border-l border-white/5">Mill Taka</th>
-                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Party Taka</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{compareMode === 'party' ? 'Party' : 'Weaver'} Taka</th>
                     <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Taka Difference</th>
                   </tr>
                 </thead>
@@ -9341,12 +9506,12 @@ function ChallanCompareView({ millChallans, partyChallans }: any) {
                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
                       <td className="px-8 py-6 font-black text-slate-900 text-sm">{item.name}</td>
                       <td className="px-8 py-6 text-right font-bold text-slate-500">{item.millQty} {item.unit}</td>
-                      <td className="px-8 py-6 text-right font-bold text-slate-700">{item.partyQty} {item.unit}</td>
+                      <td className="px-8 py-6 text-right font-bold text-slate-700">{item.targetQty} {item.unit}</td>
                       <td className={`px-8 py-6 text-right font-black text-lg tracking-tighter ${item.diffQty < 0 ? 'text-red-500' : item.diffQty > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
                         {item.diffQty > 0 ? '+' : ''}{item.diffQty} {item.unit}
                       </td>
                       <td className="px-8 py-6 text-right font-bold text-slate-500 border-l border-slate-50">{item.millTaka}</td>
-                      <td className="px-8 py-6 text-right font-bold text-slate-700">{item.partyTaka}</td>
+                      <td className="px-8 py-6 text-right font-bold text-slate-700">{item.targetTaka}</td>
                       <td className={`px-8 py-6 text-right font-black text-lg tracking-tighter ${item.diffTaka < 0 ? 'text-red-500' : item.diffTaka > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
                         {item.diffTaka > 0 ? '+' : ''}{item.diffTaka}
                       </td>
@@ -9363,7 +9528,7 @@ function ChallanCompareView({ millChallans, partyChallans }: any) {
              <Search size={48} className="text-slate-300" />
            </div>
            <h3 className="text-2xl font-black text-slate-400 uppercase tracking-tighter">No Records Found</h3>
-           <p className="text-slate-500 font-bold mt-2 max-w-xs mx-auto text-sm">We couldn't find any Mill or Party challans with number "{searchChallan}"</p>
+           <p className="text-slate-500 font-bold mt-2 max-w-xs mx-auto text-sm">We couldn't find any Mill or {compareMode === 'party' ? 'Party' : 'Weaver'} challans with number "{searchChallan}"</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

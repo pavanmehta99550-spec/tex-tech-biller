@@ -178,11 +178,12 @@ export interface Challan {
   serialNo: number;
   challanNumber: string;
   date: string;
-  type: 'MILL' | 'PARTY';
+  type: 'MILL' | 'PARTY' | 'WEAVER';
   partyName: string;
   partyGstin?: string;
   items: ChallanItem[];
   notes?: string;
+  weaverChallanNumber?: string;
 }
 
 export interface Expense {
