@@ -19,6 +19,7 @@ import {
   Lock,
   Users,
   Plus,
+  X,
   Settings,
   Search,
   Download,
@@ -440,7 +441,10 @@ export default function App() {
           'l': 'ledg',
           'g': 'gstreport',
           't': 'transports',
-          'b': 'backup'
+          'b': 'backup',
+          '8': 'millchallan',
+          '9': 'partychallan',
+          '0': 'challancompare'
         };
 
         if (shortcutMap[key]) {
@@ -1445,6 +1449,9 @@ export default function App() {
                 v === 'dn' ? "Ctrl+D" :
                 v === 'cn' ? "Ctrl+C" :
                 v === 'expenses' ? "Ctrl+E" :
+                v === 'millchallan' ? "Alt+8" :
+                v === 'partychallan' ? "Alt+9" :
+                v === 'challancompare' ? "Alt+0" :
                 v === 'items' ? "Alt+M" :
                 v === 'pay' ? "Ctrl+R" :
                 v === 'sendpay' ? "Ctrl+N" :
@@ -1753,6 +1760,7 @@ export default function App() {
               onSave={handleSaveChallan}
               onDelete={(id: string) => handleDeleteChallan(id, 'MILL')}
               parties={purchaseParties}
+              itemsMaster={itemsMaster}
             />}
             {currentView === 'partychallan' && <ChallanEntryView 
               key="partychallan"
@@ -1761,6 +1769,7 @@ export default function App() {
               onSave={handleSaveChallan}
               onDelete={(id: string) => handleDeleteChallan(id, 'PARTY')}
               parties={saleParties}
+              itemsMaster={itemsMaster}
             />}
             {currentView === 'challancompare' && <ChallanCompareView 
               key="challancompare"
@@ -2833,6 +2842,11 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                     placeholder="Saree/Cloth" 
                   />
+                  {item.meters && (
+                    <div className="text-[9px] font-mono text-slate-400 mt-1 break-all bg-indigo-50/30 p-1 rounded border border-indigo-100 uppercase tracking-tighter">
+                      {item.meters}
+                    </div>
+                  )}
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">HSN</label>
@@ -2870,7 +2884,11 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                       <QtyCalculator 
                         value={calcValues[item.id] || ''}
                         onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
-                        onApply={(sum, count) => updateItem(item.id, 'quantity', sum)}
+                        onApply={(sum, count) => {
+                          updateItem(item.id, 'quantity', sum);
+                          updateItem(item.id, 'taka', count.toString());
+                          updateItem(item.id, 'meters', calcValues[item.id] || '');
+                        }}
                         onBlur={() => setActiveCalcId(null)}
                         isLocked={isLocked}
                       />
@@ -3337,6 +3355,11 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
                     onKeyDown={handleEnter}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                   />
+                  {item.meters && (
+                    <div className="text-[9px] font-mono text-slate-400 mt-1 break-all bg-red-50/30 p-1 rounded border border-red-100 uppercase tracking-tighter">
+                      {item.meters}
+                    </div>
+                  )}
                 </div>
                 <div className="md:col-span-2 space-y-1 relative">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
@@ -3360,7 +3383,11 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
                       <QtyCalculator 
                         value={calcValues[item.id] || ''}
                         onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
-                        onApply={(sum, count) => updateItem(item.id, 'quantity', sum)}
+                        onApply={(sum, count) => {
+                          updateItem(item.id, 'quantity', sum);
+                          updateItem(item.id, 'taka', count.toString());
+                          updateItem(item.id, 'meters', calcValues[item.id] || '');
+                        }}
                         onBlur={() => setActiveCalcId(null)}
                       />
                     )}
@@ -4155,6 +4182,11 @@ function BookingView({
                     className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
                     placeholder="Search Item..." 
                   />
+                  {item.meters && (
+                    <div className="text-[9px] font-mono text-slate-400 mt-1 break-all bg-slate-50 p-1 rounded border border-slate-100 uppercase tracking-tighter">
+                      {item.meters}
+                    </div>
+                  )}
                   {activePurchaseId === item.id && (
                     <div className="absolute top-full left-0 w-[400px] bg-white border-2 border-indigo-500 rounded-xl shadow-2xl z-[100] mt-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="bg-indigo-600 p-3 text-white flex justify-between items-center">
@@ -4251,11 +4283,12 @@ function BookingView({
                     )}
                     {activeCalcId === item.id && (
                       <QtyCalculator 
-                        value={calcValues[item.id] || ''}
+                        value={calcValues[item.id] || item.meters || ''}
                         onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
                         onApply={(sum, count) => {
                           updateItem(item.id, 'quantity', sum);
                           updateItem(item.id, 'taka', count.toString());
+                          updateItem(item.id, 'meters', calcValues[item.id] || item.meters || '');
                         }}
                         onBlur={() => setActiveCalcId(null)}
                         isLocked={isLocked}
@@ -4852,6 +4885,11 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
                     onKeyDown={handleEnter}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                   />
+                  {item.meters && (
+                    <div className="text-[9px] font-mono text-slate-400 mt-1 break-all bg-green-50/30 p-1 rounded border border-green-100 uppercase tracking-tighter">
+                      {item.meters}
+                    </div>
+                  )}
                 </div>
                 <div className="md:col-span-2 space-y-1 relative">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
@@ -4875,7 +4913,11 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
                       <QtyCalculator 
                         value={calcValues[item.id] || ''}
                         onChange={(v) => setCalcValues({ ...calcValues, [item.id]: v })}
-                        onApply={(sum, count) => updateItem(item.id, 'quantity', sum)}
+                        onApply={(sum, count) => {
+                          updateItem(item.id, 'quantity', sum);
+                          updateItem(item.id, 'taka', count.toString());
+                          updateItem(item.id, 'meters', calcValues[item.id] || '');
+                        }}
                         onBlur={() => setActiveCalcId(null)}
                       />
                     )}
@@ -5135,6 +5177,7 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
                   <td className="py-3 px-3 border-r-2 border-green-700">
                     <div className="font-bold">{item.name}</div>
                     <div className="text-slate-400">HSN: {item.hsnCode}</div>
+                    {item.meters && <div className="text-slate-400 text-[9px] font-mono border-t border-green-100 mt-1 pt-1 break-all uppercase tracking-tighter">{item.meters}</div>}
                   </td>
                   <td className="py-3 px-3 text-right border-r-2 border-green-700">{item.quantity}</td>
                   <td className="py-3 px-3 text-right border-r-2 border-green-700">₹{item.rate.toLocaleString()}</td>
@@ -6659,7 +6702,8 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
               {(purchase.items || []).filter(item => item.name && item.name.trim() !== "").map((item) => (
                 <tr key={item.id} className="border-b-2 border-indigo-900">
                   <td className="py-2.5 px-4 font-bold text-slate-900 border-r-2 border-indigo-900">
-                    {item.name}
+                    <div>{item.name}</div>
+                    {item.meters && <div className="text-slate-400 text-[9px] font-mono border-t border-indigo-100 mt-1 pt-1 break-all uppercase tracking-tighter">{item.meters}</div>}
                   </td>
                   <td className="py-2.5 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">{item.hsnCode || '-'}</td>
                   <td className="py-2.5 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">
@@ -6872,7 +6916,10 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
             <tbody>
               {(debitNote.items || []).filter(item => item.name && item.name.trim() !== "").map((item) => (
                 <tr key={item.id} className="border-b-2 border-red-700">
-                  <td className="py-4 px-4 font-bold text-slate-900 border-r-2 border-red-700">{item.name}</td>
+                  <td className="py-4 px-4 font-bold text-slate-900 border-r-2 border-red-700">
+                    <div>{item.name}</div>
+                    {item.meters && <div className="text-slate-400 text-[9px] font-mono border-t border-red-100 mt-1 pt-1 break-all uppercase tracking-tighter">{item.meters}</div>}
+                  </td>
                   <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-red-700">{item.quantity} {item.unit}</td>
                   <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-red-700">{item.rate.toFixed(2)}</td>
                   <td className="py-4 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString()}</td>
@@ -7085,6 +7132,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
                   <td className="py-2 px-4 border-r-2 border-slate-900">
                     <div className="font-bold text-slate-900">{item.name || 'Transport item'}</div>
                     {item.color && <div className="text-slate-500 text-[10px]">Color: {item.color}</div>}
+                    {item.meters && <div className="text-slate-400 text-[9px] font-mono border-t border-slate-100 mt-1 pt-1 break-all uppercase tracking-tighter">{item.meters}</div>}
                     {item.purchaseBillNumber && (
                       <div className="text-indigo-600 font-bold text-[8px] uppercase mt-0.5">
                         Purch Ref: {item.purchaseBillNumber} ({item.purchasePartyName})
@@ -8710,9 +8758,69 @@ function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSav
   );
 }
 
-function ChallanEntryView({ type, challans, onSave, onDelete, parties }: any) {
+function MeterEntryModal({ isOpen, onClose, onSave, initialValue, unit }: any) {
+  const [meters, setMeters] = useState(initialValue || '');
+  
+  if (!isOpen) return null;
+
+  const calculateTotal = () => {
+    return (meters.split('+').map((m: string) => parseFloat(m) || 0).reduce((a: number, b: number) => a + b, 0)).toFixed(2);
+  };
+
+  const takaCount = meters.split('+').filter((m: string) => m.trim() !== '').length;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden">
+        <div className="bg-slate-900 p-8 text-white">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-black uppercase tracking-widest">Meter Calculator</h3>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full"><X size={20} /></button>
+          </div>
+          <div className="bg-white/10 rounded-2xl p-6 border border-white/10">
+            <div className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-1">Entry (Use + for cuts)</div>
+            <textarea 
+              autoFocus
+              value={meters}
+              onChange={e => setMeters(e.target.value)}
+              className="w-full bg-transparent text-2xl font-black outline-none placeholder:text-white/20 resize-none h-24"
+              placeholder="e.regular: 20+15.5+10"
+            />
+          </div>
+        </div>
+        <div className="p-8 space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Taka/Pcs</div>
+              <div className="text-2xl font-black text-slate-900">{takaCount}</div>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total {unit}</div>
+              <div className="text-2xl font-black text-indigo-600">{calculateTotal()}</div>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <button 
+              onClick={() => onSave(meters, calculateTotal(), takaCount)}
+              className="flex-1 bg-indigo-600 text-white font-black py-4 rounded-3xl hover:bg-black transition-all shadow-xl shadow-indigo-100 uppercase tracking-widest text-xs"
+            >
+              Apply Calculations
+            </button>
+            <button onClick={onClose} className="px-8 bg-slate-100 text-slate-500 font-black py-4 rounded-3xl hover:bg-slate-200 transition-all uppercase tracking-widest text-xs">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMaster = [] }: any) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isMeterModalOpen, setIsMeterModalOpen] = useState(false);
+
   const [formData, setFormData] = useState<Partial<Challan>>({
     serialNo: (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 1,
     challanNumber: '',
@@ -8727,23 +8835,46 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties }: any) {
     name: '',
     quantity: 0,
     unit: 'MTR',
-    taka: 0
+    taka: 0,
+    meters: ''
   });
 
   const handleAddItem = () => {
-    if (!itemInput.name || !itemInput.quantity) return;
+    if (!itemInput.name || (!itemInput.quantity && !itemInput.meters)) return;
     const newItem: ChallanItem = {
       id: Math.random().toString(36).substr(2, 9),
       name: itemInput.name,
       quantity: Number(itemInput.quantity),
       unit: itemInput.unit || 'MTR',
-      taka: itemInput.taka ? Number(itemInput.taka) : 0
+      taka: itemInput.taka ? Number(itemInput.taka) : 0,
+      meters: itemInput.meters
     };
     setFormData(prev => ({
       ...prev,
       items: [...(prev.items || []), newItem]
     }));
-    setItemInput({ name: '', quantity: 0, unit: 'MTR', taka: 0 });
+    setItemInput({ name: '', quantity: 0, unit: 'MTR', taka: 0, meters: '' });
+  };
+
+  useEffect(() => {
+    const handleAddShortcut = (e: KeyboardEvent) => {
+      if (showAdd && e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        handleAddItem();
+      }
+    };
+    window.addEventListener('keydown', handleAddShortcut);
+    return () => window.removeEventListener('keydown', handleAddShortcut);
+  }, [showAdd, itemInput]); // Adding itemInput to dependencies so handleAddItem uses current state
+
+  const handleMeterSave = (meters: string, total: string, taka: number) => {
+    setItemInput(prev => ({
+      ...prev,
+      meters,
+      quantity: parseFloat(total),
+      taka: taka || prev.taka
+    }));
+    setIsMeterModalOpen(false);
   };
 
   const handleRemoveItem = (id: string) => {
@@ -8760,7 +8891,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties }: any) {
       return;
     }
     onSave({ ...formData, type });
-    const nextSerial = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 2; // +2 because the one we just saved is already in the list potentially or will be soon
+    const nextSerial = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 2; 
     setFormData({
       serialNo: nextSerial,
       challanNumber: '',
@@ -8778,6 +8909,13 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties }: any) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20">
+      <MeterEntryModal 
+        isOpen={isMeterModalOpen} 
+        onClose={() => setIsMeterModalOpen(false)}
+        initialValue={itemInput.meters}
+        unit={itemInput.unit}
+        onSave={handleMeterSave}
+      />
       <header className="flex justify-between items-center bg-white/50 backdrop-blur-md p-8 rounded-[40px] border border-white shadow-xl">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">{type === 'MILL' ? 'Mill' : 'Party'} Challan Entry</h2>
@@ -8851,15 +8989,30 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties }: any) {
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Item Name</label>
                     <input 
+                      list="challan-item-suggestions"
                       type="text" 
                       value={itemInput.name}
                       onChange={e => setItemInput({ ...itemInput, name: e.target.value })}
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-600"
                       placeholder="Cotton, Silk..."
                     />
+                    <datalist id="challan-item-suggestions">
+                      {itemsMaster.map((item: any) => (
+                        <option key={item.id} value={item.name} />
+                      ))}
+                    </datalist>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Quantity</label>
+                    <div className="flex justify-between items-center pr-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Quantity</label>
+                      <button 
+                        type="button" 
+                        onClick={() => setIsMeterModalOpen(true)}
+                        className="text-[#00cec9] hover:text-indigo-600 transition-colors"
+                      >
+                         <Calculator size={14} />
+                      </button>
+                    </div>
                     <input 
                       type="number" 
                       value={itemInput.quantity}
@@ -8881,9 +9034,9 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties }: any) {
                   <button 
                     type="button"
                     onClick={handleAddItem}
-                    className="h-[52px] bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-black transition-all"
+                    className="h-[52px] bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-black transition-all flex items-center justify-center gap-2 group"
                   >
-                    Add to List
+                    Add <span className="opacity-40 group-hover:opacity-100 transition-opacity">(Ctrl+N)</span>
                   </button>
                 </div>
 
@@ -8901,9 +9054,16 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties }: any) {
                       <tbody className="divide-y divide-slate-100">
                         {formData.items.map(item => (
                           <tr key={item.id}>
-                            <td className="px-5 py-3 font-bold text-slate-700 text-sm">{item.name}</td>
+                            <td className="px-5 py-3">
+                              <div className="font-bold text-slate-700 text-sm">{item.name}</div>
+                              {item.meters && (
+                                <div className="text-[10px] text-slate-400 font-medium tracking-tighter truncate max-w-[200px]">
+                                  Cuts: {item.meters}
+                                </div>
+                              )}
+                            </td>
                             <td className="px-5 py-3 text-right font-black text-slate-900">{item.quantity} {item.unit}</td>
-                            <td className="px-5 py-3 text-right font-black text-slate-50">{item.taka || '-'}</td>
+                            <td className="px-5 py-3 text-right font-black text-slate-500">{item.taka || '-'}</td>
                             <td className="px-5 py-3 text-center">
                               <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-red-400 hover:text-red-600 transition-colors">
                                 <Trash2 size={16} />
@@ -8950,11 +9110,18 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties }: any) {
               </button>
             </div>
             
-            <div className="space-y-2 mt-6">
+            <div className="space-y-3 mt-6">
               {c.items.slice(0, 3).map((item, idx) => (
-                <div key={idx} className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-500">{item.name}</span>
-                  <span className="text-slate-900">{item.quantity} {item.unit}</span>
+                <div key={idx} className="space-y-1">
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-slate-500">{item.name}</span>
+                    <span className="text-slate-900">{item.quantity} {item.unit}</span>
+                  </div>
+                  {item.meters && (
+                    <div className="text-[9px] text-slate-300 font-medium truncate bg-slate-50 p-1 rounded">
+                      {item.meters}
+                    </div>
+                  )}
                 </div>
               ))}
               {c.items.length > 3 && (

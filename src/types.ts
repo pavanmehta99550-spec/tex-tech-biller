@@ -29,6 +29,7 @@ export interface BillItem {
   purchaseId?: string;
   purchaseBillNumber?: string;
   purchasePartyName?: string;
+  meters?: string;
 }
 
 export interface Booking {
@@ -166,6 +167,7 @@ export interface ChallanItem {
   quantity: number;
   unit: string;
   taka?: number;
+  meters?: string;
 }
 
 export interface Challan {
