@@ -548,15 +548,16 @@ export default function App() {
     // Safety timeout: Ensure app opens even if Firebase initialization is slow or fails
     const timeout = setTimeout(() => {
       setIsFirebaseLoading(false);
-    }, 5000);
+    }, 7000);
 
     // Safety timeout: Force data loaded state if it sticks for too long
+    // If Firebase takes > 10s, we show what we have in local storage
     const dataTimeout = setTimeout(() => {
       if ((auth.currentUser || storage.get('customLoginId', null)) && !isDataLoaded) {
-        console.warn("App: Data sync timeout - forcing UI load");
+        console.warn("App: Data sync timeout (10s) - falling back to local data for UI load");
         setIsDataLoaded(true);
       }
-    }, 12000);
+    }, 10000);
 
     return () => {
       unsubscribe();
@@ -1849,10 +1850,14 @@ export default function App() {
       <VoiceAssistant 
         isEnabled={isVoiceEnabled} 
         onToggle={(val) => {
+          console.log("Voice Assistant Toggle Clicked. Target State:", val);
           setIsVoiceEnabled(val);
           storage.set('isVoiceEnabled', val);
-          if (val) speak("Voice Assistant chalu ho gaya hai. Main aapki kya madad kar sakta hoon?");
-          else speak("Voice Assistant band kar diya gaya hai.");
+          if (val) {
+            speak("Voice Assistant chalu ho gaya hai. Main aapki kya madad kar sakta hoon?");
+          } else {
+            speak("Voice Assistant band kar diya gaya hai.");
+          }
         }} 
         onCommand={handleVoiceCommand} 
         isProcessing={isVoiceProcessing}
