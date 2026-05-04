@@ -1491,6 +1491,7 @@ export default function App() {
               parties={saleParties} 
               settings={settings} 
               bookings={bookings}
+              purchases={purchases}
               itemsMaster={itemsMaster}
               transports={transports}
               editingBooking={editingBooking}
@@ -1969,6 +1970,7 @@ function PurchaseHistoryView({ purchases, onEditPurchase, onDeletePurchase, onPr
   const filteredPurchases = useMemo(() => {
     return (purchases || []).filter((p: Purchase) => 
       p.billNumber?.toString().includes(searchTerm) || 
+      p.partyBillNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.partyGstin.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -1999,7 +2001,8 @@ function PurchaseHistoryView({ purchases, onEditPurchase, onDeletePurchase, onPr
             <thead>
               <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                 <th className="px-8 py-5">Date</th>
-                <th className="px-8 py-5">Bill No.</th>
+                <th className="px-8 py-5">Our Bill No.</th>
+                <th className="px-8 py-5">Party Bill No.</th>
                 <th className="px-8 py-5">Supplier (GSTIN)</th>
                 <th className="px-8 py-5 text-right">Amount</th>
                 <th className="px-8 py-5 text-center">Actions</th>
@@ -2013,6 +2016,9 @@ function PurchaseHistoryView({ purchases, onEditPurchase, onDeletePurchase, onPr
                   </td>
                   <td className="px-8 py-5">
                     <span className="bg-red-50 text-red-700 px-3 py-1 rounded-lg font-black text-xs">#{p.billNumber}</span>
+                  </td>
+                  <td className="px-8 py-5">
+                    <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg font-black text-xs">{p.partyBillNumber || '-'}</span>
                   </td>
                   <td className="px-8 py-5">
                     <div className="font-black text-slate-900 uppercase text-xs">{p.partyName}</div>
@@ -2423,7 +2429,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       basicAmount: editingPurchase?.basicAmount || 0,
       globalDiscount: editingPurchase?.globalDiscount || 0,
       taxRate: editingPurchase?.taxRate || 5,
-      date: editingPurchase?.date || new Date().toISOString()
+      date: editingPurchase?.date || new Date().toISOString(),
+      partyBillNumber: editingPurchase?.partyBillNumber || ''
     };
   });
 
@@ -2669,8 +2676,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
               <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Address</label>
               <input 
                 type="text" 
@@ -2692,6 +2699,18 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 onKeyDown={handleEnter}
                 className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
                 placeholder="Enter Mobile"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-black text-indigo-600 uppercase tracking-wider mb-1 block font-black">Purchase Party Bill No.</label>
+              <input 
+                type="text" 
+                value={formData.partyBillNumber} 
+                readOnly={isLocked}
+                onChange={e => setFormData({ ...formData, partyBillNumber: e.target.value })}
+                onKeyDown={handleEnter}
+                className={`w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
+                placeholder="Party Bill No. (Required)"
               />
             </div>
           </div>
@@ -3453,6 +3472,7 @@ function BookingView({
   parties, 
   settings, 
   bookings, 
+  purchases = [],
   itemsMaster = [], 
   transports = [], 
   editingBooking, 
@@ -3463,17 +3483,76 @@ function BookingView({
 }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
+  const [activePurchaseId, setActivePurchaseId] = useState<string | null>(null);
+
+  // Calculate remaining stock for each purchase item
+  const availableInventory = useMemo(() => {
+    const stock: Record<string, number> = {};
+    
+    // Initial quantities from purchases
+    purchases.forEach((p: Purchase) => {
+      p.items.forEach((item: any) => {
+        const key = `${p.id}-${item.name}-${item.color}`;
+        stock[key] = (stock[key] || 0) + (item.quantity || 0);
+      });
+    });
+
+    // Deduct quantities from sales
+    bookings.forEach((b: Booking) => {
+      // Exclude current editing bill if we are editing
+      if (editingBooking && b.id === editingBooking.id) return;
+
+      b.items.forEach((item: any) => {
+        if (item.purchaseId) {
+          const key = `${item.purchaseId}-${item.name}-${item.color}`;
+          stock[key] = (stock[key] || 0) - (item.quantity || 0);
+        }
+      });
+    });
+
+    return stock;
+  }, [purchases, bookings, editingBooking]);
+
+  const getMatchingPurchases = (itemName: string) => {
+    if (!itemName) return [];
+    
+    const results: any[] = [];
+    purchases.forEach((p: Purchase) => {
+      p.items.forEach((it: any) => {
+        if (it.name.toLowerCase().includes(itemName.toLowerCase())) {
+          const stockKey = `${p.id}-${it.name}-${it.color}`;
+          const remaining = availableInventory[stockKey] || 0;
+          if (remaining > 0) {
+            results.push({
+              purchaseId: p.id,
+              billNo: p.partyBillNumber || p.billNumber,
+              party: p.partyName,
+              date: p.date,
+              itemName: it.name,
+              color: it.color,
+              hsn: it.hsnCode,
+              rate: it.rate,
+              unit: it.unit,
+              remaining
+            });
+          }
+        }
+      });
+    });
+    return results;
+  };
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowPreview(false);
         if (activeCalcId) setActiveCalcId(null);
+        if (activePurchaseId) setActivePurchaseId(null);
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [activeCalcId]);
+  }, [activeCalcId, activePurchaseId]);
 
   const [navigatedBillLocked, setNavigatedBillLocked] = useState(false);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
@@ -3936,8 +4015,19 @@ function BookingView({
           <div className="space-y-4">
             {formData.items.map((item, index) => (
               <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-blue-50/30 border border-blue-100 rounded-2xl relative group items-end">
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Item Name</label>
+                <div className="md:col-span-2 space-y-1 relative">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex justify-between">
+                    <span>Item Name</span>
+                    {item.name && getMatchingPurchases(item.name).length > 0 && (
+                      <button 
+                        type="button"
+                        onClick={() => setActivePurchaseId(activePurchaseId === item.id ? null : item.id)}
+                        className="text-[#00cec9] font-black hover:underline"
+                      >
+                        [ Link Stock ]
+                      </button>
+                    )}
+                  </label>
                   <input 
                     type="text" 
                     list="master-items"
@@ -3948,6 +4038,47 @@ function BookingView({
                     className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
                     placeholder="Search Item..." 
                   />
+                  {activePurchaseId === item.id && (
+                    <div className="absolute top-full left-0 w-[400px] bg-white border-2 border-indigo-500 rounded-xl shadow-2xl z-[100] mt-2 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="bg-indigo-600 p-3 text-white flex justify-between items-center">
+                        <span className="text-[10px] font-black uppercase">Available Purchase Stock</span>
+                        <button onClick={() => setActivePurchaseId(null)}><AlertCircle size={14} /></button>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-100">
+                        {getMatchingPurchases(item.name).map((p: any, i: number) => (
+                          <button
+                            key={`${p.purchaseId}-${i}`}
+                            type="button"
+                            onClick={() => {
+                              updateItem(item.id, 'name', p.itemName);
+                              updateItem(item.id, 'color', p.color);
+                              updateItem(item.id, 'hsnCode', p.hsn);
+                              updateItem(item.id, 'unit', p.unit);
+                              updateItem(item.id, 'purchaseId', p.purchaseId);
+                              updateItem(item.id, 'purchaseBillNumber', p.billNo);
+                              updateItem(item.id, 'purchasePartyName', p.party);
+                              setActivePurchaseId(null);
+                            }}
+                            className="w-full text-left p-3 hover:bg-indigo-50 transition-colors group"
+                          >
+                            <div className="flex justify-between items-start">
+                              <span className="font-black text-slate-900 text-xs uppercase">{p.party}</span>
+                              <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">Bill: {p.billNo}</span>
+                            </div>
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase">{p.itemName} | {p.color}</span>
+                              <span className="text-emerald-600 font-black text-xs">Stock: {p.remaining} {p.unit}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {item.purchaseBillNumber && (
+                    <div className="text-[9px] font-black text-indigo-600 mt-0.5 flex items-center gap-1">
+                      <Save size={10} /> Linked to Purchase Bill: {item.purchaseBillNumber} ({item.purchasePartyName})
+                    </div>
+                  )}
                 </div>
                 <div className="md:col-span-1 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">HSN</label>
@@ -4862,7 +4993,7 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
               </tr>
             </thead>
             <tbody className="divide-y-2 divide-green-700">
-              {creditNote.items.map((item) => (
+              {(creditNote.items || []).filter(item => item.name && item.name.trim() !== "").map((item) => (
                 <tr key={item.id || Math.random().toString()}>
                   <td className="py-3 px-3 border-r-2 border-green-700">
                     <div className="font-bold">{item.name}</div>
@@ -6355,8 +6486,11 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
             </div>
             <div className="text-right">
               <div className="text-2xl font-black text-indigo-600 uppercase">Purchase Bill</div>
-              <div className="text-slate-900 text-sm font-black">Bill No: #{purchase.billNumber}</div>
-              <div className="text-slate-400 text-xs mt-1">{new Date(purchase.date).toLocaleDateString()}</div>
+              <div className="text-slate-900 text-sm font-black whitespace-nowrap">Our Ref: #{purchase.billNumber}</div>
+              {purchase.partyBillNumber && (
+                <div className="text-indigo-900 text-xs font-black bg-indigo-50 px-2 py-1 rounded mt-1">Party Bill: {purchase.partyBillNumber}</div>
+              )}
+              <div className="text-slate-400 text-[10px] mt-1 uppercase font-black">{new Date(purchase.date).toLocaleDateString()}</div>
             </div>
           </div>
 
@@ -6380,7 +6514,7 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
               </tr>
             </thead>
             <tbody>
-              {(purchase.items || []).map((item) => (
+              {(purchase.items || []).filter(item => item.name && item.name.trim() !== "").map((item) => (
                 <tr key={item.id} className="border-b-2 border-indigo-900">
                   <td className="py-2.5 px-4 font-bold text-slate-900 border-r-2 border-indigo-900">
                     {item.name}
@@ -6589,7 +6723,7 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
               </tr>
             </thead>
             <tbody>
-              {(debitNote.items || []).map((item) => (
+              {(debitNote.items || []).filter(item => item.name && item.name.trim() !== "").map((item) => (
                 <tr key={item.id} className="border-b-2 border-red-700">
                   <td className="py-4 px-4 font-bold text-slate-900 border-r-2 border-red-700">{item.name}</td>
                   <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-red-700">{item.quantity} {item.unit}</td>
@@ -6790,11 +6924,18 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
               </tr>
             </thead>
             <tbody>
-              {(booking.items || []).map((item, idx) => (
+              {(booking.items || [])
+                .filter(item => item.name && item.name.trim() !== "")
+                .map((item, idx) => (
                 <tr key={item.id} className="border-b-2 border-slate-900">
                   <td className="py-2 px-4 border-r-2 border-slate-900">
                     <div className="font-bold text-slate-900">{item.name || 'Transport item'}</div>
                     {item.color && <div className="text-slate-500 text-[10px]">Color: {item.color}</div>}
+                    {item.purchaseBillNumber && (
+                      <div className="text-indigo-600 font-bold text-[8px] uppercase mt-0.5">
+                        Purch Ref: {item.purchaseBillNumber} ({item.purchasePartyName})
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.hsnCode || '-'}</td>
                   <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.taka || '-'}</td>

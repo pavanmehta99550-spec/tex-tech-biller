@@ -25,6 +25,9 @@ export interface BillItem {
   rate: number;
   discount: number;
   amount: number;
+  purchaseId?: string;
+  purchaseBillNumber?: string;
+  purchasePartyName?: string;
 }
 
 export interface Booking {
@@ -104,6 +107,7 @@ export interface Purchase {
   igstAmount?: number;
   grandTotal: number;
   notes?: string;
+  partyBillNumber?: string;
 }
 
 export interface DebitNote {
