@@ -2514,7 +2514,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       globalDiscount: editingPurchase?.globalDiscount || 0,
       taxRate: editingPurchase?.taxRate || 5,
       date: editingPurchase?.date || new Date().toISOString(),
-      partyBillNumber: editingPurchase?.partyBillNumber || ''
+      partyBillNumber: editingPurchase?.partyBillNumber || '',
+      notes: editingPurchase?.notes || ''
     };
   });
 
@@ -2962,6 +2963,20 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
           </div>
         </div>
 
+        <div className="grid grid-cols-1 gap-8 mt-6">
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Notes / Remarks</label>
+            <textarea 
+              value={formData.notes} 
+              readOnly={isLocked}
+              onChange={e => setFormData({ ...formData, notes: e.target.value })} 
+              onKeyDown={handleEnter}
+              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all h-24 resize-none ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-indigo-500 focus:bg-white'}`} 
+              placeholder="Enter any additional notes here..." 
+            />
+          </div>
+        </div>
+
         <div className="bg-indigo-50/50 p-8 rounded-3xl border-2 border-dashed border-indigo-200 text-right space-y-2">
           {calc.effectiveGlobalDiscount > 0 && (
             <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{calc.effectiveGlobalDiscount.toFixed(2)}</span></div>
@@ -3079,6 +3094,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
       partyMobile: editingDebitNote?.partyMobile || '',
       partyMobile2: editingDebitNote?.partyMobile2 || '',
       reason: editingDebitNote?.reason || '',
+      notes: editingDebitNote?.notes || '',
       items: (editingDebitNote?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingDebitNote?.basicAmount || 0,
       globalDiscount: editingDebitNote?.globalDiscount || 0,
@@ -3431,6 +3447,19 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
           </datalist>
         </div>
 
+        <div className="grid grid-cols-1 gap-8 mt-6">
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Notes / Remarks</label>
+            <textarea 
+              value={formData.notes} 
+              onChange={e => setFormData({ ...formData, notes: e.target.value })} 
+              onKeyDown={handleEnter}
+              className="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none focus:border-red-500 transition-all h-24 resize-none" 
+              placeholder="Enter any additional notes here..." 
+            />
+          </div>
+        </div>
+
         <div className="bg-red-50/50 p-8 rounded-3xl border-2 border-dashed border-red-200 text-right space-y-2">
           <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{calc.taxableValue.toFixed(2)}</span></div>
           <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.tax.toFixed(2)}</span></div>
@@ -3705,7 +3734,8 @@ function BookingView({
       basicAmount: editingBooking?.basicAmount || 0,
       globalDiscount: editingBooking?.globalDiscount || 0,
       taxRate: editingBooking?.taxRate || 5,
-      date: editingBooking?.date || new Date().toISOString()
+      date: editingBooking?.date || new Date().toISOString(),
+      notes: editingBooking?.notes || ''
     };
   });
 
@@ -4455,6 +4485,20 @@ function BookingView({
           </div>
         </div>
 
+        <div className="grid grid-cols-1 gap-8 mt-6">
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Notes / Remarks</label>
+            <textarea 
+              value={formData.notes} 
+              readOnly={isLocked}
+              onChange={e => setFormData({ ...formData, notes: e.target.value })} 
+              onKeyDown={handleEnter}
+              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all h-24 resize-none ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+              placeholder="Enter any additional notes here..." 
+            />
+          </div>
+        </div>
+
         <div className="bg-[#e0f7f7] p-8 rounded-3xl border-2 border-dashed border-[#00cec9]/30 text-right space-y-2">
           {calc.effectiveGlobalDiscount > 0 && (
             <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{calc.effectiveGlobalDiscount.toFixed(2)}</span></div>
@@ -4607,6 +4651,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
       partyMobile: editingCreditNote?.partyMobile || '',
       partyMobile2: editingCreditNote?.partyMobile2 || '',
       reason: editingCreditNote?.reason || '',
+      notes: editingCreditNote?.notes || '',
       items: (editingCreditNote?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingCreditNote?.basicAmount || 0,
       globalDiscount: editingCreditNote?.globalDiscount || 0,
@@ -4959,6 +5004,19 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
               <option key={mi.id} value={mi.name}>{mi.hsnCode}</option>
             ))}
           </datalist>
+        </div>
+
+        <div className="grid grid-cols-1 gap-8 mt-6">
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Notes / Remarks</label>
+            <textarea 
+              value={formData.notes} 
+              onChange={e => setFormData({ ...formData, notes: e.target.value })} 
+              onKeyDown={handleEnter}
+              className="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none focus:border-green-500 transition-all h-24 resize-none" 
+              placeholder="Enter any additional notes here..." 
+            />
+          </div>
         </div>
 
         <div className="bg-green-50/50 p-8 rounded-3xl border-2 border-dashed border-green-200 text-right space-y-2">
@@ -8858,7 +8916,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
 
   useEffect(() => {
     const handleAddShortcut = (e: KeyboardEvent) => {
-      if (showAdd && e.ctrlKey && e.key === 'n') {
+      if (showAdd && e.altKey && e.key === 'n') {
         e.preventDefault();
         handleAddItem();
       }
@@ -9036,7 +9094,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                     onClick={handleAddItem}
                     className="h-[52px] bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-black transition-all flex items-center justify-center gap-2 group"
                   >
-                    Add <span className="opacity-40 group-hover:opacity-100 transition-opacity">(Ctrl+N)</span>
+                    Add <span className="opacity-40 group-hover:opacity-100 transition-opacity">(Alt+N)</span>
                   </button>
                 </div>
 
@@ -9161,25 +9219,42 @@ function ChallanCompareView({ millChallans, partyChallans }: any) {
     
     if (!mill && !party) return null;
     
+    // Helper to group items by name to handle multiple entries of same item
+    const groupItems = (items: any[]) => {
+      const grouped: Record<string, { quantity: number; taka: number; unit: string }> = {};
+      items.forEach(item => {
+        const name = item.name.trim().toUpperCase();
+        if (!grouped[name]) {
+          grouped[name] = { quantity: 0, taka: 0, unit: item.unit || 'MTR' };
+        }
+        grouped[name].quantity += (parseFloat(item.quantity) || 0);
+        grouped[name].taka += (parseInt(item.taka) || 0);
+      });
+      return grouped;
+    };
+
+    const millGroups = groupItems(mill?.items || []);
+    const partyGroups = groupItems(party?.items || []);
+
     const allItemNames = Array.from(new Set([
-      ...(mill?.items.map(i => i.name) || []),
-      ...(party?.items.map(i => i.name) || [])
+      ...Object.keys(millGroups),
+      ...Object.keys(partyGroups)
     ]));
     
     const items = allItemNames.map(name => {
-      const millItem = mill?.items.find(i => i.name === name);
-      const partyItem = party?.items.find(i => i.name === name);
-      const diffQty = (partyItem?.quantity || 0) - (millItem?.quantity || 0);
-      const diffTaka = (partyItem?.taka || 0) - (millItem?.taka || 0);
+      const millItem = millGroups[name] || { quantity: 0, taka: 0, unit: 'MTR' };
+      const partyItem = partyGroups[name] || { quantity: 0, taka: 0, unit: 'MTR' };
+      const diffQty = partyItem.quantity - millItem.quantity;
+      const diffTaka = partyItem.taka - millItem.taka;
       
       return {
         name,
-        millQty: millItem?.quantity || 0,
-        partyQty: partyItem?.quantity || 0,
-        millTaka: millItem?.taka || 0,
-        partyTaka: partyItem?.taka || 0,
-        unit: millItem?.unit || partyItem?.unit || 'MTR',
-        diffQty,
+        millQty: millItem.quantity,
+        partyQty: partyItem.quantity,
+        millTaka: millItem.taka,
+        partyTaka: partyItem.taka,
+        unit: partyItem.unit || millItem.unit || 'MTR',
+        diffQty: parseFloat(diffQty.toFixed(2)),
         diffTaka
       };
     });

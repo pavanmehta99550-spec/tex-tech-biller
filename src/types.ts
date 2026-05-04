@@ -57,6 +57,7 @@ export interface Booking {
   grandTotal: number;
   date: string;
   billNumber: number;
+  notes?: string;
 }
 
 export interface Transport {
@@ -132,6 +133,7 @@ export interface DebitNote {
   taxAmount: number;
   grandTotal: number;
   reason?: string;
+  notes?: string;
 }
 
 export interface CreditNote {
@@ -151,6 +153,7 @@ export interface CreditNote {
   taxAmount: number;
   grandTotal: number;
   reason?: string;
+  notes?: string;
 }
 
 export interface ItemMaster {
