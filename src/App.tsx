@@ -9068,14 +9068,27 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
     if ((type !== 'PARTY' && type !== 'MILL') || !formData.challanNumber) return null;
     
     let compareTarget: any = null;
+    let targetType: 'MILL' | 'WEAVER' | null = null;
+
     if (type === 'PARTY') {
+      // Try Mill comparison first
       compareTarget = (millChallans || []).find((c: any) => 
         c.challanNumber.toLowerCase() === formData.challanNumber?.toLowerCase()
       );
+      if (compareTarget) {
+        targetType = 'MILL';
+      } else {
+        // If no Mill found, check Weaver comparison directly
+        compareTarget = (weaverChallans || []).find((c: any) => 
+          c.challanNumber.toLowerCase() === formData.challanNumber?.toLowerCase()
+        );
+        if (compareTarget) targetType = 'WEAVER';
+      }
     } else if (type === 'MILL' && formData.weaverChallanNumber) {
       compareTarget = (weaverChallans || []).find((c: any) => 
         c.challanNumber.toLowerCase() === formData.weaverChallanNumber?.toLowerCase()
       );
+      if (compareTarget) targetType = 'WEAVER';
     }
     
     if (!compareTarget) return null;
@@ -9122,7 +9135,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
     const totalDiff = totalFormQty - totalTargetQty;
     const percentLoss = totalTargetQty > 0 ? (totalDiff / totalTargetQty) * 100 : 0;
 
-    return { target: compareTarget, differences, totalTargetQty, totalFormQty, totalDiff, percentLoss };
+    return { target: compareTarget, differences, totalTargetQty, totalFormQty, totalDiff, percentLoss, targetType };
   }, [formData.challanNumber, formData.weaverChallanNumber, formData.items, type, millChallans, weaverChallans]);
 
   const [itemInput, setItemInput] = useState<Partial<ChallanItem>>({
@@ -9291,7 +9304,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                       </div>
                       <div>
                         <h4 className={`font-black uppercase tracking-tighter ${Math.abs(autoComparison.totalDiff) >= 5 ? 'text-red-900' : 'text-emerald-900'}`}>
-                          {type === 'PARTY' ? 'Mill' : 'Weaver'} Comparison Found
+                          {autoComparison.targetType === 'MILL' ? 'Mill' : 'Weaver'} Comparison Found
                         </h4>
                         <p className={`text-[10px] font-bold uppercase tracking-widest ${Math.abs(autoComparison.totalDiff) >= 5 ? 'text-red-600' : 'text-emerald-600'}`}>
                           {autoComparison.target.partyName} | {new Date(autoComparison.target.date).toLocaleDateString()}
@@ -9320,7 +9333,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                       <div key={idx} className="flex items-center justify-between bg-white/60 p-4 rounded-xl border border-slate-100">
                         <div>
                           <span className="font-black text-slate-800 text-xs uppercase block">{diff.name}</span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">{type === 'PARTY' ? 'Mill' : 'Weaver'}: {diff.targetQty} | Current: {diff.formQty}</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">{autoComparison.targetType === 'MILL' ? 'Mill' : 'Weaver'}: {diff.targetQty} | Current: {diff.formQty}</span>
                         </div>
                         <div className="flex items-center gap-6">
                            <div className="text-right">
