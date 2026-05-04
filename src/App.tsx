@@ -1822,6 +1822,7 @@ export default function App() {
                 parties={weaverParties} 
                 title="Weaver Party Entry" 
                 onUpdateParties={setWeaverParties}
+                suggestParties={purchaseParties}
               />
             )}
             {currentView === 'challancompare' && <ChallanCompareView 
@@ -8267,7 +8268,7 @@ function SettingsView({ settings, onSave }: any) {
   );
 }
 
-function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purchases = [], creditNotes = [], debitNotes = [], payments = [] }: any) {
+function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [], bookings = [], purchases = [], creditNotes = [], debitNotes = [], payments = [] }: any) {
   const [partyForm, setPartyForm] = useState({
     name: '',
     gstin: '',
@@ -8276,6 +8277,21 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
     mobile2: ''
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleSuggestSelect = (val: string) => {
+    const suggestion = suggestParties.find((p: any) => p.name === val);
+    if (suggestion) {
+      setPartyForm({
+        name: suggestion.name,
+        gstin: suggestion.gstin,
+        address: suggestion.address || '',
+        mobile: suggestion.mobile || '',
+        mobile2: suggestion.mobile2 || ''
+      });
+    } else {
+      setPartyForm({ ...partyForm, name: val });
+    }
+  };
 
   const handleSaveParty = (e: React.FormEvent) => {
     e.preventDefault();
@@ -8382,10 +8398,16 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
                 type="text" 
                 required 
                 value={partyForm.name}
-                onChange={e => setPartyForm({ ...partyForm, name: e.target.value })}
+                list="party-master-suggestions"
+                onChange={e => handleSuggestSelect(e.target.value)}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-[#00cec9] transition-all"
                 placeholder="Party Name"
               />
+              <datalist id="party-master-suggestions">
+                {suggestParties.map((p: any) => (
+                  <option key={p.id} value={p.name}>{p.gstin}</option>
+                ))}
+              </datalist>
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">GST Number</label>
