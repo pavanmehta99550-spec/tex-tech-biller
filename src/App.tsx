@@ -31,6 +31,7 @@ import {
   FileText,
   PenTool,
   Edit,
+  Check,
   Landmark,
   Eye,
   EyeOff,
@@ -1792,6 +1793,7 @@ export default function App() {
               parties={saleParties}
               itemsMaster={itemsMaster}
               settings={settings}
+              millChallans={millChallans}
             />}
             {currentView === 'weaverchallan' && <ChallanEntryView 
               key="weaverchallan"
@@ -8915,7 +8917,7 @@ function MeterEntryModal({ isOpen, onClose, onSave, initialValue, unit }: any) {
   );
 }
 
-function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMaster = [], weaverChallans = [], settings }: any) {
+function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMaster = [], weaverChallans = [], settings, millChallans = [] }: any) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isMeterModalOpen, setIsMeterModalOpen] = useState(false);
@@ -8998,8 +9000,70 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
     partyName: '',
     type: type,
     items: [],
-    notes: ''
+    notes: '',
+    weaverChallanNumber: ''
   });
+
+  const autoComparison = useMemo(() => {
+    if ((type !== 'PARTY' && type !== 'MILL') || !formData.challanNumber) return null;
+    
+    let compareTarget: any = null;
+    if (type === 'PARTY') {
+      compareTarget = (millChallans || []).find((c: any) => 
+        c.challanNumber.toLowerCase() === formData.challanNumber?.toLowerCase()
+      );
+    } else if (type === 'MILL' && formData.weaverChallanNumber) {
+      compareTarget = (weaverChallans || []).find((c: any) => 
+        c.challanNumber.toLowerCase() === formData.weaverChallanNumber?.toLowerCase()
+      );
+    }
+    
+    if (!compareTarget) return null;
+
+    const groupItems = (items: any[]) => {
+      const grouped: Record<string, { quantity: number; taka: number; unit: string }> = {};
+      (items || []).forEach(item => {
+        const name = item.name.trim().toUpperCase();
+        if (!grouped[name]) {
+          grouped[name] = { quantity: 0, taka: 0, unit: item.unit || 'MTR' };
+        }
+        grouped[name].quantity += (parseFloat(item.quantity) || 0);
+        grouped[name].taka += (parseInt(item.taka) || 0);
+      });
+      return grouped;
+    };
+
+    const targetGroups = groupItems(compareTarget.items);
+    const formGroups = groupItems(formData.items || []);
+    
+    const allItemNames = Array.from(new Set([
+      ...Object.keys(targetGroups),
+      ...Object.keys(formGroups)
+    ]));
+
+    const differences = allItemNames.map(name => {
+      const targetItem = targetGroups[name] || { quantity: 0, taka: 0, unit: 'MTR' };
+      const formItem = formGroups[name] || { quantity: 0, taka: 0, unit: 'MTR' };
+      // For PARTY entry, we compare PARTY - MILL
+      // For MILL entry, we compare MILL - WEAVER? 
+      // User said: "MILL CHALLN ENTRY ME JO DATAA ENTRY HUVAA HI USKAA DIFFERANCE DIKHAAYE"
+      // Usually shortages are calculated as (Received - Expected). 
+      // If we are in MILL entry, MILL is what we are entering. WEAVER is what was sent.
+      // So Diff = MILL - WEAVER.
+      return {
+        name,
+        targetQty: targetItem.quantity,
+        formQty: formItem.quantity,
+        diffQty: formItem.quantity - targetItem.quantity,
+        unit: formItem.unit || targetItem.unit,
+        targetTaka: targetItem.taka,
+        formTaka: formItem.taka,
+        diffTaka: formItem.taka - targetItem.taka
+      };
+    });
+
+    return { target: compareTarget, differences };
+  }, [formData.challanNumber, formData.weaverChallanNumber, formData.items, type, millChallans, weaverChallans]);
 
   const [itemInput, setItemInput] = useState<Partial<ChallanItem>>({
     name: '',
@@ -9153,6 +9217,48 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                   </datalist>
                 </div>
               </div>
+
+              {autoComparison && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }} 
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-6 bg-emerald-50 border-2 border-emerald-100 rounded-[32px] mb-8"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white">
+                        <Check size={20} />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-emerald-900 uppercase tracking-tighter">{type === 'PARTY' ? 'Mill' : 'Weaver'} Comparison Found</h4>
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{autoComparison.target.partyName} | {new Date(autoComparison.target.date).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {autoComparison.differences.map((diff, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white/60 p-4 rounded-2xl border border-emerald-200/50">
+                        <span className="font-black text-slate-800 text-xs uppercase">{diff.name}</span>
+                        <div className="flex items-center gap-6">
+                           <div className="text-right">
+                              <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Difference</div>
+                              <div className={`text-sm font-black tracking-tighter ${diff.diffQty < 0 ? 'text-red-500' : diff.diffQty > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {diff.diffQty > 0 ? '+' : ''}{diff.diffQty.toFixed(2)} {diff.unit}
+                              </div>
+                           </div>
+                           <div className="text-right border-l pl-6 border-emerald-200">
+                              <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Taka Diff</div>
+                              <div className={`text-sm font-black tracking-tighter ${diff.diffTaka < 0 ? 'text-red-500' : diff.diffTaka > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {diff.diffTaka > 0 ? '+' : ''}{diff.diffTaka}
+                              </div>
+                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
 
               {type === 'MILL' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
