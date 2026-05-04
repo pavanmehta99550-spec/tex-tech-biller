@@ -1,10 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-
 export interface VoiceAction {
   action: 'NAVIGATE' | 'ADD_ITEM' | 'SAVE_BILL' | 'CANCEL' | 'UNKNOWN' | 'CONTINUE_CONVERSATION';
   params?: any;
+  target?: string;
+  view?: string;
   textResponse: string;
 }
 
@@ -12,14 +12,9 @@ export const processVoiceTranscript = async (
   transcript: string, 
   context: any
 ): Promise<VoiceAction> => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.error("Gemini API Key is missing!");
-    return {
-      action: 'UNKNOWN',
-      textResponse: "Bhai, AI configuration (API Key) missing hai. System settings check kijiye."
-    };
-  }
+  // In AI Studio, process.env.GEMINI_API_KEY is the standard way.
+  // We use a fallback empty string only if not defined, to let the SDK handle its own error reporting if possible.
+  const apiKey = process.env.GEMINI_API_KEY || '';
 
   const ai = new GoogleGenAI({ apiKey });
 
@@ -92,9 +87,19 @@ export const processVoiceTranscript = async (
     return JSON.parse(cleanJson) as VoiceAction;
   } catch (error) {
     console.error("Gemini Voice Processing Error:", error);
+    
+    // If it's a 401/apikey error, tell the user gracefully
+    const errorMsg = String(error).toLowerCase();
+    if (errorMsg.includes("api key") || errorMsg.includes("401") || !apiKey) {
+       return {
+        action: 'UNKNOWN',
+        textResponse: "Bhai, AI configuration (API Key) missing hai ya valid nahi hai. Please system settings mein check kijiye."
+      };
+    }
+
     return {
       action: 'UNKNOWN',
-      textResponse: "Maaf kijiye bhai, kuch technical dikkat aa gayi hai (AI Connection). Phir se boliye?"
+      textResponse: "Maaf kijiye bhai, signal mein thodi dikat hai. Phir se boliye?"
     };
   }
 };

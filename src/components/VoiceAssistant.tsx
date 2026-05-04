@@ -16,56 +16,55 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle, isProce
   const recognitionRef = useRef<any>(null);
   const restartTimeoutRef = useRef<any>(null);
 
-    const startRecognition = useCallback(() => {
-      if (!isEnabled) return;
-      
-      // Stop existing if any
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) {}
-      }
+  const startRecognition = useCallback(() => {
+    if (!isEnabled || isProcessing) return;
+    
+    // Stop existing if any
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch (e) {}
+      recognitionRef.current = null;
+    }
 
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        setErrorHeader("Browser not supported");
-        return;
-      }
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setErrorHeader("Browser not supported");
+      return;
+    }
 
-      try {
-        const recognition = new SpeechRecognition();
-        // continuous: false is often more reliable on mobile/tablets
-        // as it forces the browser to finalize results faster.
-        recognition.continuous = false; 
-        recognition.interimResults = true; 
-        recognition.lang = 'hi-IN';
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false; 
+      recognition.interimResults = true; 
+      recognition.lang = 'hi-IN';
 
-        recognition.onstart = () => {
-          setIsListening(true);
-          setErrorHeader(null);
-          console.log("Recognition started (Single Shot)");
-        };
+      recognition.onstart = () => {
+        setIsListening(true);
+        setErrorHeader(null);
+        console.log("Recognition started");
+      };
 
-        recognition.onresult = (event: any) => {
-          let interimTranscript = '';
-          let finalTranscript = '';
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
 
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
           }
+        }
 
-          const currentText = (finalTranscript || interimTranscript).trim().toLowerCase();
-          setLastTranscript(currentText);
+        const currentText = (finalTranscript || interimTranscript).trim().toLowerCase();
+        setLastTranscript(currentText);
 
-          if (finalTranscript) {
-            console.log("Processing Final Command:", finalTranscript);
-            onCommand(finalTranscript.trim().toLowerCase());
-            // Stop and let onend handle the restart
-            recognition.stop();
-          }
-        };
+        if (finalTranscript) {
+          console.log("Processing Final Command:", finalTranscript);
+          onCommand(finalTranscript.trim().toLowerCase());
+          // Stop and let onend handle the restart
+          recognition.stop();
+        }
+      };
 
       recognition.onerror = (event: any) => {
         console.warn("Speech recognition error:", event.error);
@@ -76,8 +75,9 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle, isProce
         } else if (event.error === 'network') {
           setErrorHeader("Connection Error");
         } else if (event.error === 'no-speech') {
-          // Normal, just restart
           console.log("No speech detected");
+        } else if (event.error === 'aborted') {
+          console.log("Recognition aborted");
         } else {
           console.warn("Generic Speech Error:", event.error);
         }
@@ -90,24 +90,21 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle, isProce
         
         // Restart logic if still enabled
         const checkAndRestart = () => {
-          // Robust check for speaking
-          const isSpeaking = window.speechSynthesis.speaking;
-          
           if (!isEnabled) return;
           
+          const isSpeaking = window.speechSynthesis.speaking;
+          
           if (!isProcessing && !isSpeaking) {
-            console.log("Restarting recognition...");
             startRecognition();
           } else {
-            // Check again soon
             if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
-            restartTimeoutRef.current = setTimeout(checkAndRestart, 800);
+            restartTimeoutRef.current = setTimeout(checkAndRestart, 1000);
           }
         };
 
-        if (isEnabled && !errorHeader) {
+        if (isEnabled) {
           if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
-          restartTimeoutRef.current = setTimeout(checkAndRestart, 500);
+          restartTimeoutRef.current = setTimeout(checkAndRestart, 600);
         }
       };
 
@@ -115,9 +112,10 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle, isProce
       recognitionRef.current = recognition;
     } catch (e) {
       console.error("Speech recognition start error:", e);
-      setErrorHeader("Mic error");
+      // Only set error header if it's not a common recoverable error
+      if (!errorHeader) setErrorHeader("Mic error");
     }
-  }, [isEnabled, onCommand, onToggle, isProcessing]);
+  }, [isEnabled, onCommand, onToggle, isProcessing, errorHeader]);
 
   useEffect(() => {
     if (isEnabled) {
@@ -147,7 +145,7 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle, isProce
   return (
     <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-3 pointer-events-none">
       <AnimatePresence>
-        {errorHeader && (
+        {errorHeader && isEnabled && (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}

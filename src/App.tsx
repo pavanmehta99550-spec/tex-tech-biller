@@ -169,118 +169,143 @@ export default function App() {
     setIsVoiceProcessing(true);
     console.log("Voice Command AI Request:", cmd);
 
-    // AI Processing
-    const result = await processVoiceTranscript(cmd, {
-      currentView,
-      saleParties,
-      itemsMaster,
-      voiceContext,
-      voiceDraft
-    });
+    try {
+      // AI Processing
+      const result = await processVoiceTranscript(cmd, {
+        currentView,
+        saleParties,
+        itemsMaster,
+        voiceContext,
+        voiceDraft
+      });
 
-    setIsVoiceProcessing(false);
-    console.log("AI result:", result);
+      console.log("AI result:", result);
 
-    if (result.textResponse) {
-      speak(result.textResponse);
-    }
+      if (result.textResponse) {
+        speak(result.textResponse);
+      }
 
-    // Handle Actions
-    const action = result.action;
-    const target = result.target || result.params?.target || result.params?.view || result.view;
+      // Handle Actions
+      const action = result.action;
+      let target = result.target || result.params?.target || result.params?.view || result.view;
 
-    switch (action) {
-      case 'NAVIGATE':
-        if (target) {
-          const targetMap: any = {
-            'inventory': 'items',
-            'stock': 'items',
-            'billing': 'inv',
-            'invoice': 'inv',
-            'ledger': 'ledg',
-            'khata': 'ledg',
-            'home': 'dash',
-            'dashboard': 'dash',
-            'history': 'salehistory',
-            'sales': 'salehistory',
-            'purchase': 'purchasehistory',
-            'party': 'saleparty',
-            'customer': 'saleparty',
-            'supplier': 'purchaseparty',
-            'settings': 'settings',
-            'backup': 'backup',
-            'expense': 'expenses',
-            'expenses': 'expenses'
-          };
-          const view = targetMap[target.toLowerCase()] || target;
-          setCurrentView(view);
-        }
-        break;
-      case 'CONTINUE_CONVERSATION':
-        if (result.params) {
-          // Normalize params from party/item to partyName/itemName for internal draft consistency if needed
-          const normalized = {
-            ...result.params,
-            partyName: result.params.party || result.params.partyName,
-            itemName: result.params.item || result.params.itemName
-          };
-          setVoiceDraft((prev: any) => ({ ...prev, ...normalized }));
-        }
-        if (result.params?.nextStep) {
-          setVoiceContext(result.params.nextStep);
-        }
-        break;
-      case 'ADD_ITEM':
-        if (result.params) {
-          setCurrentView('inv');
-          const normalized = {
-            ...result.params,
-            partyName: result.params.party || result.params.partyName,
-            itemName: result.params.item || result.params.itemName
-          };
-          setVoiceDraft((prev: any) => ({ ...prev, ...normalized }));
-          setVoiceContext('bill_confirm');
-        }
-        break;
-      case 'SAVE_BILL':
-        // Construct minimum booking from draft
-        if (voiceDraft.partyName && (voiceDraft.itemName || voiceDraft.qty)) {
-          const party = saleParties.find(p => p.name === voiceDraft.partyName);
-          const newBooking: Partial<Booking> = {
-            date: new Date().toISOString(),
-            consigneeName: voiceDraft.partyName,
-            consigneeAddress: party?.address || '',
-            consigneeGstin: party?.gstin || '',
-            taxRate: voiceDraft.gst || 5,
-            items: [{
-              id: Math.random().toString(36).substr(2, 9),
-              name: voiceDraft.itemName || 'Item',
-              quantity: voiceDraft.qty || 0,
-              rate: voiceDraft.rate || 0,
-              discount: voiceDraft.discount || 0,
-              amount: (voiceDraft.qty || 0) * (voiceDraft.rate || 0),
-              unit: 'PCS',
-              color: '',
-              hsnCode: '',
-              taka: ''
-            }]
-          };
-          handleSaveBooking(newBooking);
-          speak("Ji bhai, bill save ho gaya hai.");
-        } else {
-          speak("Bhai, bill ki details adhuri hain. Pehle party aur item confirm kijiye.");
-        }
-        setVoiceContext('idle');
-        setVoiceDraft({});
-        break;
-      case 'CANCEL':
-        setVoiceContext('idle');
-        setVoiceDraft({});
-        speak("Theek hai bhai, cancel kar diya.");
-        break;
-      default:
-        // No hard action, just the text response spoken
-        break;
+      console.log(`Voice Engine Action: ${action}, Target: ${target}`);
+
+      // Fallback: If action is NAVIGATE but no target is found, try to infer from textResponse
+      if (action === 'NAVIGATE' && !target && result.textResponse) {
+        const text = result.textResponse.toLowerCase();
+        if (text.includes("setting") || text.includes("सेटिंग") || text.includes("configuration")) target = "settings";
+        else if (text.includes("bill") || text.includes("बिल") || text.includes("invoice") || text.includes("fatiyu")) target = "billing";
+        else if (text.includes("stock") || text.includes("inventory") || text.includes("maal") || text.includes("godown")) target = "inventory";
+        else if (text.includes("ledger") || text.includes("ledg") || text.includes("khata") || text.includes("लेजर") || text.includes("udhari")) target = "ledger";
+        else if (text.includes("home") || text.includes("dash") || text.includes("main") || text.includes("galla")) target = "home";
+        else if (text.includes("history") || text.includes("sales") || text.includes("bechan")) target = "history";
+        else if (text.includes("purchase") || text.includes("kharidi")) target = "purchase";
+        else if (text.includes("party") || text.includes("customer") || text.includes("girahak")) target = "party";
+        else if (text.includes("supplier") || text.includes("purchase party")) target = "supplier";
+        else if (text.includes("expense") || text.includes("kharcha")) target = "expense";
+        else if (text.includes("backup") || text.includes("data")) target = "backup";
+        
+        if (target) console.log(`Inferred target from text: ${target}`);
+      }
+
+      switch (action) {
+        case 'NAVIGATE':
+          if (target) {
+            const targetMap: any = {
+              'inventory': 'items',
+              'stock': 'items',
+              'billing': 'inv',
+              'invoice': 'inv',
+              'ledger': 'ledg',
+              'khata': 'ledg',
+              'home': 'dash',
+              'dashboard': 'dash',
+              'history': 'salehistory',
+              'sales': 'salehistory',
+              'purchase': 'purchasehistory',
+              'party': 'saleparty',
+              'customer': 'saleparty',
+              'supplier': 'purchaseparty',
+              'settings': 'settings',
+              'backup': 'backup',
+              'expense': 'expenses',
+              'expenses': 'expenses'
+            };
+            const view = targetMap[target.toLowerCase()] || target;
+            console.log(`Switching View to: ${view}`);
+            setCurrentView(view);
+          }
+          break;
+        case 'CANCEL':
+          speak("Ji bhai, cancel kar diya gaya hai.");
+          setVoiceContext('idle');
+          setVoiceDraft({});
+          setCurrentView('dash');
+          break;
+        case 'CONTINUE_CONVERSATION':
+          if (result.params) {
+            const normalized = {
+              ...result.params,
+              partyName: result.params.party || result.params.partyName,
+              itemName: result.params.item || result.params.itemName
+            };
+            setVoiceDraft((prev: any) => ({ ...prev, ...normalized }));
+          }
+          if (result.params?.nextStep) {
+            setVoiceContext(result.params.nextStep);
+          }
+          break;
+        case 'ADD_ITEM':
+          if (result.params) {
+            setCurrentView('inv');
+            const normalized = {
+              ...result.params,
+              partyName: result.params.party || result.params.partyName,
+              itemName: result.params.item || result.params.itemName
+            };
+            setVoiceDraft((prev: any) => ({ ...prev, ...normalized }));
+            setVoiceContext('bill_confirm');
+          }
+          break;
+        case 'SAVE_BILL':
+          if (voiceDraft.partyName && (voiceDraft.itemName || voiceDraft.qty)) {
+            const party = saleParties.find(p => p.name === voiceDraft.partyName);
+            const newBooking: Partial<Booking> = {
+              date: new Date().toISOString(),
+              consigneeName: voiceDraft.partyName,
+              consigneeAddress: party?.address || '',
+              consigneeGstin: party?.gstin || '',
+              taxRate: voiceDraft.gst || 5,
+              items: [{
+                id: Math.random().toString(36).substr(2, 9),
+                name: voiceDraft.itemName || 'Item',
+                quantity: voiceDraft.qty || 0,
+                rate: voiceDraft.rate || 0,
+                discount: voiceDraft.discount || 0,
+                amount: (voiceDraft.qty || 0) * (voiceDraft.rate || 0),
+                unit: 'PCS',
+                color: '',
+                hsnCode: '',
+                taka: ''
+              }]
+            };
+            handleSaveBooking(newBooking);
+            speak("Ji bhai, bill save ho gaya hai.");
+          } else {
+            speak("Bhai, bill ki details adhuri hain. Pehle party aur item confirm kijiye.");
+          }
+          setVoiceContext('idle');
+          setVoiceDraft({});
+          break;
+        default:
+          break;
+      }
+    } catch (error) {
+      console.error("Gemini Voice Processing Error:", error);
+      speak("Maaf kijiye bhai, signal mein thodi dikat hai.");
+    } finally {
+      setIsVoiceProcessing(false);
     }
   }, [currentView, saleParties, itemsMaster, voiceContext, voiceDraft, speak, setCurrentView, handleSaveBooking]);
 
