@@ -58,7 +58,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses' | 'whatsapp';
+type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -89,7 +89,7 @@ export default function App() {
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
     'dn', 'cn', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
-    'signature', 'bankdetails', 'backup', 'whatsapp', 'settings'
+    'signature', 'bankdetails', 'backup', 'settings'
   ], []);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
@@ -188,31 +188,47 @@ export default function App() {
     // Handle Actions
     switch (result.action) {
       case 'NAVIGATE':
-        if (result.params?.view) {
+        if (result.params?.target) {
+          const targetMap: any = {
+            'inventory': 'items',
+            'billing': 'inv',
+            'ledger': 'ledg',
+            'home': 'dash',
+            'history': 'salehistory'
+          };
+          const view = targetMap[result.params.target] || result.params.target;
+          setCurrentView(view);
+        } else if (result.params?.view) {
           setCurrentView(result.params.view);
         }
         break;
       case 'CONTINUE_CONVERSATION':
+        if (result.params) {
+          // Normalize params from party/item to partyName/itemName for internal draft consistency if needed
+          const normalized = {
+            ...result.params,
+            partyName: result.params.party || result.params.partyName,
+            itemName: result.params.item || result.params.itemName
+          };
+          setVoiceDraft((prev: any) => ({ ...prev, ...normalized }));
+        }
         if (result.params?.nextStep) {
           setVoiceContext(result.params.nextStep);
         }
-        if (result.params) {
-          // Merge params into draft
-          setVoiceDraft((prev: any) => ({ ...prev, ...result.params }));
-        }
-        if (result.params?.view) {
-          setCurrentView(result.params.view);
-        }
         break;
       case 'ADD_ITEM':
-        // logic to add item to invoice
         if (result.params) {
           setCurrentView('inv');
-          setVoiceDraft((prev: any) => ({ ...prev, ...result.params }));
+          const normalized = {
+            ...result.params,
+            partyName: result.params.party || result.params.partyName,
+            itemName: result.params.item || result.params.itemName
+          };
+          setVoiceDraft((prev: any) => ({ ...prev, ...normalized }));
           setVoiceContext('bill_confirm');
         }
         break;
-      case 'CONFIRM_SAVE':
+      case 'SAVE_BILL':
         // Construct minimum booking from draft
         if (voiceDraft.partyName && (voiceDraft.itemName || voiceDraft.qty)) {
           const party = saleParties.find(p => p.name === voiceDraft.partyName);
@@ -248,17 +264,11 @@ export default function App() {
         setVoiceDraft({});
         speak("Theek hai bhai, cancel kar diya.");
         break;
-      case 'QUERY_STOCK':
-        setCurrentView('items');
-        break;
-      case 'QUERY_PAYMENT':
-        setCurrentView('saleparty');
-        break;
       default:
         // No hard action, just the text response spoken
         break;
     }
-  }, [currentView, saleParties, itemsMaster, voiceContext, voiceDraft, speak, setCurrentView]);
+  }, [currentView, saleParties, itemsMaster, voiceContext, voiceDraft, speak, setCurrentView, handleSaveBooking]);
 
   
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
@@ -387,9 +397,7 @@ export default function App() {
           'l': 'ledg',
           'g': 'gstreport',
           't': 'transports',
-          'b': 'backup',
-          'w': 'whatsapp',
-          'W': 'whatsapp'
+          'b': 'backup'
         };
 
         if (shortcutMap[key]) {
@@ -672,48 +680,7 @@ export default function App() {
   }, [isAuthenticated, lastBackupDate]);
 
 
-  const [waStatus, setWaStatus] = useState<{status: string, detailedStatus?: string, hasQr: boolean, qr: string | null}>({ 
-    status: 'disconnected', 
-    hasQr: false,
-    qr: null
-  });
-
-  useEffect(() => {
-    let eventSource: EventSource | null = null;
-    let retryTimeout: NodeJS.Timeout | null = null;
-
-    const connectSse = () => {
-      if (eventSource) eventSource.close();
-      
-      eventSource = new EventSource('/api/whatsapp/sse');
-      
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setWaStatus(data);
-        } catch (err) {
-          console.error("WhatsApp SSE Parse Error:", err);
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        console.error("WhatsApp SSE Connection Error:", err);
-        if (eventSource) eventSource.close();
-        // Retry after 5 seconds if connection drops
-        retryTimeout = setTimeout(connectSse, 5000);
-      };
-    };
-
-    connectSse();
-
-    return () => {
-      if (eventSource) eventSource.close();
-      if (retryTimeout) clearTimeout(retryTimeout);
-    };
-  }, []);
-
-
-  const handleSaveBooking = (data: Partial<Booking>) => {
+  function handleSaveBooking(data: Partial<Booking>) {
     let updatedSaleParties = [...saleParties];
     
     const isUpdate = !!data.id && bookings.some(b => b.id === data.id);
@@ -1350,7 +1317,6 @@ export default function App() {
                 v === 'signature' ? PenTool :
                 v === 'bankdetails' ? Landmark :
                 v === 'backup' ? Download :
-                v === 'whatsapp' ? MessageSquare :
                 Settings
               } 
               label={
@@ -1373,7 +1339,6 @@ export default function App() {
                 v === 'signature' ? "Upload Signature" :
                 v === 'bankdetails' ? "Bank Details" :
                 v === 'backup' ? "Data Backup" :
-                v === 'whatsapp' ? "WhatsApp Link" :
                 "Settings"
               }
               shortcut={
@@ -1394,7 +1359,6 @@ export default function App() {
                 v === 'gstreport' ? "Alt+G" :
                 v === 'transports' ? "Alt+T" :
                 v === 'backup' ? "Alt+B" :
-                v === 'whatsapp' ? "Alt+W" :
                 undefined
               }
             />
@@ -1490,7 +1454,6 @@ export default function App() {
               itemsMaster={itemsMaster}
               transports={transports}
               editingBooking={editingBooking}
-              waStatus={waStatus}
               voiceDraft={voiceDraft}
               voiceContext={voiceContext}
               onViewHistory={() => setCurrentView('salehistory')}
@@ -1662,7 +1625,6 @@ export default function App() {
                 debitNotes={debitNotes} 
                 creditNotes={creditNotes} 
                 settings={settings}
-                waStatus={waStatus}
                 onDeletePayment={handleDeletePayment}
                 onEditPayment={(p: any) => {
                   setEditingPayment(p);
@@ -1690,27 +1652,6 @@ export default function App() {
               onSave={setExpenses}
               onBack={() => setCurrentView('dash')}
             />}
-            {currentView === 'whatsapp' && (
-              <WhatsAppSettingsView 
-                key="whatsapp"
-                status={waStatus}
-                qr={waStatus.qr}
-                onLogout={async () => {
-                  try {
-                    await fetch('/api/whatsapp/logout', { method: 'POST' });
-                  } catch (e) {
-                    console.error('Logout failed:', e);
-                  }
-                }}
-                onRestart={async () => {
-                  try {
-                    await fetch('/api/whatsapp/restart', { method: 'POST' });
-                  } catch (e) {
-                    console.error('Restart failed:', e);
-                  }
-                }}
-              />
-            )}
             {currentView === 'signature' && <SignatureAndBankView 
               key="signature"
               settings={{...(settings || {}), viewMode: 'signature'}}
@@ -1729,7 +1670,6 @@ export default function App() {
               <PrintPreview 
                 booking={previewBooking} 
                 settings={settings} 
-                waStatus={waStatus}
                 onClose={() => setPreviewBooking(null)} 
               />
             )}
@@ -2435,7 +2375,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       buyerName: settings?.companyName || '',
       buyerGstin: settings?.gstin || '',
       buyerAddress: settings?.address || '',
-      items: editingPurchase?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }],
+      items: (editingPurchase?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingPurchase?.basicAmount || 0,
       globalDiscount: editingPurchase?.globalDiscount || 0,
       taxRate: editingPurchase?.taxRate || 5,
@@ -2742,11 +2682,6 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                     placeholder="Saree/Cloth" 
                   />
-                  <datalist id="master-items-purchase">
-                    {itemsMaster.map((mi: ItemMaster) => (
-                      <option key={mi.id} value={mi.name}>{mi.hsnCode}</option>
-                    ))}
-                  </datalist>
                 </div>
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">HSN</label>
@@ -2819,6 +2754,11 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               </div>
             ))}
           </div>
+          <datalist id="master-items-purchase">
+            {itemsMaster.map((mi: ItemMaster) => (
+              <option key={mi.id} value={mi.name}>{mi.hsnCode}</option>
+            ))}
+          </datalist>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -2969,7 +2909,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
       partyAddress: editingDebitNote?.partyAddress || '',
       partyMobile: editingDebitNote?.partyMobile || '',
       reason: editingDebitNote?.reason || '',
-      items: editingDebitNote?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }],
+      items: (editingDebitNote?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingDebitNote?.basicAmount || 0,
       globalDiscount: editingDebitNote?.globalDiscount || 0,
       taxRate: editingDebitNote?.taxRate || 5,
@@ -3233,11 +3173,6 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
                     onKeyDown={handleEnter}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                   />
-                  <datalist id="master-items-dn">
-                    {itemsMaster.map((mi: ItemMaster) => (
-                      <option key={mi.id} value={mi.name}>{mi.hsnCode}</option>
-                    ))}
-                  </datalist>
                 </div>
                 <div className="md:col-span-2 space-y-1 relative">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
@@ -3298,6 +3233,11 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
               </div>
             ))}
           </div>
+          <datalist id="master-items-dn">
+            {itemsMaster.map((mi: ItemMaster) => (
+              <option key={mi.id} value={mi.name}>{mi.hsnCode}</option>
+            ))}
+          </datalist>
         </div>
 
         <div className="bg-red-50/50 p-8 rounded-3xl border-2 border-dashed border-red-200 text-right space-y-2">
@@ -3474,7 +3414,6 @@ function BookingView({
   editingBooking, 
   onViewHistory, 
   onCancel, 
-  waStatus,
   voiceDraft,
   voiceContext
 }: any) {
@@ -3510,7 +3449,7 @@ function BookingView({
       consigneeName: editingBooking?.consigneeName || '',
       consigneeAddress: editingBooking?.consigneeAddress || '',
       consigneeMobile: editingBooking?.consigneeMobile || '',
-      items: editingBooking?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }],
+      items: (editingBooking?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingBooking?.basicAmount || 0,
       globalDiscount: editingBooking?.globalDiscount || 0,
       taxRate: editingBooking?.taxRate || 5,
@@ -3882,7 +3821,7 @@ function BookingView({
                   />
                   <datalist id="party-gstins">
                     {parties.map((p: any) => (
-                      <option key={p.id} value={p.gstin}>{p.name}</option>
+                      <option key={`gstin-${p.id || p.gstin}`} value={p.gstin}>{p.name}</option>
                     ))}
                   </datalist>
                 </div>
@@ -3903,7 +3842,7 @@ function BookingView({
                   />
                   <datalist id="party-names">
                     {parties.map((p: any) => (
-                      <option key={p.id} value={p.name}>{p.gstin}</option>
+                      <option key={`name-${p.id || p.name}`} value={p.name}>{p.gstin}</option>
                     ))}
                   </datalist>
                 </div>
@@ -3965,11 +3904,6 @@ function BookingView({
                     className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
                     placeholder="Search Item..." 
                   />
-                  <datalist id="master-items">
-                    {itemsMaster.map((mi: ItemMaster) => (
-                      <option key={mi.id} value={mi.name}>{mi.hsnCode}</option>
-                    ))}
-                  </datalist>
                 </div>
                 <div className="md:col-span-1 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">HSN</label>
@@ -4076,6 +4010,11 @@ function BookingView({
               </div>
             ))}
           </div>
+          <datalist id="master-items">
+            {itemsMaster.map((mi: ItemMaster) => (
+              <option key={mi.id} value={mi.name}>{mi.hsnCode}</option>
+            ))}
+          </datalist>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -4272,7 +4211,6 @@ function BookingView({
               grandTotal: calc.total
             }} 
             settings={settings} 
-            waStatus={waStatus}
             onClose={() => setShowPreview(false)} 
           />
         )}
@@ -4343,7 +4281,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
       partyAddress: editingCreditNote?.partyAddress || '',
       partyMobile: editingCreditNote?.partyMobile || '',
       reason: editingCreditNote?.reason || '',
-      items: editingCreditNote?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }],
+      items: (editingCreditNote?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingCreditNote?.basicAmount || 0,
       globalDiscount: editingCreditNote?.globalDiscount || 0,
       taxRate: editingCreditNote?.taxRate || 5,
@@ -4607,11 +4545,6 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
                     onKeyDown={handleEnter}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                   />
-                  <datalist id="master-items-cn">
-                    {itemsMaster.map((mi: ItemMaster) => (
-                      <option key={mi.id} value={mi.name}>{mi.hsnCode}</option>
-                    ))}
-                  </datalist>
                 </div>
                 <div className="md:col-span-2 space-y-1 relative">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
@@ -4672,6 +4605,11 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
               </div>
             ))}
           </div>
+          <datalist id="master-items-cn">
+            {itemsMaster.map((mi: ItemMaster) => (
+              <option key={mi.id} value={mi.name}>{mi.hsnCode}</option>
+            ))}
+          </datalist>
         </div>
 
         <div className="bg-green-50/50 p-8 rounded-3xl border-2 border-dashed border-green-200 text-right space-y-2">
@@ -4880,8 +4818,8 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
               </tr>
             </thead>
             <tbody className="divide-y-2 divide-green-700">
-              {creditNote.items.map((item, idx) => (
-                <tr key={idx}>
+              {creditNote.items.map((item) => (
+                <tr key={item.id || Math.random().toString()}>
                   <td className="py-3 px-3 border-r-2 border-green-700">
                     <div className="font-bold">{item.name}</div>
                     <div className="text-slate-400">HSN: {item.hsnCode}</div>
@@ -5477,8 +5415,8 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
             {payment.billAdjustments && payment.billAdjustments.length > 0 && (
               <div className="space-y-3 pt-6 border-t-2 border-slate-900">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Adjustment Details</h4>
-                {payment.billAdjustments.map((adj: any, i: number) => (
-                  <div key={i} className="flex justify-between text-xs font-bold text-slate-700">
+                {payment.billAdjustments.map((adj: any) => (
+                  <div key={adj.billId || adj.billNumber} className="flex justify-between text-xs font-bold text-slate-700">
                     <span className="uppercase">Adjusted against Bill # {adj.billNumber}</span>
                     <span className="font-mono">₹ {adj.amount.toLocaleString()}</span>
                   </div>
@@ -5992,8 +5930,8 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
                 const prevBal = acc.length > 0 ? acc[acc.length - 1].runningBal : 0;
                 acc.push({ ...t, runningBal: prevBal + t.amount });
                 return acc;
-              }, []).map((t: any, idx: number) => (
-                <tr key={idx} className="border-b-2 border-slate-900">
+              }, []).map((t: any) => (
+                <tr key={t.id || Math.random().toString(36)} className="border-b-2 border-slate-900">
                   <td className="py-3 px-4 font-bold border-r-2 border-slate-900">{new Date(t.date).toLocaleDateString()}</td>
                   <td className="py-3 px-4 border-r-2 border-slate-900">
                     <div className="font-bold uppercase tracking-tight">{t.type.replace('_', ' ')}</div>
@@ -6036,7 +5974,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
   );
 }
 
-function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment, waStatus }: any) {
+function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment }: any) {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedParty, setSelectedParty] = useState<any>(null);
@@ -6134,9 +6072,9 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {transactions.map((t, idx) => (
+                {transactions.map((t) => (
                   <tr 
-                    key={idx} 
+                    key={t.id || t.billNumber || t.invoiceNumber || t.noteNumber || Math.random().toString()} 
                     className="hover:bg-slate-50 transition-colors cursor-pointer group"
                     onClick={() => {
                       if (t.type === 'SALE') setPreviewBooking(t);
@@ -6201,7 +6139,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
           </div>
         </div>
 
-        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} waStatus={waStatus} onClose={() => setPreviewBooking(null)} />}
+        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} onClose={() => setPreviewBooking(null)} />}
         {previewPurchase && <PurchasePrintPreview purchase={previewPurchase} settings={settings} onClose={() => setPreviewPurchase(null)} />}
         {previewPayment && <PaymentPrintPreview payment={previewPayment} settings={settings} onClose={() => setPreviewPayment(null)} />}
         {previewCreditNote && <CreditNotePrintPreview creditNote={previewCreditNote} settings={settings} onClose={() => setPreviewCreditNote(null)} />}
@@ -6701,9 +6639,8 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
   );
 }
 
-function PrintPreview({ booking, settings, onClose, waStatus }: { booking: Booking, settings: AppSettings | null, onClose: () => void, waStatus: any }) {
+function PrintPreview({ booking, settings, onClose }: { booking: Booking, settings: AppSettings | null, onClose: () => void }) {
   const printRef = useRef<HTMLDivElement>(null);
-  const [waSending, setWaSending] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -6716,47 +6653,6 @@ function PrintPreview({ booking, settings, onClose, waStatus }: { booking: Booki
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
-
-  const handleWhatsAppSend = async () => {
-    if (!booking.consigneeMobile) return;
-    if (!printRef.current) return;
-    
-    setWaSending('sending');
-    try {
-      const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true, logging: false });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      
-      const pdfBase64 = pdf.output('datauristring');
-      
-      const res = await fetch('/api/whatsapp/send-bill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: booking.consigneeMobile,
-          billNumber: booking.billNumber,
-          pdfBase64,
-          partyName: booking.consigneeName
-        })
-      });
-      
-      if (res.ok) setWaSending('success');
-      else setWaSending('error');
-    } catch (error) {
-      console.error("WA Send failed", error);
-      setWaSending('error');
-    }
-  };
-
-  useEffect(() => {
-    if (waStatus.status === 'connected' && booking.consigneeMobile && waSending === 'idle') {
-      handleWhatsAppSend();
-    }
-  }, []);
 
   const handleDownloadPDF = async () => {
     if (!printRef.current) return;
@@ -6955,28 +6851,6 @@ function PrintPreview({ booking, settings, onClose, waStatus }: { booking: Booki
         </div>
 
         <div className="mt-12 flex flex-col gap-4 print:hidden">
-          {waSending !== 'idle' && (
-            <div className={`p-4 rounded-2xl flex items-center justify-between font-black text-xs uppercase tracking-widest ${
-              waSending === 'sending' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-              waSending === 'success' ? 'bg-green-50 text-green-600 border border-green-200' :
-              'bg-red-50 text-red-600 border border-red-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                {waSending === 'sending' && <RefreshCw size={14} className="animate-spin" />}
-                {waSending === 'success' && <MessageSquare size={14} />}
-                {waSending === 'error' && <AlertTriangle size={14} />}
-                <span>
-                  {waSending === 'sending' ? 'Sending Invoice to WhatsApp...' : 
-                   waSending === 'success' ? 'Invoice Sent to WhatsApp Successfully!' : 
-                   'Failed to Send to WhatsApp'}
-                </span>
-              </div>
-              {waSending === 'error' && (
-                <button onClick={handleWhatsAppSend} className="underline text-[10px] hover:text-red-700">Retry Send</button>
-              )}
-            </div>
-          )}
-
           <div className="flex gap-4">
             <button 
               onClick={() => window.print()}
@@ -6992,15 +6866,6 @@ function PrintPreview({ booking, settings, onClose, waStatus }: { booking: Booki
               <Download size={20} />
               Download PDF
             </button>
-            {waStatus.status === 'connected' && waSending === 'idle' && (
-              <button 
-                onClick={handleWhatsAppSend}
-                className="flex-1 bg-green-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
-              >
-                <MessageSquare size={20} />
-                WhatsApp
-              </button>
-            )}
             <button 
               onClick={onClose}
               className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl hover:bg-slate-200 transition-all"
@@ -7283,8 +7148,8 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {gstr1Data.map((d, i) => (
-                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                  {gstr1Data.map((d) => (
+                    <tr key={d.invoiceNo || d.id || Math.random().toString()} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 font-black text-sm">#{d.invoiceNo}</td>
                       <td className="px-6 py-4 font-bold text-slate-500 text-xs">{d.date}</td>
                       <td className="px-6 py-4">
@@ -7663,116 +7528,6 @@ function BankDetailsView({ settings, onUpdateSettings }: any) {
           </div>
         </form>
       )}
-    </motion.div>
-  );
-}
-
-function WhatsAppSettingsView({ status, qr, onLogout, onRestart }: { status: any, qr: string | null, onLogout: () => void, onRestart?: () => void, key?: string }) {
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isRestarting, setIsRestarting] = useState(false);
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    await onLogout();
-    setIsLoggingOut(false);
-  };
-
-  const handleRestart = async () => {
-    if (onRestart) {
-      setIsRestarting(true);
-      await onRestart();
-      setIsRestarting(false);
-    } else {
-      // Fallback if prop not provided
-      await handleLogout();
-    }
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl mx-auto">
-      <div className="bg-white rounded-[40px] border border-slate-200 shadow-2xl overflow-hidden p-8 lg:p-12">
-        <div className="flex flex-col items-center text-center space-y-6">
-          <div className="w-20 h-20 bg-green-100 rounded-3xl flex items-center justify-center text-green-600 shadow-xl shadow-green-100/50">
-            <MessageSquare size={40} />
-          </div>
-          
-          <div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">WhatsApp Gateway</h2>
-            <p className="text-slate-500 font-medium italic">Link your account to send invoices automatically</p>
-          </div>
-
-          <div className="w-full space-y-2">
-            <div className="flex items-center justify-center gap-2">
-              <div className={`px-4 py-2 rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 border ${
-                status.status === 'connected' 
-                  ? 'bg-green-50 text-green-600 border-green-200' 
-                  : 'bg-slate-50 text-slate-400 border-slate-200'
-              }`}>
-                <div className={`w-2 h-2 rounded-full ${status.status === 'connected' ? 'bg-green-500' : 'bg-slate-500 animate-pulse'}`} />
-                {status.status === 'connected' ? 'Connected' : 'Disconnected'}
-              </div>
-            </div>
-            {status.detailedStatus && (
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{status.detailedStatus}</p>
-            )}
-          </div>
-
-          {status.status === 'connected' ? (
-            <div className="w-full space-y-6">
-              <div className="bg-green-50 border border-green-100 p-6 rounded-3xl text-center">
-                <p className="text-green-900 font-black text-sm uppercase tracking-tight">System Linked Successfully!</p>
-                <p className="text-green-600/70 text-xs mt-1">You can now send bills directly to WhatsApp numbers.</p>
-              </div>
-              <button 
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="w-full py-4 bg-red-50 text-red-600 hover:bg-red-100 font-black rounded-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isLoggingOut ? <RefreshCw className="animate-spin" size={20} /> : <LogOut size={20} />}
-                Disconnect Account
-              </button>
-            </div>
-          ) : (
-            <div className="w-full space-y-8">
-              {qr ? (
-                <div className="flex flex-col items-center space-y-6">
-                  <div className="bg-white p-4 rounded-3xl border-4 border-slate-900 shadow-2xl">
-                    <img src={qr} alt="WA QR Code" className="w-64 h-64" />
-                  </div>
-                  <div className="space-y-2 text-center">
-                    <p className="text-slate-900 font-black text-sm uppercase tracking-tight">Scan this QR Code</p>
-                    <p className="text-slate-500 text-xs leading-relaxed max-w-xs mx-auto">
-                      Open WhatsApp on your phone, go to Linked Devices and scan this code to link your account.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-widest flex items-center gap-2"
-                  >
-                    {isLoggingOut ? <RefreshCw className="animate-spin" size={14} /> : <RefreshCw size={14} />}
-                    Reset Connection
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center py-10 space-y-4">
-                  <RefreshCw size={32} className="text-slate-300 animate-spin" />
-                  <p className="text-slate-400 font-bold text-sm uppercase tracking-widest italic">
-                    {status.detailedStatus || 'Waiting for Session...'}
-                  </p>
-                  <button 
-                    onClick={handleRestart}
-                    disabled={isRestarting}
-                    className="mt-4 text-[10px] font-black text-slate-300 hover:text-slate-500 uppercase tracking-[0.2em] disabled:opacity-50"
-                  >
-                    {isRestarting ? 'Restarting...' : 'Force Restart'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
     </motion.div>
   );
 }

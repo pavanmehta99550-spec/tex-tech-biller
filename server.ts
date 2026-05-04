@@ -114,20 +114,21 @@ async function startServer() {
             try {
                 const versionPromise = fetchLatestBaileysVersion();
                 const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Timeout')), 10000)
+                    setTimeout(() => reject(new Error('Timeout')), 15000)
                 );
                 const result: any = await Promise.race([versionPromise, timeoutPromise]);
                 version = result.version;
                 console.log(`WhatsApp: Using fetched version v${version.join('.')}`);
             } catch (err) {
                 console.warn('WhatsApp: Version fetch failed, using fallback:', err);
-                version = [2, 3100, 1015951305]; 
+                // Fallback to a stable version
+                version = [2, 3000, 1017531301]; 
             }
 
             setStatus('disconnected', 'Loading Account...');
             const { state, saveCreds } = await useMultiFileAuthState(authPath);
             
-            // Wrap the keys with a cache to prevent unnecessary disk reads and potential corruption during high-frequency handshakes
+            // Wrap the keys with a cache
             state.keys = makeCacheableSignalKeyStore(state.keys, logger);
 
             setStatus('disconnected', 'Connecting...');
@@ -136,15 +137,17 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: ['Mac OS', 'Chrome', '131.0.0.0'], // More modern version
+                browser: Browsers.ubuntu('Chrome'), 
                 syncFullHistory: false,
                 qrTimeout: 60000,
-                connectTimeoutMs: 180000, // 3 minutes for slow networks
-                defaultQueryTimeoutMs: 90000,
-                keepAliveIntervalMs: 30000, // Standard keep-alive
+                connectTimeoutMs: 120000, 
+                defaultQueryTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000, 
                 markOnlineOnConnect: true,
-                retryRequestDelayMs: 10000, // Longer retry gap
+                retryRequestDelayMs: 5000,
                 generateHighQualityLinkPreview: false,
+                linkPreviewImageThumbnailWidth: 192,
+                shouldIgnoreJid: (jid) => jid.includes('@broadcast'),
                 patchMessageBeforeSending: (message) => {
                     const requiresPatch = !!(message.buttonsMessage || message.listMessage || message.templateMessage);
                     if (requiresPatch) {
@@ -201,26 +204,32 @@ async function startServer() {
                     const isTerminated = statusCode === 428 || statusCode === 515 || statusCode === 503 || 
                                        errorMsg.toLowerCase().includes('terminated') || 
                                        errorMsg.includes('Connection Terminated') ||
+                                       errorMsg.includes('connection terminated') ||
                                        errorMsg.includes('hangup');
 
                     // If we get frequent terminations, we force a reset
-                    if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || (isTerminated && failureCount >= 3)) {
+                    if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || (isTerminated && failureCount >= 5)) {
                         setStatus('disconnected', isTerminated ? 'Session Rejected' : 'Session Reset');
                         console.warn('WhatsApp: Repeated termination or logged out. Resetting session...');
                         if (fs.existsSync(authPath)) {
-                            fs.rmSync(authPath, { recursive: true, force: true });
+                            try { fs.rmSync(authPath, { recursive: true, force: true }); } catch(e) {}
                         }
                         failureCount = 0;
-                        reconnectTimer = setTimeout(() => connectToWhatsApp(), 15000); 
+                        reconnectTimer = setTimeout(() => connectToWhatsApp(), 10000); 
                     } else if (shouldReconnect) {
                         failureCount++;
                         
-                        // Progressive backoff with higher delays for terminations
-                        const delayBase = isTerminated ? 45000 : 15000;
-                        const cooldown = Math.min(delayBase * Math.pow(1.5, failureCount - 1), 300000);
+                        // Progressive backoff: faster for first few attempts, then slower
+                        let cooldown = 5000; // Default 5s
+                        if (isTerminated) {
+                            // Terminations need a bit more breathing room but not too much if it's the first time
+                            cooldown = failureCount === 1 ? 5000 : Math.min(15000 * failureCount, 120000);
+                        } else {
+                            cooldown = Math.min(5000 * Math.pow(1.5, failureCount - 1), 60000);
+                        }
                         
                         setStatus('disconnected', `Retrying in ${Math.floor(cooldown/1000)}s`);
-                        console.log(`WhatsApp: Scheduling reconnect (#${failureCount}) in ${cooldown}ms...`);
+                        console.log(`WhatsApp: Scheduling reconnect (#${failureCount}) in ${cooldown}ms (isTerminated: ${isTerminated})...`);
                         reconnectTimer = setTimeout(() => connectToWhatsApp(), cooldown);
                     } else {
                         setStatus('disconnected', 'Logged Out');
@@ -403,12 +412,6 @@ async function startServer() {
     console.log('App: Setting up Vite and starting listener...');
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running at http://localhost:${PORT}`);
-        // Connect to WhatsApp after server has started
-        setTimeout(() => {
-            connectToWhatsApp().catch(err => {
-                console.error('WhatsApp: Initial connection failure:', err);
-            });
-        }, 5000); // Wait 5s after boot
     });
 }
 
