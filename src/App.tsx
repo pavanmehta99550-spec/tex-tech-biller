@@ -44,7 +44,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
-import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense } from './types';
+import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem } from './types';
 import Login from './components/Login';
 import VoiceAssistant from './components/VoiceAssistant';
 import { processVoiceTranscript } from './services/voiceService';
@@ -58,7 +58,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses';
+type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses' | 'millchallan' | 'partychallan' | 'challancompare';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const cState = (consignorGstin || '').substring(0, 2);
@@ -88,7 +88,7 @@ export default function App() {
   const loadedKeys = useRef<Set<string>>(new Set());
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
-    'dn', 'cn', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
+    'dn', 'cn', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
     'signature', 'bankdetails', 'backup', 'settings'
   ], []);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
@@ -115,6 +115,8 @@ export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>(() => storage.get('expenses', []));
   const [itemsMaster, setItemsMaster] = useState<ItemMaster[]>(() => storage.get('itemsMaster', []));
   const [transports, setTransports] = useState<Transport[]>(() => storage.get('transports', []));
+  const [millChallans, setMillChallans] = useState<Challan[]>(() => storage.get('millChallans', []));
+  const [partyChallans, setPartyChallans] = useState<Challan[]>(() => storage.get('partyChallans', []));
 
   const [bookings, setBookings] = useState<Booking[]>(() => storage.get('bookings', []));
   const [purchases, setPurchases] = useState<Purchase[]>(() => storage.get('purchases', []));
@@ -324,6 +326,8 @@ export default function App() {
   useEffect(() => storage.set('saleParties', saleParties), [saleParties]);
   useEffect(() => storage.set('itemsMaster', itemsMaster), [itemsMaster]);
   useEffect(() => storage.set('transports', transports), [transports]);
+  useEffect(() => storage.set('millChallans', millChallans), [millChallans]);
+  useEffect(() => storage.set('partyChallans', partyChallans), [partyChallans]);
   useEffect(() => storage.set('bookings', bookings), [bookings]);
   useEffect(() => storage.set('purchases', purchases), [purchases]);
   useEffect(() => storage.set('debit-notes', debitNotes), [debitNotes]);
@@ -1118,6 +1122,49 @@ export default function App() {
     alert(isUpdate ? "Credit Note Updated Successfully!" : "Credit Note Saved Successfully!");
   };
 
+  const handleSaveChallan = (data: Partial<Challan>) => {
+    const isUpdate = !!data.id;
+    const millMaxSerial = millChallans.length > 0 ? Math.max(...millChallans.map(c => c.serialNo || 0)) : 0;
+    const partyMaxSerial = partyChallans.length > 0 ? Math.max(...partyChallans.map(c => c.serialNo || 0)) : 0;
+
+    const newChallan: Challan = {
+      id: data.id || Math.random().toString(36).substr(2, 9),
+      serialNo: data.serialNo || (data.type === 'MILL' ? millMaxSerial + 1 : partyMaxSerial + 1),
+      challanNumber: data.challanNumber || '',
+      date: data.date || new Date().toISOString(),
+      type: data.type || 'MILL',
+      partyName: data.partyName || '',
+      partyGstin: data.partyGstin || '',
+      items: data.items || [],
+      notes: data.notes || ''
+    };
+
+    if (data.type === 'MILL') {
+      if (isUpdate) {
+        setMillChallans(prev => prev.map(c => c.id === data.id ? newChallan : c));
+      } else {
+        setMillChallans(prev => [newChallan, ...prev]);
+      }
+    } else {
+      if (isUpdate) {
+        setPartyChallans(prev => prev.map(c => c.id === data.id ? newChallan : c));
+      } else {
+        setPartyChallans(prev => [newChallan, ...prev]);
+      }
+    }
+    alert(`${data.type === 'MILL' ? 'Mill' : 'Party'} Challan saved successfully!`);
+  };
+
+  const handleDeleteChallan = (id: string, type: 'MILL' | 'PARTY') => {
+    if (confirm("Are you sure you want to delete this challan?")) {
+      if (type === 'MILL') {
+        setMillChallans(prev => prev.filter(c => c.id !== id));
+      } else {
+        setPartyChallans(prev => prev.filter(c => c.id !== id));
+      }
+    }
+  };
+
   const handleSavePayment = (data: any) => {
     const party = saleParties.find(p => p.id === data.partyId);
     if (!party) return;
@@ -1349,6 +1396,9 @@ export default function App() {
                 v === 'pur' ? ShoppingBag :
                 v === 'dn' ? AlertCircle :
                 v === 'cn' ? TrendingUp :
+                v === 'millchallan' ? Package :
+                v === 'partychallan' ? Download :
+                v === 'challancompare' ? Calculator :
                 v === 'items' ? Package :
                 v === 'expenses' ? Calculator :
                 v === 'pay' || v === 'sendpay' ? CreditCard :
@@ -1369,6 +1419,9 @@ export default function App() {
                 v === 'purchaseparty' ? "Purchase Party Entry" :
                 v === 'dn' ? "Debit Note" :
                 v === 'cn' ? "Credit Note" :
+                v === 'millchallan' ? "Mill Challan Entry" :
+                v === 'partychallan' ? "Party Challan Entry" :
+                v === 'challancompare' ? "Compare Challans" :
                 v === 'items' ? "Items Master" :
                 v === 'expenses' ? "Business Expenses" :
                 v === 'pay' ? "Receive Payment" :
@@ -1692,6 +1745,27 @@ export default function App() {
               expenses={expenses}
               onSave={setExpenses}
               onBack={() => setCurrentView('dash')}
+            />}
+            {currentView === 'millchallan' && <ChallanEntryView 
+              key="millchallan"
+              type="MILL"
+              challans={millChallans}
+              onSave={handleSaveChallan}
+              onDelete={(id: string) => handleDeleteChallan(id, 'MILL')}
+              parties={purchaseParties}
+            />}
+            {currentView === 'partychallan' && <ChallanEntryView 
+              key="partychallan"
+              type="PARTY"
+              challans={partyChallans}
+              onSave={handleSaveChallan}
+              onDelete={(id: string) => handleDeleteChallan(id, 'PARTY')}
+              parties={saleParties}
+            />}
+            {currentView === 'challancompare' && <ChallanCompareView 
+              key="challancompare"
+              millChallans={millChallans}
+              partyChallans={partyChallans}
             />}
             {currentView === 'signature' && <SignatureAndBankView 
               key="signature"
@@ -5038,6 +5112,11 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
                <div className="font-black text-slate-900 text-lg uppercase">{creditNote.partyName}</div>
                <div className="text-green-700 font-bold text-xs">{creditNote.partyGstin}</div>
                <div className="text-slate-500 text-xs mt-1">{creditNote.partyAddress}</div>
+               {creditNote.partyMobile && (
+                 <div className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-tighter">
+                   Contact: {creditNote.partyMobile}{creditNote.partyMobile2 ? ` / ${creditNote.partyMobile2}` : ''}
+                 </div>
+               )}
             </div>
           </div>
 
@@ -6767,6 +6846,11 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
                <div className="font-black text-slate-900 text-lg uppercase">{debitNote.partyName}</div>
                <div className="text-red-700 font-bold text-xs">{debitNote.partyGstin}</div>
                <div className="text-slate-500 text-xs mt-1">{debitNote.partyAddress}</div>
+               {debitNote.partyMobile && (
+                 <div className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-tighter">
+                   Contact: {debitNote.partyMobile}{debitNote.partyMobile2 ? ` / ${debitNote.partyMobile2}` : ''}
+                 </div>
+               )}
             </div>
           </div>
 
@@ -8622,6 +8706,455 @@ function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSav
           )}
         </table>
       </div>
+    </motion.div>
+  );
+}
+
+function ChallanEntryView({ type, challans, onSave, onDelete, parties }: any) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Partial<Challan>>({
+    serialNo: (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 1,
+    challanNumber: '',
+    date: new Date().toISOString().split('T')[0],
+    partyName: '',
+    type: type,
+    items: [],
+    notes: ''
+  });
+
+  const [itemInput, setItemInput] = useState<Partial<ChallanItem>>({
+    name: '',
+    quantity: 0,
+    unit: 'MTR',
+    taka: 0
+  });
+
+  const handleAddItem = () => {
+    if (!itemInput.name || !itemInput.quantity) return;
+    const newItem: ChallanItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: itemInput.name,
+      quantity: Number(itemInput.quantity),
+      unit: itemInput.unit || 'MTR',
+      taka: itemInput.taka ? Number(itemInput.taka) : 0
+    };
+    setFormData(prev => ({
+      ...prev,
+      items: [...(prev.items || []), newItem]
+    }));
+    setItemInput({ name: '', quantity: 0, unit: 'MTR', taka: 0 });
+  };
+
+  const handleRemoveItem = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items?.filter(item => item.id !== id)
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.challanNumber || !formData.partyName || (formData.items?.length || 0) === 0) {
+      alert("Please fill all required fields and add at least one item.");
+      return;
+    }
+    onSave({ ...formData, type });
+    const nextSerial = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 2; // +2 because the one we just saved is already in the list potentially or will be soon
+    setFormData({
+      serialNo: nextSerial,
+      challanNumber: '',
+      date: new Date().toISOString().split('T')[0],
+      partyName: '',
+      type: type,
+      items: [],
+      notes: ''
+    });
+    setShowAdd(false);
+    setEditingId(null);
+  };
+
+  const filteredChallans = (challans || []).filter((c: Challan) => c.type === type);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20">
+      <header className="flex justify-between items-center bg-white/50 backdrop-blur-md p-8 rounded-[40px] border border-white shadow-xl">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">{type === 'MILL' ? 'Mill' : 'Party'} Challan Entry</h2>
+          <p className="text-slate-500 font-bold text-sm tracking-wide">Record and track {type.toLowerCase()} details</p>
+        </div>
+        <button 
+          onClick={() => { setShowAdd(true); setEditingId(null); }}
+          className="bg-black text-white px-8 py-4 rounded-3xl font-black text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-slate-800 transition-all shadow-xl active:scale-95"
+        >
+          <Plus size={18} /> New Challan
+        </button>
+      </header>
+
+      <AnimatePresence>
+        {showAdd && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <form onSubmit={handleSubmit} className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-2xl space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Serial No.</label>
+                  <input 
+                    type="number" 
+                    required
+                    value={formData.serialNo}
+                    onChange={e => setFormData({ ...formData, serialNo: Number(e.target.value) })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all"
+                    placeholder="S.No"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Challan Number</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.challanNumber}
+                    onChange={e => setFormData({ ...formData, challanNumber: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all"
+                    placeholder="Enter Challan #"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Date</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={formData.date?.split('T')[0]}
+                    onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Party / Mill Name</label>
+                  <input 
+                    list="party-list-challan"
+                    type="text" 
+                    required
+                    value={formData.partyName}
+                    onChange={e => setFormData({ ...formData, partyName: e.target.value })}
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all"
+                    placeholder="Search or Enter Name"
+                  />
+                  <datalist id="party-list-challan">
+                    {parties.map((p: any) => <option key={p.id} value={p.name} />)}
+                  </datalist>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-8 rounded-[32px] border border-slate-100">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 px-1">Add Items</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Item Name</label>
+                    <input 
+                      type="text" 
+                      value={itemInput.name}
+                      onChange={e => setItemInput({ ...itemInput, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-600"
+                      placeholder="Cotton, Silk..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Quantity</label>
+                    <input 
+                      type="number" 
+                      value={itemInput.quantity}
+                      onChange={e => setItemInput({ ...itemInput, quantity: Number(e.target.value) })}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-600"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Taka / Pcs</label>
+                    <input 
+                      type="number" 
+                      value={itemInput.taka}
+                      onChange={e => setItemInput({ ...itemInput, taka: Number(e.target.value) })}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-600"
+                      placeholder="No. of Taka"
+                    />
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={handleAddItem}
+                    className="h-[52px] bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-black transition-all"
+                  >
+                    Add to List
+                  </button>
+                </div>
+
+                {formData.items && formData.items.length > 0 && (
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-100/50">
+                        <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-4 border-b">
+                          <th className="px-5 py-3">Item</th>
+                          <th className="px-5 py-3 text-right">Qty</th>
+                          <th className="px-5 py-3 text-right">Taka</th>
+                          <th className="px-5 py-3 text-center w-20"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {formData.items.map(item => (
+                          <tr key={item.id}>
+                            <td className="px-5 py-3 font-bold text-slate-700 text-sm">{item.name}</td>
+                            <td className="px-5 py-3 text-right font-black text-slate-900">{item.quantity} {item.unit}</td>
+                            <td className="px-5 py-3 text-right font-black text-slate-50">{item.taka || '-'}</td>
+                            <td className="px-5 py-3 text-center">
+                              <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button type="submit" className="flex-1 bg-indigo-600 text-white font-black py-5 rounded-3xl hover:bg-black transition-all shadow-xl shadow-indigo-100 uppercase tracking-widest text-xs">
+                  {editingId ? 'Update Challan' : 'Save Challan Record'}
+                </button>
+                <button type="button" onClick={() => setShowAdd(false)} className="px-10 bg-slate-100 text-slate-500 font-black py-5 rounded-3xl hover:bg-slate-200 transition-all uppercase tracking-widest text-xs">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredChallans.map((c: Challan) => (
+          <motion.div key={c.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm hover:shadow-xl transition-all group relative">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-black bg-slate-900 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">S.NO {c.serialNo}</span>
+                  <div className="text-[10px] font-black text-[#00cec9] uppercase tracking-widest italic">#{c.challanNumber}</div>
+                </div>
+                <div className="text-xl font-black text-slate-900 uppercase tracking-tighter truncate max-w-[150px]">{c.partyName}</div>
+                <div className="text-[10px] font-bold text-slate-400">{new Date(c.date).toLocaleDateString()}</div>
+              </div>
+              <button 
+                onClick={() => onDelete(c.id)}
+                className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+            
+            <div className="space-y-2 mt-6">
+              {c.items.slice(0, 3).map((item, idx) => (
+                <div key={idx} className="flex justify-between text-xs font-bold">
+                  <span className="text-slate-500">{item.name}</span>
+                  <span className="text-slate-900">{item.quantity} {item.unit}</span>
+                </div>
+              ))}
+              {c.items.length > 3 && (
+                <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest text-center pt-2">+{c.items.length - 3} more items</div>
+              )}
+            </div>
+
+            <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
+               <button 
+                onClick={() => { setEditingId(c.id); setFormData(c); setShowAdd(true); }}
+                className="bg-slate-900 text-white p-3 rounded-xl shadow-lg"
+               >
+                 <Edit size={16} />
+               </button>
+            </div>
+          </motion.div>
+        ))}
+        {filteredChallans.length === 0 && (
+          <div className="md:col-span-2 lg:col-span-3 py-20 text-center bg-white/30 rounded-[40px] border-2 border-dashed border-slate-200">
+             <Package size={48} className="mx-auto text-slate-200 mb-4" />
+             <p className="text-slate-400 font-black uppercase text-xs tracking-widest">No {type.toLowerCase()} challans found</p>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+function ChallanCompareView({ millChallans, partyChallans }: any) {
+  const [searchChallan, setSearchChallan] = useState('');
+  
+  const comparison = useMemo(() => {
+    if (!searchChallan) return null;
+    
+    const mill = (millChallans || []).find((c: Challan) => c.challanNumber.toLowerCase() === searchChallan.toLowerCase());
+    const party = (partyChallans || []).find((c: Challan) => c.challanNumber.toLowerCase() === searchChallan.toLowerCase());
+    
+    if (!mill && !party) return null;
+    
+    const allItemNames = Array.from(new Set([
+      ...(mill?.items.map(i => i.name) || []),
+      ...(party?.items.map(i => i.name) || [])
+    ]));
+    
+    const items = allItemNames.map(name => {
+      const millItem = mill?.items.find(i => i.name === name);
+      const partyItem = party?.items.find(i => i.name === name);
+      const diffQty = (partyItem?.quantity || 0) - (millItem?.quantity || 0);
+      const diffTaka = (partyItem?.taka || 0) - (millItem?.taka || 0);
+      
+      return {
+        name,
+        millQty: millItem?.quantity || 0,
+        partyQty: partyItem?.quantity || 0,
+        millTaka: millItem?.taka || 0,
+        partyTaka: partyItem?.taka || 0,
+        unit: millItem?.unit || partyItem?.unit || 'MTR',
+        diffQty,
+        diffTaka
+      };
+    });
+    
+    return {
+      mill,
+      party,
+      items
+    };
+  }, [searchChallan, millChallans, partyChallans]);
+
+  return (
+    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8 pb-20">
+      <header className="bg-slate-900 text-white p-12 rounded-[50px] shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+          <div>
+            <h2 className="text-4xl font-black tracking-tighter uppercase mb-2">Challan Comparison</h2>
+            <p className="text-indigo-300 font-bold tracking-widest text-xs uppercase">Find differences between mill and party records</p>
+          </div>
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input 
+              type="text" 
+              placeholder="Enter Challan Number..."
+              value={searchChallan}
+              onChange={e => setSearchChallan(e.target.value)}
+              className="w-full pl-14 pr-8 py-5 bg-white/5 border border-white/10 rounded-3xl font-black text-lg outline-none focus:bg-white focus:text-slate-900 transition-all placeholder:text-slate-600 shadow-2xl"
+            />
+          </div>
+        </div>
+      </header>
+
+      {comparison ? (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className={`p-8 rounded-[40px] border shadow-sm ${comparison.mill ? 'bg-indigo-50/50 border-indigo-100' : 'bg-red-50 border-red-100'}`}>
+              <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 px-1">Mill Record</div>
+              {comparison.mill ? (
+                <>
+                  <div className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{comparison.mill.partyName}</div>
+                  <div className="text-xs font-bold text-slate-500 mt-1 italic">{new Date(comparison.mill.date).toLocaleDateString()}</div>
+                </>
+              ) : (
+                <div className="text-red-500 font-black uppercase text-sm italic">Mill record not found for this challan number</div>
+              )}
+            </div>
+            <div className={`p-8 rounded-[40px] border shadow-sm ${comparison.party ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+              <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2 px-1">Party Record</div>
+              {comparison.party ? (
+                <>
+                  <div className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{comparison.party.partyName}</div>
+                  <div className="text-xs font-bold text-slate-500 mt-1 italic">{new Date(comparison.party.date).toLocaleDateString()}</div>
+                </>
+              ) : (
+                <div className="text-red-500 font-black uppercase text-sm italic">Party record not found for this challan number</div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[40px] border border-slate-200 shadow-xl overflow-hidden">
+            <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+              <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Comparison Summary</h3>
+              <div className="flex gap-4">
+                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"><div className="w-3 h-3 bg-red-400 rounded-full"></div> Shortage</div>
+                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"><div className="w-3 h-3 bg-emerald-400 rounded-full"></div> Excess</div>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-900">
+                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Item Name</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Mill Qty</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Party Qty</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Qty Difference</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right border-l border-white/5">Mill Taka</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Party Taka</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Taka Difference</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {comparison.items.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-8 py-6 font-black text-slate-900 text-sm">{item.name}</td>
+                      <td className="px-8 py-6 text-right font-bold text-slate-500">{item.millQty} {item.unit}</td>
+                      <td className="px-8 py-6 text-right font-bold text-slate-700">{item.partyQty} {item.unit}</td>
+                      <td className={`px-8 py-6 text-right font-black text-lg tracking-tighter ${item.diffQty < 0 ? 'text-red-500' : item.diffQty > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                        {item.diffQty > 0 ? '+' : ''}{item.diffQty} {item.unit}
+                      </td>
+                      <td className="px-8 py-6 text-right font-bold text-slate-500 border-l border-slate-50">{item.millTaka}</td>
+                      <td className="px-8 py-6 text-right font-bold text-slate-700">{item.partyTaka}</td>
+                      <td className={`px-8 py-6 text-right font-black text-lg tracking-tighter ${item.diffTaka < 0 ? 'text-red-500' : item.diffTaka > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                        {item.diffTaka > 0 ? '+' : ''}{item.diffTaka}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : searchChallan ? (
+        <div className="bg-white/50 backdrop-blur-md rounded-[50px] p-24 text-center border border-white shadow-xl">
+           <div className="bg-slate-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8">
+             <Search size={48} className="text-slate-300" />
+           </div>
+           <h3 className="text-2xl font-black text-slate-400 uppercase tracking-tighter">No Records Found</h3>
+           <p className="text-slate-500 font-bold mt-2 max-w-xs mx-auto text-sm">We couldn't find any Mill or Party challans with number "{searchChallan}"</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2 bg-indigo-600 rounded-[50px] p-12 text-white shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-2xl group-hover:bg-white/20 transition-all duration-700"></div>
+            <h3 className="text-3xl font-black uppercase tracking-tighter mb-4 relative z-10">How it works?</h3>
+            <p className="text-indigo-100 font-bold mb-8 relative z-10 leading-relaxed max-w-lg">
+              Simply enter the Challan Number in the search bar above. The system will automatically fetch Mill and Party records matching that number and show you the exact shortages or excess quantities item-wise.
+            </p>
+            <div className="flex gap-4 relative z-10">
+              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                <div className="text-2xl font-black italic">Step 1</div>
+                <div className="text-[10px] font-black uppercase opacity-60">Enter Mill Challan</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                <div className="text-2xl font-black italic">Step 2</div>
+                <div className="text-[10px] font-black uppercase opacity-60">Enter Party Challan</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                <div className="text-2xl font-black italic">Step 3</div>
+                <div className="text-[10px] font-black uppercase opacity-60">Compare Differences</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-[50px] p-12 border border-slate-200 shadow-xl flex flex-col items-center justify-center text-center">
+            <div className="bg-[#00cec9]/10 w-20 h-20 rounded-full flex items-center justify-center mb-6">
+              <Calculator size={40} className="text-[#00cec9]" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900 uppercase mb-2">Automated Math</h3>
+            <p className="text-slate-500 font-bold text-sm">No more manual checking of shortages. Let the system handle the discrepancies.</p>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

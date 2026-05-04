@@ -160,6 +160,26 @@ export interface ItemMaster {
   gstRate: number;
 }
 
+export interface ChallanItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  taka?: number;
+}
+
+export interface Challan {
+  id: string;
+  serialNo: number;
+  challanNumber: string;
+  date: string;
+  type: 'MILL' | 'PARTY';
+  partyName: string;
+  partyGstin?: string;
+  items: ChallanItem[];
+  notes?: string;
+}
+
 export interface Expense {
   id: string;
   date: string;
