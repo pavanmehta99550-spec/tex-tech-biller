@@ -2421,6 +2421,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       partyName: editingPurchase?.partyName || '',
       partyAddress: editingPurchase?.partyAddress || '',
       partyMobile: editingPurchase?.partyMobile || '',
+      partyMobile2: editingPurchase?.partyMobile2 || '',
       // Add settings data to form data if needed, or just display it from settings prop
       buyerName: settings?.companyName || '',
       buyerGstin: settings?.gstin || '',
@@ -2542,12 +2543,13 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
         ...prev, 
         partyName: party.name, 
         partyAddress: party.address,
-        partyMobile: party.mobile || ''
+        partyMobile: party.mobile || '',
+        partyMobile2: party.mobile2 || ''
       }));
     } else if (searchGst.length > 2) {
-      setFormData(prev => ({ ...prev, partyName: 'New Provider', partyAddress: '', partyMobile: '' }));
+      setFormData(prev => ({ ...prev, partyName: 'New Provider', partyAddress: '', partyMobile: '', partyMobile2: '' }));
     } else {
-      setFormData(prev => ({ ...prev, partyName: '', partyAddress: '', partyMobile: '' }));
+      setFormData(prev => ({ ...prev, partyName: '', partyAddress: '', partyMobile: '', partyMobile2: '' }));
     }
   }, [formData.partyGstin, parties]);
 
@@ -2676,7 +2678,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="md:col-span-1">
               <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Address</label>
               <input 
@@ -2690,7 +2692,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               />
             </div>
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile Number</label>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile 1</label>
               <input 
                 type="text" 
                 value={formData.partyMobile} 
@@ -2698,7 +2700,19 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 onChange={e => setFormData({ ...formData, partyMobile: e.target.value })}
                 onKeyDown={handleEnter}
                 className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
-                placeholder="Enter Mobile"
+                placeholder="Enter Mobile 1"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile 2</label>
+              <input 
+                type="text" 
+                value={formData.partyMobile2} 
+                readOnly={isLocked}
+                onChange={e => setFormData({ ...formData, partyMobile2: e.target.value })}
+                onKeyDown={handleEnter}
+                className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
+                placeholder="Enter Mobile 2"
               />
             </div>
             <div>
@@ -2971,6 +2985,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
       partyName: editingDebitNote?.partyName || '',
       partyAddress: editingDebitNote?.partyAddress || '',
       partyMobile: editingDebitNote?.partyMobile || '',
+      partyMobile2: editingDebitNote?.partyMobile2 || '',
       reason: editingDebitNote?.reason || '',
       items: (editingDebitNote?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingDebitNote?.basicAmount || 0,
@@ -2996,6 +3011,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
         partyName: purchase.partyName,
         partyAddress: purchase.partyAddress,
         partyMobile: purchase.partyMobile || '',
+        partyMobile2: purchase.partyMobile2 || '',
         taxRate: purchase.taxRate || 5,
         globalDiscount: purchase.globalDiscount || 0,
         items: purchase.items.map((item: any) => ({
@@ -3198,14 +3214,25 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
               />
             </div>
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile Number</label>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile 1</label>
               <input 
                 type="text" 
                 value={formData.partyMobile} 
                 onChange={e => setFormData({ ...formData, partyMobile: e.target.value })}
                 onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-red-500 transition-all shadow-sm"
-                placeholder="Mobile Number"
+                placeholder="Mobile 1"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile 2</label>
+              <input 
+                type="text" 
+                value={formData.partyMobile2} 
+                onChange={e => setFormData({ ...formData, partyMobile2: e.target.value })}
+                onKeyDown={handleEnter}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-red-500 transition-all shadow-sm"
+                placeholder="Mobile 2"
               />
             </div>
           </div>
@@ -3572,6 +3599,7 @@ function BookingView({
       consigneeName: editingBooking?.consigneeName || '',
       consigneeAddress: editingBooking?.consigneeAddress || '',
       consigneeMobile: editingBooking?.consigneeMobile || '',
+      consigneeMobile2: editingBooking?.consigneeMobile2 || '',
       items: (editingBooking?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingBooking?.basicAmount || 0,
       globalDiscount: editingBooking?.globalDiscount || 0,
@@ -3756,7 +3784,8 @@ function BookingView({
         consigneeName: party.name, 
         consigneeGstin: party.gstin,
         consigneeAddress: party.address,
-        consigneeMobile: party.mobile || ''
+        consigneeMobile: party.mobile || '',
+        consigneeMobile2: party.mobile2 || ''
       }));
     } else {
       setFormData(prev => ({ ...prev, consigneeName: val }));
@@ -3982,17 +4011,31 @@ function BookingView({
                   placeholder="Enter Address"
                 />
               </div>
-              <div>
-                <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile Number</label>
-                <input 
-                  type="text" 
-                  value={formData.consigneeMobile} 
-                  readOnly={isLocked}
-                  onChange={e => setFormData({ ...formData, consigneeMobile: e.target.value })}
-                  onKeyDown={handleEnter}
-                  className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
-                  placeholder="Enter Mobile"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile 1</label>
+                  <input 
+                    type="text" 
+                    value={formData.consigneeMobile} 
+                    readOnly={isLocked}
+                    onChange={e => setFormData({ ...formData, consigneeMobile: e.target.value })}
+                    onKeyDown={handleEnter}
+                    className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
+                    placeholder="Enter Mobile 1"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile 2</label>
+                  <input 
+                    type="text" 
+                    value={formData.consigneeMobile2} 
+                    readOnly={isLocked}
+                    onChange={e => setFormData({ ...formData, consigneeMobile2: e.target.value })}
+                    onKeyDown={handleEnter}
+                    className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
+                    placeholder="Enter Mobile 2"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -4455,6 +4498,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
       partyName: editingCreditNote?.partyName || '',
       partyAddress: editingCreditNote?.partyAddress || '',
       partyMobile: editingCreditNote?.partyMobile || '',
+      partyMobile2: editingCreditNote?.partyMobile2 || '',
       reason: editingCreditNote?.reason || '',
       items: (editingCreditNote?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingCreditNote?.basicAmount || 0,
@@ -4480,6 +4524,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
         partyName: booking.consigneeName,
         partyAddress: booking.consigneeAddress,
         partyMobile: booking.consigneeMobile || '',
+        partyMobile2: booking.consigneeMobile2 || '',
         taxRate: booking.taxRate || 5,
         globalDiscount: booking.globalDiscount || 0,
         items: booking.items.map((item: any) => ({
@@ -4681,17 +4726,30 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
                 placeholder="Address"
               />
             </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile Number</label>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile 1</label>
               <input 
                 type="text" 
                 value={formData.partyMobile} 
                 onChange={e => setFormData({ ...formData, partyMobile: e.target.value })}
                 onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm"
-                placeholder="Mobile Number"
+                placeholder="Mobile 1"
               />
             </div>
+            <div>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Mobile 2</label>
+              <input 
+                type="text" 
+                value={formData.partyMobile2} 
+                onChange={e => setFormData({ ...formData, partyMobile2: e.target.value })}
+                onKeyDown={handleEnter}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm"
+                placeholder="Mobile 2"
+              />
+            </div>
+          </div>
           </div>
         </div>
 
@@ -6500,6 +6558,11 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
               <div className="font-black text-slate-900 text-lg uppercase">{purchase.partyName}</div>
               <div className="text-indigo-600 font-black text-xs italic tracking-wider">{purchase.partyGstin}</div>
               <div className="text-slate-500 text-xs mt-0.5 leading-relaxed">{purchase.partyAddress}</div>
+              {purchase.partyMobile && (
+                <div className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-tighter">
+                  Contact: {purchase.partyMobile}{purchase.partyMobile2 ? ` / ${purchase.partyMobile2}` : ''}
+                </div>
+              )}
             </div>
           </div>
 
@@ -6880,7 +6943,9 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
               <h1 className="text-3xl font-black text-slate-900 uppercase">{settings?.companyName || "PRO BILLER"}</h1>
               <p className="text-slate-500 font-bold text-sm tracking-widest">{settings?.gstin}</p>
               <p className="text-slate-400 text-xs mt-1">{settings?.address}</p>
-              {settings?.mobile && <p className="text-slate-400 text-xs">Ph: {settings.mobile}</p>}
+              {settings?.mobile && (
+                <p className="text-slate-400 text-xs">Ph: {settings.mobile}{settings.mobile2 ? ` / ${settings.mobile2}` : ''}</p>
+              )}
             </div>
             <div className="text-right">
               <div className="text-2xl font-black text-[#00cec9]">INVOICE</div>
@@ -6907,6 +6972,11 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
               <div className="font-bold text-slate-900">{booking.consigneeName}</div>
               <div className="text-slate-500 text-xs italic">{booking.consigneeGstin}</div>
               <div className="text-slate-400 text-xs mt-0.5 leading-relaxed">{booking.consigneeAddress}</div>
+              {booking.consigneeMobile && (
+                <div className="text-slate-400 text-xs font-bold mt-1 uppercase tracking-tighter">
+                  Contact: {booking.consigneeMobile}{booking.consigneeMobile2 ? ` / ${booking.consigneeMobile2}` : ''}
+                </div>
+              )}
             </div>
           </div>
 
@@ -7723,6 +7793,7 @@ function SettingsView({ settings, onSave }: any) {
     gstin: settings?.gstin || '',
     address: settings?.address || '',
     mobile: settings?.mobile || '',
+    mobile2: settings?.mobile2 || '',
     adminUsername: settings?.adminUsername || 'admin',
     adminPassword: settings?.adminPassword || '1234',
     signature: settings?.signature || '',
@@ -7836,11 +7907,21 @@ function SettingsView({ settings, onSave }: any) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Mobile Number</label>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Mobile Number 1</label>
                 <input 
                   type="text" 
                   value={formData.mobile}
                   onChange={e => setFormData({ ...formData, mobile: e.target.value })}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
+                  placeholder="+91 00000 00000"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Mobile Number 2 (Optional)</label>
+                <input 
+                  type="text" 
+                  value={formData.mobile2}
+                  onChange={e => setFormData({ ...formData, mobile2: e.target.value })}
                   className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
                   placeholder="+91 00000 00000"
                 />
@@ -7920,7 +8001,8 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
     name: '',
     gstin: '',
     address: '',
-    mobile: ''
+    mobile: '',
+    mobile2: ''
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -7930,12 +8012,12 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
     if (editingId) {
       const updatedParties = parties.map((p: any) => 
         p.id === editingId 
-          ? { ...p, name: partyForm.name, gstin: partyForm.gstin.toUpperCase(), address: partyForm.address, mobile: partyForm.mobile }
+          ? { ...p, name: partyForm.name, gstin: partyForm.gstin.toUpperCase(), address: partyForm.address, mobile: partyForm.mobile, mobile2: partyForm.mobile2 }
           : p
       );
       onUpdateParties(updatedParties);
       setEditingId(null);
-      setPartyForm({ name: '', gstin: '', address: '', mobile: '' });
+      setPartyForm({ name: '', gstin: '', address: '', mobile: '', mobile2: '' });
       alert(`${title} Updated Successfully!`);
     } else {
       const existing = parties.find((p: any) => p.gstin === partyForm.gstin.toUpperCase());
@@ -7950,13 +8032,14 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
         gstin: partyForm.gstin.toUpperCase(),
         address: partyForm.address,
         mobile: partyForm.mobile,
+        mobile2: partyForm.mobile2,
         totalSales: 0,
         totalPaid: 0,
         totalPurchases: 0
       };
 
       onUpdateParties([newParty, ...parties]);
-      setPartyForm({ name: '', gstin: '', address: '', mobile: '' });
+      setPartyForm({ name: '', gstin: '', address: '', mobile: '', mobile2: '' });
       alert(`${title} Added Successfully!`);
     }
   };
@@ -7967,7 +8050,8 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
       name: party.name,
       gstin: party.gstin,
       address: party.address,
-      mobile: party.mobile || ''
+      mobile: party.mobile || '',
+      mobile2: party.mobile2 || ''
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -8044,13 +8128,23 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mobile Number</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mobile Number 1</label>
               <input 
                 type="text" 
                 value={partyForm.mobile}
                 onChange={e => setPartyForm({ ...partyForm, mobile: e.target.value })}
+                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-[#00cec9] transition-all"
+                placeholder="+91..."
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mobile Number 2</label>
+              <input 
+                type="text" 
+                value={partyForm.mobile2}
+                onChange={e => setPartyForm({ ...partyForm, mobile2: e.target.value })}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-[#00cec9] transition-all"
                 placeholder="+91..."
               />
@@ -8084,7 +8178,7 @@ function PartyMasterView({ parties, title, onUpdateParties, bookings = [], purch
                   <div className="font-black text-slate-900 uppercase text-sm">{p.name}</div>
                   <div className="text-[10px] font-bold text-[#00cec9] mb-1">{p.gstin}</div>
                   <div className="text-[10px] text-slate-400 font-medium line-clamp-1">{p.address}</div>
-                  {p.mobile && <div className="text-[10px] text-slate-500 font-bold mt-1">{p.mobile}</div>}
+                  {p.mobile && <div className="text-[10px] text-slate-500 font-bold mt-1">{p.mobile}{p.mobile2 ? ` / ${p.mobile2}` : ''}</div>}
                 </div>
                 <div className="text-right flex flex-col items-end gap-3">
                   <div>

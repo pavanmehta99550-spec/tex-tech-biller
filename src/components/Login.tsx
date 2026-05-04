@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Lock, User, ShieldCheck, Building2, Hash, Key, CheckCircle2, Mail, RefreshCw } from 'lucide-react';
+import { Lock, User, ShieldCheck, Building2, Hash, Key, CheckCircle2, Mail, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { auth, db, signInWithGoogle } from '../lib/firebase';
 import { FcGoogle } from 'react-icons/fc';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
@@ -28,6 +28,7 @@ export default function Login({
 }: LoginProps) {
   const [username, setUsername] = useState(user ? expectedUsername : '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState('');
@@ -374,12 +375,19 @@ export default function Login({
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-semibold text-sm"
+                  className="w-full pl-11 pr-12 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-semibold text-sm"
                   placeholder="••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
           </div>
@@ -461,12 +469,19 @@ export default function Login({
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={signupPassword}
                     onChange={(e) => setSignupPassword(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-semibold text-sm"
+                    className="w-full pl-11 pr-12 py-2.5 bg-white border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-semibold text-sm"
                     placeholder="••••••••"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
               <div className="flex gap-2">

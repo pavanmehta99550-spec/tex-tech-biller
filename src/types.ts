@@ -9,6 +9,7 @@ export interface Party {
   gstin: string;
   address: string;
   mobile?: string;
+  mobile2?: string;
   totalSales: number;
   totalPaid: number;
   totalPurchases: number;
@@ -43,6 +44,7 @@ export interface Booking {
   consigneeName: string;
   consigneeAddress: string;
   consigneeMobile?: string;
+  consigneeMobile2?: string;
   items: BillItem[];
   basicAmount: number;
   globalDiscount: number;
@@ -67,6 +69,7 @@ export interface AppSettings {
   gstin: string;
   address: string;
   mobile: string;
+  mobile2?: string;
   adminPassword?: string;
   adminUsername?: string;
   signature?: string;
@@ -97,6 +100,7 @@ export interface Purchase {
   partyName: string;
   partyAddress: string;
   partyMobile?: string;
+  partyMobile2?: string;
   items: BillItem[];
   basicAmount: number;
   globalDiscount: number;
@@ -119,6 +123,7 @@ export interface DebitNote {
   partyName: string;
   partyAddress: string;
   partyMobile?: string;
+  partyMobile2?: string;
   items: BillItem[];
   basicAmount: number;
   globalDiscount: number;
@@ -137,6 +142,7 @@ export interface CreditNote {
   partyName: string;
   partyAddress: string;
   partyMobile?: string;
+  partyMobile2?: string;
   items: BillItem[];
   basicAmount: number;
   globalDiscount: number;
