@@ -186,20 +186,34 @@ export default function App() {
     }
 
     // Handle Actions
-    switch (result.action) {
+    const action = result.action;
+    const target = result.target || result.params?.target || result.params?.view || result.view;
+
+    switch (action) {
       case 'NAVIGATE':
-        if (result.params?.target) {
+        if (target) {
           const targetMap: any = {
             'inventory': 'items',
+            'stock': 'items',
             'billing': 'inv',
+            'invoice': 'inv',
             'ledger': 'ledg',
+            'khata': 'ledg',
             'home': 'dash',
-            'history': 'salehistory'
+            'dashboard': 'dash',
+            'history': 'salehistory',
+            'sales': 'salehistory',
+            'purchase': 'purchasehistory',
+            'party': 'saleparty',
+            'customer': 'saleparty',
+            'supplier': 'purchaseparty',
+            'settings': 'settings',
+            'backup': 'backup',
+            'expense': 'expenses',
+            'expenses': 'expenses'
           };
-          const view = targetMap[result.params.target] || result.params.target;
+          const view = targetMap[target.toLowerCase()] || target;
           setCurrentView(view);
-        } else if (result.params?.view) {
-          setCurrentView(result.params.view);
         }
         break;
       case 'CONTINUE_CONVERSATION':

@@ -74,7 +74,12 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle, isProce
           setErrorHeader("Mic Access Denied");
           onToggle(false);
         } else if (event.error === 'network') {
-          setErrorHeader("Network Error");
+          setErrorHeader("Connection Error");
+        } else if (event.error === 'no-speech') {
+          // Normal, just restart
+          console.log("No speech detected");
+        } else {
+          console.warn("Generic Speech Error:", event.error);
         }
       };
 
@@ -84,31 +89,35 @@ export default function VoiceAssistant({ onCommand, isEnabled, onToggle, isProce
         recognitionRef.current = null;
         
         // Restart logic if still enabled
-        // Wait if still processing or speaking
         const checkAndRestart = () => {
+          // Robust check for speaking
           const isSpeaking = window.speechSynthesis.speaking;
-          if (isEnabled && !errorHeader && !isProcessing && !isSpeaking) {
+          
+          if (!isEnabled) return;
+          
+          if (!isProcessing && !isSpeaking) {
+            console.log("Restarting recognition...");
             startRecognition();
-          } else if (isEnabled && !errorHeader) {
+          } else {
             // Check again soon
             if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
-            restartTimeoutRef.current = setTimeout(checkAndRestart, 1000);
+            restartTimeoutRef.current = setTimeout(checkAndRestart, 800);
           }
         };
 
         if (isEnabled && !errorHeader) {
           if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
-          restartTimeoutRef.current = setTimeout(checkAndRestart, 1000);
+          restartTimeoutRef.current = setTimeout(checkAndRestart, 500);
         }
       };
 
       recognition.start();
       recognitionRef.current = recognition;
     } catch (e) {
-      console.error("Speech recognition error:", e);
-      setErrorHeader("Initialization Failed");
+      console.error("Speech recognition start error:", e);
+      setErrorHeader("Mic error");
     }
-  }, [isEnabled, onCommand, onToggle, errorHeader]);
+  }, [isEnabled, onCommand, onToggle, isProcessing]);
 
   useEffect(() => {
     if (isEnabled) {
