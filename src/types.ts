@@ -36,6 +36,7 @@ export interface Booking {
   id: string;
   lrNumber: string;
   ewbNumber: string;
+  parcels?: string;
   transportName: string;
   transportGstin: string;
   consignorGstin: string;

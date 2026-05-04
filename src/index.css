@@ -29,7 +29,7 @@
     width: 100% !important;
   }
   /* Remove scrollbars in print */
-  * {
+  .print-container {
     overflow: visible !important;
   }
 }

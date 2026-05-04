@@ -1311,6 +1311,10 @@ export default function App() {
     return 'admin';
   }, [settings]);
 
+  const isAnyPrintOpen = useMemo(() => 
+    !!(previewBooking || previewPurchase || previewDebitNote || previewCreditNote),
+  [previewBooking, previewPurchase, previewDebitNote, previewCreditNote]);
+
   if (isFirebaseLoading || ((isAuthenticated || customLoginId) && !isDataLoaded)) return (
     <div className="fixed inset-0 bg-[#1E272E] flex flex-col items-center justify-center text-white">
       <RefreshCw size={48} className="animate-spin text-blue-400 mb-4" />
@@ -1555,7 +1559,8 @@ export default function App() {
           </div>
         )}
         <div className="max-w-6xl mx-auto">
-          <AnimatePresence mode="wait">
+          <div className={isAnyPrintOpen ? 'print:hidden' : ''}>
+            <AnimatePresence mode="wait">
             {currentView === 'dash' && <DashboardView 
               key="dash" 
               stats={stats} 
@@ -1843,6 +1848,7 @@ export default function App() {
             />}
             {currentView === 'settings' && <SettingsView key="settings" settings={settings} onSave={setSettings} />}
           </AnimatePresence>
+          </div>
 
           <AnimatePresence>
             {previewBooking && (
@@ -2065,6 +2071,7 @@ function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale }: 
                   <td className="px-8 py-5">
                      <div className="text-[10px] font-black text-slate-500">LR: {b.lrNumber || '-'}</div>
                      <div className="text-[9px] font-bold text-slate-400 uppercase">EWB: {b.ewbNumber || '-'}</div>
+                     {b.parcels && <div className="text-[9px] font-black text-[#00cec9] mt-0.5">PARCELS: {b.parcels}</div>}
                   </td>
                   <td className="px-8 py-5 text-right whitespace-nowrap">
                     <span className="font-black text-indigo-600 tracking-tighter text-lg">₹ {b.grandTotal.toLocaleString()}</span>
@@ -3802,6 +3809,7 @@ function BookingView({
       billNumber: editingBooking?.billNumber || nextAutoNum,
       lrNumber: editingBooking?.lrNumber || '',
       ewbNumber: editingBooking?.ewbNumber || '',
+      parcels: editingBooking?.parcels || '',
       transportName: editingBooking?.transportName || '',
       transportGstin: editingBooking?.transportGstin || '',
       consignorGstin: editingBooking?.consignorGstin || settings?.gstin || '',
@@ -4491,6 +4499,18 @@ function BookingView({
               onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${!canEditLr ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
               placeholder={!canEditLr ? "Locked" : "Enter LR No."}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Parcels / Bails</label>
+            <input 
+              type="text" 
+              value={formData.parcels || ''} 
+              readOnly={isLocked}
+              onChange={e => setFormData({ ...formData, parcels: e.target.value })} 
+              onKeyDown={handleEnter}
+              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+              placeholder="Enter Number of Parcels"
             />
           </div>
         </div>
@@ -5262,7 +5282,7 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-green-800 text-slate-900">
+        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-green-800 text-slate-900">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
@@ -5869,7 +5889,7 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
           </div>
         </div>
 
-        <div ref={printRef} className="p-0 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900">
+        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-800">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
@@ -6376,7 +6396,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
           </div>
         </div>
 
-        <div ref={printRef} className="p-0 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse">
+        <div ref={printRef} className="print-container p-0 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden font-black text-[100px] uppercase">
             {settings?.companyName}
@@ -6479,6 +6499,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
   const [previewDebitNote, setPreviewDebitNote] = useState<any>(null);
   const [previewPayment, setPreviewPayment] = useState<any>(null);
   const [showLedgerPrint, setShowLedgerPrint] = useState(false);
+  const isLocalPrintOpen = !!(previewBooking || previewPurchase || previewCreditNote || previewDebitNote || previewPayment || showLedgerPrint);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -6528,7 +6549,8 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-        <header className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm print:hidden">
+        <div className={isLocalPrintOpen ? 'print:hidden' : ''}>
+          <header className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm print:hidden">
           <div className="flex items-center gap-4">
             <button onClick={() => setSelectedParty(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-all">
               <ChevronLeft size={24} />
@@ -6632,6 +6654,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
               </tbody>
             </table>
           </div>
+        </div>
         </div>
 
         {previewBooking && <PrintPreview booking={previewBooking} settings={settings} onClose={() => setPreviewBooking(null)} />}
@@ -6787,7 +6810,7 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-900 print:scale-[0.98] print:origin-top print:h-[287mm]">
+        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-900 print:scale-[0.98] print:origin-top">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
@@ -6998,7 +7021,7 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-red-900 text-slate-900">
+        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-red-900 text-slate-900">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
@@ -7202,7 +7225,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 print:scale-[0.98] print:origin-top print:h-[287mm]">
+        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 print:scale-[0.98] print:origin-top">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
@@ -7219,9 +7242,12 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
               )}
             </div>
             <div className="text-right">
-              <div className="text-2xl font-black text-[#00cec9]">INVOICE</div>
+              <div className="text-[#00cec9] text-2xl font-black">INVOICE</div>
               <div className="text-slate-900 text-sm font-black">Bill No: #{booking.billNumber}</div>
-              <div className="text-slate-500 text-[10px] font-bold">LR No: {booking.lrNumber || 'N/A'}</div>
+              <div className="flex flex-col items-end gap-0.5 mt-1">
+                <div className="text-slate-500 text-[10px] font-bold">LR No: {booking.lrNumber || 'N/A'}</div>
+                {booking.parcels && <div className="text-slate-500 text-[10px] font-bold">Parcels: {booking.parcels}</div>}
+              </div>
               <div className="text-slate-400 text-xs mt-1">{new Date(booking.date).toLocaleDateString()}</div>
               {booking.ewbNumber && (
                 <div className="text-slate-900 font-black text-[10px] mt-1 uppercase tracking-tighter bg-yellow-100 px-2 py-0.5 rounded inline-block">
