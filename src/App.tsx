@@ -2786,11 +2786,17 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 type="text" 
                 value={formData.partyGstin}
                 readOnly={isLocked}
+                list="purchase-party-gstin-list"
                 onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
                 onKeyDown={handleEnter}
                 className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
                 placeholder="24AAAA..."
               />
+              <datalist id="purchase-party-gstin-list">
+                {parties.map((p: any) => (
+                  <option key={p.id} value={p.gstin}>{p.name}</option>
+                ))}
+              </datalist>
             </div>
             <div>
               <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Supplier Name</label>
@@ -2798,11 +2804,32 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 type="text" 
                 value={formData.partyName} 
                 readOnly={isLocked}
-                onChange={e => setFormData({ ...formData, partyName: e.target.value })}
+                list="purchase-party-name-list"
+                onChange={e => {
+                  const val = e.target.value;
+                  const party = parties.find((p: any) => p.name === val);
+                  if (party) {
+                    setFormData({
+                      ...formData,
+                      partyName: party.name,
+                      partyGstin: party.gstin,
+                      partyAddress: party.address,
+                      partyMobile: party.mobile || '',
+                      partyMobile2: party.mobile2 || ''
+                    });
+                  } else {
+                    setFormData({ ...formData, partyName: val });
+                  }
+                }}
                 onKeyDown={handleEnter}
                 className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
                 placeholder="Enter Supplier Name"
               />
+              <datalist id="purchase-party-name-list">
+                {parties.map((p: any) => (
+                  <option key={p.id} value={p.name}>{p.gstin}</option>
+                ))}
+              </datalist>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
