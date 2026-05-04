@@ -9044,12 +9044,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
     const differences = allItemNames.map(name => {
       const targetItem = targetGroups[name] || { quantity: 0, taka: 0, unit: 'MTR' };
       const formItem = formGroups[name] || { quantity: 0, taka: 0, unit: 'MTR' };
-      // For PARTY entry, we compare PARTY - MILL
-      // For MILL entry, we compare MILL - WEAVER? 
-      // User said: "MILL CHALLN ENTRY ME JO DATAA ENTRY HUVAA HI USKAA DIFFERANCE DIKHAAYE"
-      // Usually shortages are calculated as (Received - Expected). 
-      // If we are in MILL entry, MILL is what we are entering. WEAVER is what was sent.
-      // So Diff = MILL - WEAVER.
+      
       return {
         name,
         targetQty: targetItem.quantity,
@@ -9062,7 +9057,12 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
       };
     });
 
-    return { target: compareTarget, differences };
+    const totalTargetQty = Object.values(targetGroups).reduce((sum, it) => sum + it.quantity, 0);
+    const totalFormQty = Object.values(formGroups).reduce((sum, it) => sum + it.quantity, 0);
+    const totalDiff = totalFormQty - totalTargetQty;
+    const percentLoss = totalTargetQty > 0 ? (totalDiff / totalTargetQty) * 100 : 0;
+
+    return { target: compareTarget, differences, totalTargetQty, totalFormQty, totalDiff, percentLoss };
   }, [formData.challanNumber, formData.weaverChallanNumber, formData.items, type, millChallans, weaverChallans]);
 
   const [itemInput, setItemInput] = useState<Partial<ChallanItem>>({
@@ -9222,35 +9222,51 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }} 
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-6 bg-emerald-50 border-2 border-emerald-100 rounded-[32px] mb-8"
+                  className={`p-6 border-2 rounded-[32px] mb-8 ${Math.abs(autoComparison.totalDiff) >= 5 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-100'}`}
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white">
-                        <Check size={20} />
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${Math.abs(autoComparison.totalDiff) >= 5 ? 'bg-red-600' : 'bg-emerald-600'}`}>
+                        {Math.abs(autoComparison.totalDiff) >= 5 ? <AlertCircle size={20} /> : <Check size={20} />}
                       </div>
                       <div>
-                        <h4 className="font-black text-emerald-900 uppercase tracking-tighter">{type === 'PARTY' ? 'Mill' : 'Weaver'} Comparison Found</h4>
-                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{autoComparison.target.partyName} | {new Date(autoComparison.target.date).toLocaleDateString()}</p>
+                        <h4 className={`font-black uppercase tracking-tighter ${Math.abs(autoComparison.totalDiff) >= 5 ? 'text-red-900' : 'text-emerald-900'}`}>
+                          {type === 'PARTY' ? 'Mill' : 'Weaver'} Comparison Found
+                        </h4>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest ${Math.abs(autoComparison.totalDiff) >= 5 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {autoComparison.target.partyName} | {new Date(autoComparison.target.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4 bg-white/50 p-4 rounded-2xl border border-slate-100">
+                      <div className="text-right px-4 border-r border-slate-200">
+                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Difference</div>
+                        <div className={`text-xl font-black tracking-tighter ${Math.abs(autoComparison.totalDiff) >= 5 ? 'text-red-600 animate-pulse' : autoComparison.totalDiff < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                          {autoComparison.totalDiff > 0 ? '+' : ''}{autoComparison.totalDiff.toFixed(2)} MTR
+                        </div>
+                      </div>
+                      <div className="text-right px-4">
+                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Loss / Gain %</div>
+                        <div className={`text-xl font-black tracking-tighter ${autoComparison.percentLoss < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                          {autoComparison.percentLoss.toFixed(2)}%
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {autoComparison.differences.map((diff, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-white/60 p-4 rounded-2xl border border-emerald-200/50">
-                        <span className="font-black text-slate-800 text-xs uppercase">{diff.name}</span>
+                      <div key={idx} className="flex items-center justify-between bg-white/60 p-4 rounded-xl border border-slate-100">
+                        <div>
+                          <span className="font-black text-slate-800 text-xs uppercase block">{diff.name}</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">{type === 'PARTY' ? 'Mill' : 'Weaver'}: {diff.targetQty} | Current: {diff.formQty}</span>
+                        </div>
                         <div className="flex items-center gap-6">
                            <div className="text-right">
-                              <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Difference</div>
-                              <div className={`text-sm font-black tracking-tighter ${diff.diffQty < 0 ? 'text-red-500' : diff.diffQty > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Qty Diff</div>
+                              <div className={`text-sm font-black tracking-tighter ${Math.abs(diff.diffQty) >= 5 ? 'text-red-600' : diff.diffQty < 0 ? 'text-red-500' : diff.diffQty > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
                                 {diff.diffQty > 0 ? '+' : ''}{diff.diffQty.toFixed(2)} {diff.unit}
-                              </div>
-                           </div>
-                           <div className="text-right border-l pl-6 border-emerald-200">
-                              <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Taka Diff</div>
-                              <div className={`text-sm font-black tracking-tighter ${diff.diffTaka < 0 ? 'text-red-500' : diff.diffTaka > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                {diff.diffTaka > 0 ? '+' : ''}{diff.diffTaka}
                               </div>
                            </div>
                         </div>
