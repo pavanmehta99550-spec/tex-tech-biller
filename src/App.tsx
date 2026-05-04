@@ -595,6 +595,11 @@ export default function App() {
       { key: 'credit-notes', setter: setCreditNotes },
       { key: 'payments', setter: setPayments },
       { key: 'purchasePayments', setter: setPurchasePayments },
+      { key: 'expenses', setter: setExpenses },
+      { key: 'millChallans', setter: setMillChallans },
+      { key: 'partyChallans', setter: setPartyChallans },
+      { key: 'weaverChallans', setter: setWeaverChallans },
+      { key: 'weaverParties', setter: setWeaverParties },
       { key: 'settings', setter: setSettings },
       { key: 'lastBackupDate', setter: setLastBackupDate },
     ];
@@ -646,6 +651,7 @@ export default function App() {
     const data: Record<string, any> = {
       purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, 
       'debit-notes': debitNotes, 'credit-notes': creditNotes, payments, purchasePayments, 
+      expenses, millChallans, partyChallans, weaverChallans, weaverParties,
       settings, lastBackupDate
     };
     
@@ -657,7 +663,7 @@ export default function App() {
         setSyncStatus('pending');
       }
     });
-  }, [purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, settings, lastBackupDate]);
+  }, [purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, expenses, millChallans, partyChallans, weaverChallans, weaverParties, settings, lastBackupDate]);
 
   // Sync to Firebase on changes
   useEffect(() => {
@@ -678,6 +684,11 @@ export default function App() {
           'credit-notes': creditNotes,
           payments,
           purchasePayments,
+          expenses,
+          millChallans,
+          partyChallans,
+          weaverChallans,
+          weaverParties,
           settings,
           lastBackupDate
         };
@@ -717,9 +728,9 @@ export default function App() {
       }
     };
 
-    const timer = setTimeout(syncData, 200); // Super fast sync to prevent race conditions
+    const timer = setTimeout(syncData, 200); 
     return () => clearTimeout(timer);
-  }, [user, customLoginId, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, settings, lastBackupDate, purchasePayments, isDataLoaded]);
+  }, [user, customLoginId, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, expenses, millChallans, partyChallans, weaverChallans, weaverParties, settings, lastBackupDate, isDataLoaded]);
 
   useEffect(() => {
     if (isAuthenticated) {
