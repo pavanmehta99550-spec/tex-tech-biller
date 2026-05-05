@@ -418,7 +418,7 @@ export default function App() {
           const data = JSON.parse(event.data);
           setWaStatus(data);
         } catch (e) {
-          console.error('Error parsing WhatsApp status:', e);
+          // Ignore heartbeat/non-json messages
         }
       };
 
@@ -431,14 +431,14 @@ export default function App() {
     };
 
     connectSSE();
-    pollInterval = setInterval(fetchStatus, 30000); // 30s poll fallback
+    pollInterval = setInterval(fetchStatus, waStatus.status === 'connected' ? 30000 : 5000); 
 
     return () => {
       if (eventSource) eventSource.close();
       if (retryTimeout) clearTimeout(retryTimeout);
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, []);
+  }, [waStatus.status]);
 
   // Firebase Auth Listener
   useEffect(() => {

@@ -58,12 +58,28 @@ async function startServer() {
             qr: qrCode 
         });
         clients.forEach(client => {
-            client.write(`data: ${data}\n\n`);
+            try {
+                client.write(`data: ${data}\n\n`);
+            } catch (e) {
+                clients.delete(client);
+            }
         });
     };
 
+    // Keep SSE connections alive
+    setInterval(() => {
+        clients.forEach(client => {
+            try {
+                client.write(': heartbeat\n\n');
+            } catch (e) {
+                clients.delete(client);
+            }
+        });
+    }, 25000);
+
     // Update status and broadcast
     const setStatus = (status: string, detailed: string = '') => {
+        console.log(`WhatsApp Status Change: ${status} | ${detailed}`);
         connectionStatus = status;
         detailedStatus = detailed;
         broadcastStatus();
@@ -71,7 +87,7 @@ async function startServer() {
 
     async function connectToWhatsApp() {
         if (isInitializing) {
-            console.log('WhatsApp: Initialization already in progress...');
+            console.log('WhatsApp: Initialization already in progress, skipping duplicate call.');
             broadcastStatus();
             return;
         }
@@ -82,56 +98,65 @@ async function startServer() {
         }
 
         isInitializing = true;
-        console.log(`WhatsApp: Attempting connection (Retry: ${failureCount})...`);
+        console.log(`WhatsApp: Starting connection sequence (Retry/Failure Count: ${failureCount})...`);
         setStatus('disconnected', 'Initialising...');
 
         if (initWatchdog) clearTimeout(initWatchdog);
         initWatchdog = setTimeout(() => {
             if (isInitializing && connectionStatus !== 'connected') {
-                console.warn('WhatsApp: Initialization watchdog. Resetting state.');
+                console.warn('WhatsApp: Initialization watchdog triggered after 2 minutes. Resetting state.');
                 isInitializing = false;
-                setStatus('disconnected', 'Watchdog Reset');
+                setStatus('disconnected', 'Timeout: Resetting...');
                 connectToWhatsApp();
             }
-        }, 120000); // 2 minutes watchdog
+        }, 120000); 
         
         try {
             if (sock) {
-                console.log('WhatsApp: Cleaning up old socket...');
+                console.log('WhatsApp: Closing existing socket listeners...');
                 try {
                     sock.ev.removeAllListeners();
                     sock.end(undefined);
-                } catch (e) {}
+                } catch (e) {
+                    console.log('WhatsApp: Error ending old socket:', e);
+                }
                 sock = null;
             }
 
             qrCode = null;
-            const authPath = path.join(process.cwd(), 'wa_auth'); // Use local directory instead of /tmp
+            const authPath = path.join(process.cwd(), 'wa_auth');
             if (!fs.existsSync(authPath)) {
                 fs.mkdirSync(authPath, { recursive: true });
             }
 
-            setStatus('disconnected', 'Checking Version...');
-            let version;
+            console.log('WhatsApp: Loading auth state from:', authPath);
+            let state, saveCreds;
             try {
-                const versionPromise = fetchLatestBaileysVersion();
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Timeout')), 10000)
-                );
-                const result: any = await Promise.race([versionPromise, timeoutPromise]);
-                version = result.version;
-                console.log(`WhatsApp: Using fetched version v${version.join('.')}`);
+                const authState = await useMultiFileAuthState(authPath);
+                state = authState.state;
+                saveCreds = authState.saveCreds;
             } catch (err) {
-                console.warn('WhatsApp: Version fetch failed, using fallback:', err);
-                version = [2, 3000, 1017531301]; 
+                console.error('WhatsApp: Auth state loading failed, clearing corrupted data.');
+                if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
+                isInitializing = false;
+                setTimeout(() => connectToWhatsApp(), 2000);
+                return;
             }
-
-            setStatus('disconnected', 'Loading Auth...');
-            const { state, saveCreds } = await useMultiFileAuthState(authPath);
             
             state.keys = makeCacheableSignalKeyStore(state.keys, logger);
 
             setStatus('disconnected', 'Connecting...');
+            
+            let version;
+            try {
+                console.log('WhatsApp: Fetching latest version...');
+                const versionResult: any = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1017531301] }));
+                version = versionResult.version;
+                console.log(`WhatsApp: Using version v${version.join('.')}`);
+            } catch (err) {
+                version = [2, 3000, 1017531301];
+            }
+
             const currentSock = makeWASocket({
                 version,
                 logger,
@@ -140,7 +165,7 @@ async function startServer() {
                 browser: Browsers.macOS('Desktop'),
                 syncFullHistory: false,
                 shouldSyncHistoryMessage: () => false,
-                qrTimeout: 60000,
+                qrTimeout: 40000, // Slightly shorter timeout for faster cycling
                 connectTimeoutMs: 60000, 
                 defaultQueryTimeoutMs: 60000,
                 keepAliveIntervalMs: 15000, 
@@ -149,23 +174,6 @@ async function startServer() {
                 generateHighQualityLinkPreview: false,
                 linkPreviewImageThumbnailWidth: 192,
                 shouldIgnoreJid: (jid) => jid.includes('@broadcast'),
-                patchMessageBeforeSending: (message) => {
-                    const requiresPatch = !!(message.buttonsMessage || message.listMessage || message.templateMessage);
-                    if (requiresPatch) {
-                        message = {
-                            viewOnceMessage: {
-                                message: {
-                                    messageContextInfo: {
-                                        deviceListMetadata: {},
-                                        deviceListMetadataVersion: 2
-                                    },
-                                    ...message
-                                }
-                            }
-                        };
-                    }
-                    return message;
-                },
             });
 
             sock = currentSock;
@@ -176,11 +184,11 @@ async function startServer() {
                 if (qr) {
                     try {
                         qrCode = await QRCode.toDataURL(qr);
-                        console.log('WhatsApp: QR code received, length:', qrCode.length);
+                        console.log('WhatsApp: New QR code generated successfully');
                         setStatus('disconnected', 'Scan QR Code');
                     } catch (err) {
-                        console.error('WhatsApp: QR error:', err);
-                        setStatus('disconnected', 'QR Generation Error');
+                        console.error('WhatsApp: QR Generation failed:', err);
+                        setStatus('disconnected', 'QR Error');
                     }
                     isInitializing = false; 
                     failureCount = 0;
@@ -192,66 +200,57 @@ async function startServer() {
                     qrCode = null;
                     if (initWatchdog) { clearTimeout(initWatchdog); initWatchdog = null; }
 
-                    if (sock !== currentSock) return;
+                    if (sock !== currentSock) {
+                        console.log('WhatsApp: Closing stale connection, ignoring.');
+                        return;
+                    }
 
                     const error = lastDisconnect?.error as Boom;
                     const statusCode = error?.output?.statusCode;
-                    const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+                    const errorMsg = error?.message || error?.stack || 'Unknown Close Reason';
                     
-                    const errorMsg = error?.message || error?.stack || '';
-                    console.error(`WhatsApp: Socket closed (${statusCode}). Msg: ${errorMsg}`);
+                    console.error(`WhatsApp: Connection Closed. Status: ${statusCode}. Error: ${errorMsg}`);
                     
                     const isTerminated = statusCode === 428 || statusCode === 515 || statusCode === 503 || statusCode === 440 ||
                                        errorMsg.toLowerCase().includes('terminated') || 
-                                       errorMsg.includes('Connection Terminated') ||
                                        errorMsg.includes('hangup') ||
-                                       errorMsg.includes('Handshake timeout') ||
-                                       errorMsg.includes('connect ETIMEDOUT');
+                                       errorMsg.includes('Handshake timeout');
 
                     if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || (isTerminated && failureCount >= 3)) {
-                        setStatus('disconnected', isTerminated ? 'Session Resetting...' : 'Logged Out');
-                        console.warn('WhatsApp: Resetting session due to terminal error or logout.');
+                        console.warn('WhatsApp: Terminal dissociation. Purging auth data.');
                         if (fs.existsSync(authPath)) {
                             try { fs.rmSync(authPath, { recursive: true, force: true }); } catch(e) {}
                         }
+                        setStatus('disconnected', 'Resetting Session...');
                         failureCount = 0;
                         reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000); 
-                    } else if (shouldReconnect) {
-                        failureCount++;
-                        let cooldown = 5000;
-                        if (isTerminated) {
-                            cooldown = failureCount === 1 ? 5000 : Math.min(10000 * failureCount, 60000);
-                        } else {
-                            cooldown = Math.min(5000 * Math.pow(1.5, failureCount - 1), 60000);
-                        }
-                        
-                        setStatus('disconnected', `Retrying in ${Math.floor(cooldown/1000)}s`);
-                        reconnectTimer = setTimeout(() => connectToWhatsApp(), cooldown);
                     } else {
-                        setStatus('disconnected', 'Logged Out');
-                        if (fs.existsSync(authPath)) {
-                            try { fs.rmSync(authPath, { recursive: true, force: true }); } catch(e) {}
-                        }
+                        failureCount++;
+                        const delay = Math.min(5000 * failureCount, 30000);
+                        console.log(`WhatsApp: Reconnecting in ${delay/1000}s...`);
+                        setStatus('disconnected', 'Offline: Reconnecting...');
+                        reconnectTimer = setTimeout(() => connectToWhatsApp(), delay);
                     }
                 } else if (connection === 'open') {
+                    console.log('WhatsApp: Connection established successfully!');
                     isInitializing = false;
                     failureCount = 0;
-                    if (initWatchdog) { clearTimeout(initWatchdog); initWatchdog = null; }
-                    if (sock !== currentSock) return;
-                    console.log('WhatsApp: Connection Successful');
-                    setStatus('connected', 'Connected');
                     qrCode = null;
+                    if (initWatchdog) { clearTimeout(initWatchdog); initWatchdog = null; }
+                    if (sock === currentSock) {
+                        setStatus('connected', 'Connected');
+                    }
                 }
             });
 
             currentSock.ev.on('creds.update', saveCreds);
         } catch (e) {
+            console.error('WhatsApp: Connection attempt failed catastrophically:', e);
             isInitializing = false;
             failureCount++;
             if (initWatchdog) { clearTimeout(initWatchdog); initWatchdog = null; }
-            console.error('WhatsApp: Critical error:', e);
-            setStatus('disconnected', 'Error: ' + (e instanceof Error ? e.message : 'Unknown'));
-            setTimeout(() => connectToWhatsApp(), 10000);
+            setStatus('disconnected', 'Crash: Retry in 10s');
+            reconnectTimer = setTimeout(() => connectToWhatsApp(), 10000);
         }
     }
 
