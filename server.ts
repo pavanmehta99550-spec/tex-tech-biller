@@ -410,6 +410,7 @@ async function startServer() {
     }
 
     console.log('App: Setting up Vite and starting listener...');
+    connectToWhatsApp(); // Initialize WhatsApp on startup
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running at http://localhost:${PORT}`);
     });
