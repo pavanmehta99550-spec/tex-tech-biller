@@ -47,6 +47,22 @@ function ${componentName}({ ${dataPropName}, settings, payments = [], onClose }:
   const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
   const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
 
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('print-container');
+    if (!element) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(\`\${p.billNumber || 'document'}.pdf\`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -58,8 +74,17 @@ function ${componentName}({ ${dataPropName}, settings, payments = [], onClose }:
         <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden">
           <ChevronLeft size={24} />
         </button>
+        
+        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-10">
+          <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Printer size={16} /> Print
+          </button>
+          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Download size={16} /> PDF
+          </button>
+        </div>
 
-        <div className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
@@ -127,7 +152,7 @@ function ${componentName}({ ${dataPropName}, settings, payments = [], onClose }:
                   <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
                   <th className="border-r border-black p-1.5">HSN No</th>
                   <th className="border-r border-black p-1.5">Taka / Box</th>
-                  <th className="border-r border-black p-1.5">Meter / Kgs</th>
+                  <th className="border-r border-black p-1.5">Qty</th>
                   <th className="border-r border-black p-1.5">Rate</th>
                   <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
                 </tr>

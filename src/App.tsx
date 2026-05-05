@@ -76,12 +76,14 @@ const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGs
 };
 
 
+
+
 const numberToWords = (num: number) => {
     if (!num || num === 0) return 'Zero Only';
     const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
     const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
     
-    let n = ('000000000' + Math.floor(Math.abs(num))).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    let n = ('000000000' + Math.floor(Math.abs(num))).substr(-9).match(/^(d{2})(d{2})(d{2})(d{1})(d{2})$/);
     if (!n) return '';
     let str = '';
     str += (n[1] != '00') ? (a[Number(n[1])] || b[Number(n[1][0])] + ' ' + a[Number(n[1][1])]) + 'Crore ' : '';
@@ -91,6 +93,7 @@ const numberToWords = (num: number) => {
     str += (n[5] != '00') ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[Number(n[5][0])] + ' ' + a[Number(n[5][1])]) : '';
     return str + 'Only';
 };
+
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -5256,6 +5259,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
 
 
 
+
 function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }: any) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -5282,6 +5286,22 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
   const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
   const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
 
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('print-container');
+    if (!element) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${p.billNumber || 'document'}.pdf`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -5293,8 +5313,17 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
         <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden">
           <ChevronLeft size={24} />
         </button>
+        
+        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-10">
+          <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Printer size={16} /> Print
+          </button>
+          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Download size={16} /> PDF
+          </button>
+        </div>
 
-        <div className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
@@ -5362,7 +5391,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
                   <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
                   <th className="border-r border-black p-1.5">HSN No</th>
                   <th className="border-r border-black p-1.5">Taka / Box</th>
-                  <th className="border-r border-black p-1.5">Meter / Kgs</th>
+                  <th className="border-r border-black p-1.5">Qty</th>
                   <th className="border-r border-black p-1.5">Rate</th>
                   <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
                 </tr>
@@ -6875,6 +6904,7 @@ function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Pay
 
 
 
+
 function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: any) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -6901,6 +6931,22 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
   const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
   const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
 
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('print-container');
+    if (!element) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${p.billNumber || 'document'}.pdf`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -6912,8 +6958,17 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
         <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden">
           <ChevronLeft size={24} />
         </button>
+        
+        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-10">
+          <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Printer size={16} /> Print
+          </button>
+          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Download size={16} /> PDF
+          </button>
+        </div>
 
-        <div className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
@@ -6981,7 +7036,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
                   <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
                   <th className="border-r border-black p-1.5">HSN No</th>
                   <th className="border-r border-black p-1.5">Taka / Box</th>
-                  <th className="border-r border-black p-1.5">Meter / Kgs</th>
+                  <th className="border-r border-black p-1.5">Qty</th>
                   <th className="border-r border-black p-1.5">Rate</th>
                   <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
                 </tr>
@@ -7110,6 +7165,22 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
   const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
   const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
 
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('print-container');
+    if (!element) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${p.billNumber || 'document'}.pdf`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -7121,8 +7192,17 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
         <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden">
           <ChevronLeft size={24} />
         </button>
+        
+        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-10">
+          <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Printer size={16} /> Print
+          </button>
+          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Download size={16} /> PDF
+          </button>
+        </div>
 
-        <div className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
@@ -7190,7 +7270,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                   <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
                   <th className="border-r border-black p-1.5">HSN No</th>
                   <th className="border-r border-black p-1.5">Taka / Box</th>
-                  <th className="border-r border-black p-1.5">Meter / Kgs</th>
+                  <th className="border-r border-black p-1.5">Qty</th>
                   <th className="border-r border-black p-1.5">Rate</th>
                   <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
                 </tr>
@@ -7318,6 +7398,22 @@ function PrintPreview({ booking, settings, payments = [], onClose }: any) {
   const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
   const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
 
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('print-container');
+    if (!element) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${p.billNumber || 'document'}.pdf`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -7329,8 +7425,17 @@ function PrintPreview({ booking, settings, payments = [], onClose }: any) {
         <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden">
           <ChevronLeft size={24} />
         </button>
+        
+        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-10">
+          <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Printer size={16} /> Print
+          </button>
+          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
+            <Download size={16} /> PDF
+          </button>
+        </div>
 
-        <div className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
@@ -7398,7 +7503,7 @@ function PrintPreview({ booking, settings, payments = [], onClose }: any) {
                   <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
                   <th className="border-r border-black p-1.5">HSN No</th>
                   <th className="border-r border-black p-1.5">Taka / Box</th>
-                  <th className="border-r border-black p-1.5">Meter / Kgs</th>
+                  <th className="border-r border-black p-1.5">Qty</th>
                   <th className="border-r border-black p-1.5">Rate</th>
                   <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
                 </tr>
