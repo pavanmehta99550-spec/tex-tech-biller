@@ -5237,200 +5237,107 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
   );
 }
 
-function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote: CreditNote, settings: AppSettings | null, onClose: () => void }) {
-  const printRef = useRef<HTMLDivElement>(null);
 
+function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote: CreditNote, settings: AppSettings | null, onClose: () => void }) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === 'Enter') {
-        window.print();
-      }
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'Enter') window.print();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
-
-  const handleDownloadPDF = async () => {
-    if (!printRef.current) return;
-    try {
-      const canvas = await html2canvas(printRef.current, { 
-        scale: 2,
-        useCORS: true,
-        logging: false
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`CreditNote_${creditNote.noteNumber}.pdf`);
-    } catch (error) {
-      console.error("PDF generation failed", error);
-      alert("Failed to generate PDF. You can use Print -> Save as PDF instead.");
-    }
-  };
 
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
     >
-      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:max-w-none print:w-full print:m-0 print:border-none print:shadow-none print:rounded-none print:p-0">
-        <button 
-          onClick={onClose}
-          className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"
-        >
-          <ChevronLeft size={24} />
-        </button>
-
-        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-green-800 text-slate-900">
-          {/* Watermark for Print */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
-            <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
-              {settings?.companyName || "PRO BILLER"}
-            </span>
-          </div>
-          <div className="flex justify-between items-start border-b-2 border-green-700 pb-6 p-8 print:p-6 print:border-b-2">
-            <div>
-              <h1 className="text-3xl font-black text-green-700 uppercase">CREDIT NOTE</h1>
-              <p className="text-slate-500 font-bold text-sm tracking-widest">Customer Return Voucher</p>
-              <div className="mt-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">From (Our Info)</p>
-                <div className="font-bold text-slate-900 text-sm">{settings?.companyName || "PRO BILLER"}</div>
-                <div className="text-slate-500 text-xs">{settings?.gstin}</div>
-              </div>
+      <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans">
+        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"><ChevronLeft size={24} /></button>
+        <div className="print-container bg-white p-8 print:p-0">
+          <div className="border border-black">
+            <div className="p-2 text-[10px] font-bold uppercase border-b border-black flex justify-between">
+              <span>CONTACT: {creditNote.partyMobile || ''}</span>
+              <span>CREDIT NOTE REF #{creditNote.billNumber} | DATE: {new Date(creditNote.date).toLocaleDateString()}</span>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-black text-slate-900 uppercase">#{creditNote.noteNumber}</div>
-              <div className="text-slate-400 text-xs mt-1">{new Date(creditNote.date).toLocaleDateString()}</div>
-              {creditNote.salesBillNumber && (
-                <div className="mt-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Ref Sale: {creditNote.salesBillNumber}</div>
-              )}
-            </div>
-          </div>
-
-          <div className="border-b-2 border-green-700">
-            <div className="p-8 print:p-6 bg-green-50/10">
-               <label className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1 block">To Customer</label>
-               <div className="font-black text-slate-900 text-lg uppercase">{creditNote.partyName}</div>
-               <div className="text-green-700 font-bold text-xs">{creditNote.partyGstin}</div>
-               <div className="text-slate-500 text-xs mt-1">{creditNote.partyAddress}</div>
-               {creditNote.partyMobile && (
-                 <div className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-tighter">
-                   Contact: {creditNote.partyMobile}{creditNote.partyMobile2 ? ` / ${creditNote.partyMobile2}` : ''}
-                 </div>
-               )}
-            </div>
-          </div>
-
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="bg-green-50/50 border-b-2 border-green-700">
-                <th className="py-3 px-3 text-left border-r-2 border-green-700">Description</th>
-                <th className="py-3 px-3 text-right border-r-2 border-green-700">Qty</th>
-                <th className="py-3 px-3 text-right border-r-2 border-green-700">Rate</th>
-                <th className="py-3 px-3 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y-2 divide-green-700">
-              {(creditNote.items || []).filter(item => item.name && item.name.trim() !== "").map((item) => (
-                <tr key={item.id || Math.random().toString()}>
-                  <td className="py-3 px-3 border-r-2 border-green-700">
-                    <div className="font-bold">{item.name}</div>
-                    <div className="text-slate-400">HSN: {item.hsnCode}</div>
-                    {item.meters && <div className="text-slate-400 text-[9px] font-mono border-t border-green-100 mt-1 pt-1 break-all uppercase tracking-tighter">{item.meters}</div>}
-                  </td>
-                  <td className="py-3 px-3 text-right border-r-2 border-green-700">{item.quantity}</td>
-                  <td className="py-3 px-3 text-right border-r-2 border-green-700">₹{item.rate.toLocaleString()}</td>
-                  <td className="py-3 px-3 text-right font-bold">₹{item.amount.toLocaleString()}</td>
+            <table className="w-full text-xs font-bold text-center border-collapse">
+              <thead>
+                <tr className="border-b border-black uppercase">
+                  <th className="border-r border-black p-2 text-left w-2/5">ITEM NAME</th>
+                  <th className="border-r border-black p-2">HSN</th>
+                  <th className="border-r border-black p-2">QTY</th>
+                  <th className="border-r border-black p-2">RATE</th>
+                  <th className="p-2 text-right">AMOUNT (₹)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="border-t-2 border-green-700 flex justify-between items-stretch">
-            <div className="flex-1 p-8 print:p-6 border-r-2 border-green-700">
-              {settings?.bankName && (
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                    <Landmark size={12} className="text-green-600" /> Bank Details
-                  </h4>
-                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
-                    <span className="font-bold text-slate-500 uppercase">Bank:</span>
-                    <span className="font-black text-slate-900 uppercase">{settings.bankName}</span>
-                    <span className="font-bold text-slate-500 uppercase">A/c No:</span>
-                    <span className="font-black text-slate-900 tracking-wider">{settings.accountNumber}</span>
-                    <span className="font-bold text-slate-500 uppercase">IFSC:</span>
-                    <span className="font-black text-slate-900 tracking-wider">{settings.ifscCode}</span>
-                    <span className="font-bold text-slate-500 uppercase">Branch:</span>
-                    <span className="font-black text-slate-900 uppercase">{settings.branchName}</span>
+              </thead>
+              <tbody>
+                {creditNote.items.map((item: any, idx: number) => (
+                  <tr key={item.id} className="border-b border-black">
+                    <td className="border-r border-black p-2 text-left uppercase">
+                      {item.name}
+                      {item.color && <div className="text-[9px] mt-1">{item.color}</div>}
+                    </td>
+                    <td className="border-r border-black p-2">{item.hsnCode}</td>
+                    <td className="border-r border-black p-2 uppercase">{item.quantity} {item.unit}</td>
+                    <td className="border-r border-black p-2">{Number(item.rate).toFixed(2)}</td>
+                    <td className="p-2 text-right">{Number(item.amount).toFixed(2)}</td>
+                  </tr>
+                ))}
+                {Array.from({ length: Math.max(0, 5 - creditNote.items.length) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black h-10">
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="grid grid-cols-2 border-t border-black">
+              <div className="border-r border-black p-4">
+                {settings?.bankName ? (
+                  <div className="text-[10px]">
+                    <div className="font-bold flex items-center gap-1 mb-2"><span>🏦</span> BANK DETAILS</div>
+                    <div className="grid grid-cols-[60px_1fr] gap-y-1 font-bold">
+                      <span>BANK:</span><span className="uppercase">{settings.bankName}</span>
+                      <span>A/C NO:</span><span>{settings.accountNumber}</span>
+                      <span>IFSC:</span><span>{settings.ifsc}</span>
+                      <span>BRANCH:</span><span className="uppercase">{settings.branch}</span>
+                    </div>
                   </div>
+                ) : (<div className="text-[10px] text-gray-400 italic">No bank details added</div>)}
+              </div>
+              <div className="text-xs font-bold flex flex-col justify-between">
+                <div className="p-2 px-4 space-y-1">
+                  <div className="flex justify-between"><span>BASIC AMOUNT:</span><span>₹{Number(creditNote.basicAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                  {creditNote.globalDiscount > 0 && (<div className="flex justify-between"><span>DISCOUNT:</span><span>- ₹{Number(creditNote.globalDiscount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>)}
+                  <div className="flex justify-between"><span>GST TOTAL:</span><span>₹{Number(creditNote.taxAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                 </div>
-              )}
-            </div>
-            <div className="w-80 p-8 print:p-6 space-y-2">
-              <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
-                <span>Basic Amount</span>
-                <span>₹{creditNote.basicAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
-                <span>Tax ({creditNote.taxRate}%)</span>
-                <span>₹{creditNote.taxAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t-2 border-green-700 mt-2">
-                <span className="text-lg font-black uppercase">Grand Total</span>
-                <span className="text-xl font-black text-green-700">₹{creditNote.grandTotal.toLocaleString()}</span>
+                <div className="border-y border-black p-2 px-4 flex justify-between text-base font-black">
+                  <span>Grand Total:</span><span>₹{Number(creditNote.grandTotal).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                </div>
+                <div className="p-2 px-4 space-y-1 mt-1 pb-2"></div>
               </div>
             </div>
-          </div>
-
-          <div className="border-t-2 border-green-700 p-8 print:p-6 flex justify-between items-end">
-            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Sales Return Voucher I</div>
-            <div className="text-center min-w-[12rem] relative">
-              {settings?.signature ? (
-                <div className="h-28 flex items-end justify-center mb-1">
-                   <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
-                </div>
-              ) : (
-                <div className="h-28 border-2 border-dashed border-green-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
-                  Sign / Stamp
-                </div>
-              )}
-              <div className="pt-2 border-t-2 border-green-700">
-                <div className="text-[10px] font-black uppercase tracking-widest text-green-700">Authorized Entry</div>
-                <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
+            <div className="border-t border-black p-4 flex justify-between items-end h-32">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-2">CREDIT NOTE ENTRY LOGGED !</div>
+              <div className="text-center">
+                <div className="text-[9px] text-gray-400 mb-6 font-bold uppercase">SIGN / STAMP</div>
+                <div className="w-48 h-px bg-black opacity-30 mb-1 mx-auto"></div>
+                <div className="text-[9px] font-black uppercase">AUTHORIZED ENTRY</div>
+                <div className="text-[8px] text-gray-500 uppercase">{settings?.companyName || "PRO BILLER"}</div>
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="mt-12 flex gap-4 print:hidden">
-          <button 
-            onClick={() => window.print()}
-            className="flex-1 bg-green-700 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
-          >
-            <Printer size={20} /> 
-            Print
-          </button>
-          <button 
-            onClick={handleDownloadPDF}
-            className="flex-1 bg-green-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
-          >
-            <Download size={20} />
-            Download PDF
-          </button>
-          <button onClick={onClose} className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl">Close</button>
         </div>
       </div>
     </motion.div>
   );
 }
-
 function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
@@ -5566,7 +5473,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel 
                           value={b.paid || ''}
                           onChange={(e) => {
                             const newAdjustments = [...billAdjustments];
-                            newAdjustments[idx].paid = e.target.value as any;
+                            newAdjustments[idx].paid = e.target.value === '' ? '' : (parseFloat(e.target.value) || '') as any;
                             setBillAdjustments(newAdjustments);
                           }}
                           className="w-full text-right px-4 py-2 border border-slate-100 rounded-lg font-black text-red-600 outline-none focus:border-red-500"
@@ -5775,7 +5682,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: an
                           value={b.paid || ''}
                           onChange={(e) => {
                             const newAdjustments = [...billAdjustments];
-                            newAdjustments[idx].paid = e.target.value as any;
+                            newAdjustments[idx].paid = e.target.value === '' ? '' : (parseFloat(e.target.value) || '') as any;
                             setBillAdjustments(newAdjustments);
                           }}
                           className="w-full text-right px-4 py-2 border border-slate-100 rounded-lg font-black text-blue-600 outline-none focus:border-blue-500"
@@ -6849,6 +6756,7 @@ function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Pay
   return { paidAmount, balance, status };
 }
 
+
 function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { purchase: Purchase, settings: AppSettings | null, payments?: Payment[], onClose: () => void }) {
   const printRef = useRef<HTMLDivElement>(null);
   const { paidAmount, balance, status } = useMemo(() => 
@@ -6858,45 +6766,21 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === 'Enter') {
-        window.print();
-      }
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'Enter') window.print();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
-
-  const handleDownloadPDF = async () => {
-    if (!printRef.current) return;
-    try {
-      const canvas = await html2canvas(printRef.current, { 
-        scale: 2,
-        useCORS: true,
-        logging: false
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Purchase_${purchase.billNumber}.pdf`);
-    } catch (error) {
-      console.error("PDF generation failed", error);
-      alert("Failed to generate PDF. You can use Print -> Save as PDF instead.");
-    }
-  };
 
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
     >
-      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:max-w-none print:w-full print:m-0 print:border-none print:shadow-none print:rounded-none print:p-0">
+      <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans">
         <button 
           onClick={onClose}
           className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"
@@ -6904,181 +6788,128 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-900 ">
-          {/* Watermark for Print */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
-            <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
-              {settings?.companyName || "PRO BILLER"}
-            </span>
-          </div>
-          <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-4 p-8 print:p-4 print:border-b-2">
-            <div>
-              <h1 className="text-3xl font-black text-indigo-900 uppercase">PURCHASE VOUCHER</h1>
-              <p className="text-slate-500 font-bold text-sm tracking-widest">Self Record Entry</p>
-              <div className="mt-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Our Info (Buyer)</p>
-                <div className="font-bold text-slate-900 text-sm">{settings?.companyName || "PRO BILLER"}</div>
-                <div className="text-slate-500 text-xs">{settings?.gstin}</div>
-              </div>
+        <div ref={printRef} className="print-container bg-white p-8 print:p-0">
+          <div className="border border-black">
+            
+            {/* Header section (if contact is needed) */}
+            <div className="p-2 text-[10px] font-bold uppercase border-b border-black flex justify-between">
+              <span>CONTACT: {purchase.partyMobile || ''}</span>
+              <span>PURCHASE REF #{purchase.billNumber} | DATE: {new Date(purchase.date).toLocaleDateString()}</span>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-black text-indigo-600 uppercase">Purchase Bill</div>
-              {status === 'PAID' && (
-                <div className="text-green-600 border-4 border-green-600 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">PAID</div>
-              )}
-              {status === 'PARTIAL' && (
-                <div className="text-orange-500 border-4 border-orange-500 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">PARTIALLY PAID</div>
-              )}
-              {status === 'UNPAID' && (
-                <div className="text-red-600 border-4 border-red-600 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">UNPAID</div>
-              )}
-              <div className="text-slate-900 text-sm font-black whitespace-nowrap">Our Ref: #{purchase.billNumber}</div>
-              {purchase.partyBillNumber && (
-                <div className="text-indigo-900 text-xs font-black bg-indigo-50 px-2 py-1 rounded mt-1">Party Bill: {purchase.partyBillNumber}</div>
-              )}
-              <div className="text-slate-400 text-[10px] mt-1 uppercase font-black">{new Date(purchase.date).toLocaleDateString()}</div>
-            </div>
-          </div>
 
-          <div className="border-b-2 border-indigo-900">
-            <div className="p-8 print:p-4 bg-indigo-50/10">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Supplier Details (Seller)</label>
-              <div className="font-black text-slate-900 text-lg uppercase">{purchase.partyName}</div>
-              <div className="text-indigo-600 font-black text-xs italic tracking-wider">{purchase.partyGstin}</div>
-              <div className="text-slate-500 text-xs mt-0.5 leading-relaxed">{purchase.partyAddress}</div>
-              {purchase.partyMobile && (
-                <div className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-tighter">
-                  Contact: {purchase.partyMobile}{purchase.partyMobile2 ? ` / ${purchase.partyMobile2}` : ''}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b-2 border-indigo-900 bg-indigo-50/50">
-                <th className="py-3 px-4 text-left font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Item Name</th>
-                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">HSN</th>
-                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Qty</th>
-                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-indigo-900 border-r-2 border-indigo-900">Rate</th>
-                <th className="py-3 px-4 text-right font-black uppercase text-xs tracking-widest text-indigo-900">Amount (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(purchase.items || []).filter(item => item.name && item.name.trim() !== "").map((item) => (
-                <tr key={item.id} className="border-b-2 border-indigo-900">
-                  <td className="py-2.5 px-4 font-bold text-slate-900 border-r-2 border-indigo-900">
-                    <div>{item.name}</div>
-                    {item.meters && <div className="text-slate-400 text-[9px] font-mono border-t border-indigo-100 mt-1 pt-1 break-all uppercase tracking-tighter">{item.meters}</div>}
-                  </td>
-                  <td className="py-2.5 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">{item.hsnCode || '-'}</td>
-                  <td className="py-2.5 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">
-                    {item.quantity} {item.unit}
-                  </td>
-                  <td className="py-2.5 px-2 text-center font-bold text-slate-700 border-r-2 border-indigo-900">
-                    {item.rate.toFixed(2)}
-                  </td>
-                  <td className="py-2.5 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+            {/* Table */}
+            <table className="w-full text-xs font-bold text-center border-collapse">
+              <thead>
+                <tr className="border-b border-black uppercase">
+                  <th className="border-r border-black p-2 text-left w-2/5">ITEM NAME</th>
+                  <th className="border-r border-black p-2">HSN</th>
+                  <th className="border-r border-black p-2">QTY</th>
+                  <th className="border-r border-black p-2">RATE</th>
+                  <th className="p-2 text-right">AMOUNT (₹)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {purchase.items.map((item: any, idx: number) => (
+                  <tr key={item.id} className="border-b border-black">
+                    <td className="border-r border-black p-2 text-left uppercase">
+                      {item.name}
+                      {item.color && <div className="text-[9px] mt-1">{item.color}</div>}
+                    </td>
+                    <td className="border-r border-black p-2">{item.hsnCode}</td>
+                    <td className="border-r border-black p-2 uppercase">{item.quantity} {item.unit}</td>
+                    <td className="border-r border-black p-2">{Number(item.rate).toFixed(2)}</td>
+                    <td className="p-2 text-right">{Number(item.amount).toFixed(2)}</td>
+                  </tr>
+                ))}
+                {/* Empty rows to stretch */}
+                {Array.from({ length: Math.max(0, 5 - purchase.items.length) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black h-10">
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-          <div className="border-t-2 border-indigo-900 flex justify-between items-stretch">
-            <div className="flex-1 p-8 print:p-4 border-r-2 border-indigo-900">
-              {settings?.bankName && (
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
-                    <Landmark size={12} className="text-indigo-600" /> Bank Details
-                  </h4>
-                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
-                    <span className="font-bold text-slate-500 uppercase">Bank:</span>
-                    <span className="font-black text-slate-900 uppercase">{settings.bankName}</span>
-                    <span className="font-bold text-slate-500 uppercase">A/c No:</span>
-                    <span className="font-black text-slate-900 tracking-wider">{settings.accountNumber}</span>
-                    <span className="font-bold text-slate-500 uppercase">IFSC:</span>
-                    <span className="font-black text-slate-900 tracking-wider">{settings.ifscCode}</span>
-                    <span className="font-bold text-slate-500 uppercase">Branch:</span>
-                    <span className="font-black text-slate-900 uppercase">{settings.branchName}</span>
+            {/* Bottom calculation Section */}
+            <div className="grid grid-cols-2 border-t border-black">
+              {/* Left Side: Bank Details */}
+              <div className="border-r border-black p-4">
+                {settings?.bankName ? (
+                  <div className="text-[10px]">
+                    <div className="font-bold flex items-center gap-1 mb-2">
+                      <span>🏦</span> BANK DETAILS
+                    </div>
+                    <div className="grid grid-cols-[60px_1fr] gap-y-1 font-bold">
+                      <span>BANK:</span>
+                      <span className="uppercase">{settings.bankName}</span>
+                      <span>A/C NO:</span>
+                      <span>{settings.accountNumber}</span>
+                      <span>IFSC:</span>
+                      <span>{settings.ifsc}</span>
+                      <span>BRANCH:</span>
+                      <span className="uppercase">{settings.branch}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-gray-400 italic">No bank details added</div>
+                )}
+              </div>
+
+              {/* Right Side: Totals */}
+              <div className="text-xs font-bold flex flex-col justify-between">
+                <div className="p-2 px-4 space-y-1">
+                  <div className="flex justify-between">
+                    <span>BASIC AMOUNT:</span>
+                    <span>₹{Number(purchase.basicAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  </div>
+                  {purchase.globalDiscount > 0 && (
+                     <div className="flex justify-between">
+                       <span>DISCOUNT:</span>
+                       <span>- ₹{Number(purchase.globalDiscount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                     </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>GST TOTAL:</span>
+                    <span>₹{Number(purchase.taxAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                   </div>
                 </div>
-              )}
+
+                <div className="border-y border-black p-2 px-4 flex justify-between text-base font-black">
+                  <span>Grand Total:</span>
+                  <span>₹{Number(purchase.grandTotal).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                </div>
+
+                <div className="p-2 px-4 space-y-1 mt-1 pb-2">
+                  <div className="flex justify-between text-[10px]">
+                    <span>PAID:</span>
+                    <span>₹{Number(paidAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-black">
+                    <span>BALANCE:</span>
+                    <span>₹{Number(balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="w-80 p-8 print:p-4 space-y-1.5">
-              <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
-                <span>Basic Amount:</span>
-                <span>₹{purchase.basicAmount.toLocaleString()}</span>
+
+            {/* Footer Footer */}
+            <div className="border-t border-black p-4 flex justify-between items-end h-32">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-2">
+                PURCHASE ENTRY LOGGED !
               </div>
-              {purchase.globalDiscount > 0 && (
-                <div className="flex justify-between text-red-500 font-bold text-xs uppercase">
-                  <span>Discount:</span>
-                  <span>- ₹{purchase.globalDiscount.toLocaleString()}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
-                <span>GST Total:</span>
-                <span>₹{purchase.taxAmount.toLocaleString()}</span>
+              <div className="text-center">
+                <div className="text-[9px] text-gray-400 mb-6 font-bold uppercase">SIGN / STAMP</div>
+                <div className="w-48 h-px bg-black opacity-30 mb-1 mx-auto"></div>
+                <div className="text-[9px] font-black uppercase">AUTHORIZED ENTRY</div>
+                <div className="text-[8px] text-gray-500 uppercase">PRO BILLER PURCHASE</div>
               </div>
-              <div className="flex justify-between text-slate-900 font-black text-xl pt-1 border-t-2 border-indigo-900 mt-1">
-                <span>Grand Total:</span>
-                <span className="text-indigo-600">₹{purchase.grandTotal.toLocaleString()}</span>
-              </div>
-              {balance > 0 && (
-                <div className="pt-2 border-t border-indigo-100 mt-2 space-y-1">
-                  <div className="flex justify-between text-slate-500 font-bold text-[10px] uppercase">
-                    <span>Paid:</span>
-                    <span>₹{paidAmount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-red-600 font-black text-xl uppercase tracking-tighter">
-                    <span>Balance:</span>
-                    <span>₹{balance.toLocaleString()}</span>
-                  </div>
-                </div>
-              )}
             </div>
+
           </div>
-
-          <div className="border-t-2 border-indigo-900 p-8 print:p-4 flex justify-between items-end">
-             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Entry Logged I</div>
-            <div className="text-center min-w-[12rem] relative">
-              {settings?.signature ? (
-                <div className="h-28 flex items-end justify-center mb-1">
-                   <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
-                </div>
-              ) : (
-                <div className="h-28 border-2 border-dashed border-indigo-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
-                  Sign / Stamp
-                </div>
-              )}
-              <div className="pt-2 border-t-2 border-indigo-900">
-                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-900">Authorized Entry</div>
-                <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Purchase</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-12 flex gap-4 print:hidden">
-          <button 
-            onClick={() => window.print()}
-            className="flex-1 bg-indigo-900 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
-          >
-            <Printer size={20} />
-            Print
-          </button>
-          <button 
-            onClick={handleDownloadPDF}
-            className="flex-1 bg-indigo-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
-          >
-            <Download size={20} />
-            Download PDF
-          </button>
-          <button 
-            onClick={onClose}
-            className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl hover:bg-slate-200 transition-all"
-          >
-            Close
-          </button>
         </div>
       </div>
     </motion.div>
@@ -7086,209 +6917,105 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
 }
 
 function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: DebitNote, settings: AppSettings | null, onClose: () => void }) {
-  const printRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === 'Enter') {
-        window.print();
-      }
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'Enter') window.print();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
-
-  const handleDownloadPDF = async () => {
-    if (!printRef.current) return;
-    try {
-      const canvas = await html2canvas(printRef.current, { 
-        scale: 2,
-        useCORS: true,
-        logging: false
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`DebitNote_${debitNote.noteNumber}.pdf`);
-    } catch (error) {
-      console.error("PDF generation failed", error);
-      alert("Failed to generate PDF. You can use Print -> Save as PDF instead.");
-    }
-  };
 
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
     >
-      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:max-w-none print:w-full print:m-0 print:border-none print:shadow-none print:rounded-none print:p-0">
-        <button 
-          onClick={onClose}
-          className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"
-        >
-          <ChevronLeft size={24} />
-        </button>
-
-        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-red-900 text-slate-900">
-          {/* Watermark for Print */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
-            <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
-              {settings?.companyName || "PRO BILLER"}
-            </span>
-          </div>
-          <div className="flex justify-between items-start border-b-2 border-red-700 pb-6 p-8 print:p-6 print:border-b-2">
-            <div>
-              <h1 className="text-3xl font-black text-red-700 uppercase">DEBIT NOTE</h1>
-              <p className="text-slate-500 font-bold text-sm tracking-widest">Supplier Return Voucher</p>
-              <div className="mt-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">From (Our Info)</p>
-                <div className="font-bold text-slate-900 text-sm">{settings?.companyName || "PRO BILLER"}</div>
-                <div className="text-slate-500 text-xs">{settings?.gstin}</div>
-              </div>
+      <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans">
+        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"><ChevronLeft size={24} /></button>
+        <div className="print-container bg-white p-8 print:p-0">
+          <div className="border border-black">
+            <div className="p-2 text-[10px] font-bold uppercase border-b border-black flex justify-between">
+              <span>CONTACT: {debitNote.partyMobile || ''}</span>
+              <span>DEBIT NOTE REF #{debitNote.billNumber} | DATE: {new Date(debitNote.date).toLocaleDateString()}</span>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-black text-slate-900 uppercase">#{debitNote.noteNumber}</div>
-              <div className="text-slate-400 text-xs mt-1">{new Date(debitNote.date).toLocaleDateString()}</div>
-              {debitNote.purchaseBillNumber && (
-                <div className="mt-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Ref Purchase: {debitNote.purchaseBillNumber}</div>
-              )}
-            </div>
-          </div>
-
-          <div className="border-b-2 border-red-700">
-            <div className="p-8 print:p-6 bg-red-50/10">
-               <label className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1 block">To Supplier</label>
-               <div className="font-black text-slate-900 text-lg uppercase">{debitNote.partyName}</div>
-               <div className="text-red-700 font-bold text-xs">{debitNote.partyGstin}</div>
-               <div className="text-slate-500 text-xs mt-1">{debitNote.partyAddress}</div>
-               {debitNote.partyMobile && (
-                 <div className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-tighter">
-                   Contact: {debitNote.partyMobile}{debitNote.partyMobile2 ? ` / ${debitNote.partyMobile2}` : ''}
-                 </div>
-               )}
-            </div>
-          </div>
-
-          {debitNote.reason && (
-            <div className="text-sm font-bold text-slate-600 bg-slate-50 p-4 border-b-2 border-red-700">
-              Reason: {debitNote.reason}
-            </div>
-          )}
-
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b-2 border-red-700 bg-red-50/50">
-                <th className="py-4 px-4 text-left font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-red-700">Item</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-red-700">Qty</th>
-                <th className="py-4 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-red-700">Rate</th>
-                <th className="py-4 px-4 text-right font-black uppercase text-xs tracking-widest text-slate-900">Value (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(debitNote.items || []).filter(item => item.name && item.name.trim() !== "").map((item) => (
-                <tr key={item.id} className="border-b-2 border-red-700">
-                  <td className="py-4 px-4 font-bold text-slate-900 border-r-2 border-red-700">
-                    <div>{item.name}</div>
-                    {item.meters && <div className="text-slate-400 text-[9px] font-mono border-t border-red-100 mt-1 pt-1 break-all uppercase tracking-tighter">{item.meters}</div>}
-                  </td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-red-700">{item.quantity} {item.unit}</td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700 border-r-2 border-red-700">{item.rate.toFixed(2)}</td>
-                  <td className="py-4 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString()}</td>
+            <table className="w-full text-xs font-bold text-center border-collapse">
+              <thead>
+                <tr className="border-b border-black uppercase">
+                  <th className="border-r border-black p-2 text-left w-2/5">ITEM NAME</th>
+                  <th className="border-r border-black p-2">HSN</th>
+                  <th className="border-r border-black p-2">QTY</th>
+                  <th className="border-r border-black p-2">RATE</th>
+                  <th className="p-2 text-right">AMOUNT (₹)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="border-t-2 border-red-700 flex justify-between items-stretch">
-            <div className="flex-1 p-8 print:p-6 border-r-2 border-red-700">
-              {settings?.bankName && (
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                    <Landmark size={12} className="text-red-600" /> Bank Details
-                  </h4>
-                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
-                    <span className="font-bold text-slate-500 uppercase">Bank:</span>
-                    <span className="font-black text-slate-900 uppercase">{settings.bankName}</span>
-                    <span className="font-bold text-slate-500 uppercase">A/c No:</span>
-                    <span className="font-black text-slate-900 tracking-wider">{settings.accountNumber}</span>
-                    <span className="font-bold text-slate-500 uppercase">IFSC:</span>
-                    <span className="font-black text-slate-900 tracking-wider">{settings.ifscCode}</span>
-                    <span className="font-bold text-slate-500 uppercase">Branch:</span>
-                    <span className="font-black text-slate-900 uppercase">{settings.branchName}</span>
+              </thead>
+              <tbody>
+                {debitNote.items.map((item: any, idx: number) => (
+                  <tr key={item.id} className="border-b border-black">
+                    <td className="border-r border-black p-2 text-left uppercase">
+                      {item.name}
+                      {item.color && <div className="text-[9px] mt-1">{item.color}</div>}
+                    </td>
+                    <td className="border-r border-black p-2">{item.hsnCode}</td>
+                    <td className="border-r border-black p-2 uppercase">{item.quantity} {item.unit}</td>
+                    <td className="border-r border-black p-2">{Number(item.rate).toFixed(2)}</td>
+                    <td className="p-2 text-right">{Number(item.amount).toFixed(2)}</td>
+                  </tr>
+                ))}
+                {Array.from({ length: Math.max(0, 5 - debitNote.items.length) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black h-10">
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="grid grid-cols-2 border-t border-black">
+              <div className="border-r border-black p-4">
+                {settings?.bankName ? (
+                  <div className="text-[10px]">
+                    <div className="font-bold flex items-center gap-1 mb-2"><span>🏦</span> BANK DETAILS</div>
+                    <div className="grid grid-cols-[60px_1fr] gap-y-1 font-bold">
+                      <span>BANK:</span><span className="uppercase">{settings.bankName}</span>
+                      <span>A/C NO:</span><span>{settings.accountNumber}</span>
+                      <span>IFSC:</span><span>{settings.ifsc}</span>
+                      <span>BRANCH:</span><span className="uppercase">{settings.branch}</span>
+                    </div>
                   </div>
+                ) : (<div className="text-[10px] text-gray-400 italic">No bank details added</div>)}
+              </div>
+              <div className="text-xs font-bold flex flex-col justify-between">
+                <div className="p-2 px-4 space-y-1">
+                  <div className="flex justify-between"><span>BASIC AMOUNT:</span><span>₹{Number(debitNote.basicAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                  {debitNote.globalDiscount > 0 && (<div className="flex justify-between"><span>DISCOUNT:</span><span>- ₹{Number(debitNote.globalDiscount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>)}
+                  <div className="flex justify-between"><span>GST TOTAL:</span><span>₹{Number(debitNote.taxAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                 </div>
-              )}
-            </div>
-            <div className="w-80 p-8 print:p-6 space-y-2">
-              <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
-                <span>Taxable Value:</span>
-                <span>₹{debitNote.basicAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
-                <span>GST ({debitNote.taxRate}%):</span>
-                <span>₹{debitNote.taxAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-red-700 font-black text-xl pt-2 border-t-2 border-red-700 mt-2">
-                <span>Total Debit:</span>
-                <span>₹{debitNote.grandTotal.toLocaleString()}</span>
+                <div className="border-y border-black p-2 px-4 flex justify-between text-base font-black">
+                  <span>Grand Total:</span><span>₹{Number(debitNote.grandTotal).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                </div>
+                <div className="p-2 px-4 space-y-1 mt-1 pb-2"></div>
               </div>
             </div>
-          </div>
-
-          <div className="border-t-2 border-red-700 p-8 print:p-6 flex justify-between items-end">
-            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Purchase Return Voucher I</div>
-            <div className="text-center min-w-[12rem] relative">
-              {settings?.signature ? (
-                <div className="h-28 flex items-end justify-center mb-1">
-                   <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
-                </div>
-              ) : (
-                <div className="h-28 border-2 border-dashed border-red-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
-                  Sign / Stamp
-                </div>
-              )}
-              <div className="pt-2 border-t-2 border-red-700">
-                <div className="text-[10px] font-black uppercase tracking-widest text-red-700">Authorized Entry</div>
-                <div className="text-[9px] text-slate-400 mt-1 uppercase">Pro Biller Return</div>
+            <div className="border-t border-black p-4 flex justify-between items-end h-32">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-2">DEBIT NOTE ENTRY LOGGED !</div>
+              <div className="text-center">
+                <div className="text-[9px] text-gray-400 mb-6 font-bold uppercase">SIGN / STAMP</div>
+                <div className="w-48 h-px bg-black opacity-30 mb-1 mx-auto"></div>
+                <div className="text-[9px] font-black uppercase">AUTHORIZED ENTRY</div>
+                <div className="text-[8px] text-gray-500 uppercase">{settings?.companyName || "PRO BILLER"}</div>
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="mt-12 flex gap-4 print:hidden">
-          <button 
-            onClick={() => window.print()}
-            className="flex-1 bg-red-700 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
-          >
-            <Printer size={20} />
-            Print
-          </button>
-          <button 
-            onClick={handleDownloadPDF}
-            className="flex-1 bg-red-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2"
-          >
-            <Download size={20} />
-            Download PDF
-          </button>
-          <button 
-            onClick={onClose} 
-            className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl"
-          >
-            Close
-          </button>
         </div>
       </div>
     </motion.div>
   );
 }
-
 function PrintPreview({ booking, settings, payments = [], onClose }: { booking: Booking, settings: AppSettings | null, payments?: Payment[], onClose: () => void }) {
   const printRef = useRef<HTMLDivElement>(null);
   const { paidAmount, balance, status } = useMemo(() => 
@@ -7298,45 +7025,21 @@ function PrintPreview({ booking, settings, payments = [], onClose }: { booking: 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === 'Enter') {
-        window.print();
-      }
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'Enter') window.print();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
-
-  const handleDownloadPDF = async () => {
-    if (!printRef.current) return;
-    try {
-      const canvas = await html2canvas(printRef.current, { 
-        scale: 2,
-        useCORS: true,
-        logging: false
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Bill_${booking.billNumber}.pdf`);
-    } catch (error) {
-      console.error("PDF generation failed", error);
-      alert("Failed to generate PDF. You can use Print -> Save as PDF instead.");
-    }
-  };
 
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
     >
-      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:max-w-none print:w-full print:m-0 print:border-none print:shadow-none print:rounded-none print:p-0">
+      <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans">
         <button 
           onClick={onClose}
           className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"
@@ -7344,234 +7047,133 @@ function PrintPreview({ booking, settings, payments = [], onClose }: { booking: 
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 ">
-          {/* Watermark for Print */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
-            <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
-              {settings?.companyName || "PRO BILLER"}
-            </span>
-          </div>
-          <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 p-8 print:p-4 print:border-b-2">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 uppercase">{settings?.companyName || "PRO BILLER"}</h1>
-              <p className="text-slate-500 font-bold text-sm tracking-widest">{settings?.gstin}</p>
-              <p className="text-slate-400 text-xs mt-1">{settings?.address}</p>
-              {settings?.mobile && (
-                <p className="text-slate-400 text-xs">Ph: {settings.mobile}{settings.mobile2 ? ` / ${settings.mobile2}` : ''}</p>
-              )}
+        <div ref={printRef} className="print-container bg-white p-8 print:p-0">
+          <div className="border border-black">
+            
+            {/* Header section (if contact is needed) */}
+            <div className="p-2 text-[10px] font-bold uppercase border-b border-black flex justify-between">
+              <span>CONTACT: {settings?.mobile || booking.consigneeMobile || ''}</span>
+              <span>INVOICE #{booking.billNumber} | DATE: {new Date(booking.date).toLocaleDateString()}</span>
             </div>
-            <div className="text-right">
-              <div className="text-[#00cec9] text-2xl font-black">INVOICE</div>
-              {status === 'PAID' && (
-                <div className="text-green-600 border-4 border-green-600 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">PAID</div>
-              )}
-              {status === 'PARTIAL' && (
-                <div className="text-orange-500 border-4 border-orange-500 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">PARTIALLY PAID</div>
-              )}
-              {status === 'UNPAID' && (
-                <div className="text-red-600 border-4 border-red-600 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">UNPAID</div>
-              )}
-              <div className="text-slate-900 text-sm font-black">Bill No: #{booking.billNumber}</div>
-              <div className="flex flex-col items-end gap-0.5 mt-1">
-                <div className="text-slate-500 text-[10px] font-bold">LR No: {booking.lrNumber || 'N/A'}</div>
-                {booking.parcels && <div className="text-slate-500 text-[10px] font-bold">Parcels: {booking.parcels}</div>}
+
+            {/* Table */}
+            <table className="w-full text-xs font-bold text-center border-collapse">
+              <thead>
+                <tr className="border-b border-black uppercase">
+                  <th className="border-r border-black p-2 text-left w-2/5">ITEM NAME</th>
+                  <th className="border-r border-black p-2">HSN</th>
+                  <th className="border-r border-black p-2">QTY</th>
+                  <th className="border-r border-black p-2">RATE</th>
+                  <th className="p-2 text-right">AMOUNT (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {booking.items.map((item: any, idx: number) => (
+                  <tr key={item.id} className="border-b border-black">
+                    <td className="border-r border-black p-2 text-left uppercase">
+                      {item.name}
+                      {item.color && <div className="text-[9px] mt-1">{item.color}</div>}
+                    </td>
+                    <td className="border-r border-black p-2">{item.hsnCode}</td>
+                    <td className="border-r border-black p-2 uppercase">{item.quantity} {item.unit}</td>
+                    <td className="border-r border-black p-2">{Number(item.rate).toFixed(2)}</td>
+                    <td className="p-2 text-right">{Number(item.amount).toFixed(2)}</td>
+                  </tr>
+                ))}
+                {/* Empty rows to stretch */}
+                {Array.from({ length: Math.max(0, 5 - booking.items.length) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black h-10">
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Bottom calculation Section */}
+            <div className="grid grid-cols-2 border-t border-black">
+              {/* Left Side: Bank Details */}
+              <div className="border-r border-black p-4">
+                {settings?.bankName ? (
+                  <div className="text-[10px]">
+                    <div className="font-bold flex items-center gap-1 mb-2">
+                      <span>🏦</span> BANK DETAILS
+                    </div>
+                    <div className="grid grid-cols-[60px_1fr] gap-y-1 font-bold">
+                      <span>BANK:</span>
+                      <span className="uppercase">{settings.bankName}</span>
+                      <span>A/C NO:</span>
+                      <span>{settings.accountNumber}</span>
+                      <span>IFSC:</span>
+                      <span>{settings.ifsc}</span>
+                      <span>BRANCH:</span>
+                      <span className="uppercase">{settings.branch}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-gray-400 italic">No bank details added</div>
+                )}
               </div>
-              <div className="text-slate-400 text-xs mt-1">{new Date(booking.date).toLocaleDateString()}</div>
-              {booking.ewbNumber && (
-                <div className="text-slate-900 font-black text-[10px] mt-1 uppercase tracking-tighter bg-yellow-100 px-2 py-0.5 rounded inline-block">
-                   E-Way: {booking.ewbNumber}
-                </div>
-              )}
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 print:grid-cols-2 gap-0 border-b-2 border-slate-900">
-            <div className="p-8 print:p-4 border-r-2 border-slate-900">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Billing Consignor</label>
-              <div className="font-bold text-slate-900">{booking.consignorName}</div>
-              <div className="text-slate-500 text-xs italic">{booking.consignorGstin}</div>
-              <div className="text-slate-400 text-xs mt-0.5 leading-relaxed">{booking.consignorAddress}</div>
-            </div>
-            <div className="p-8 print:p-4 text-right">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Billing Consignee</label>
-              <div className="font-bold text-slate-900">{booking.consigneeName}</div>
-              <div className="text-slate-500 text-xs italic">{booking.consigneeGstin}</div>
-              <div className="text-slate-400 text-xs mt-0.5 leading-relaxed">{booking.consigneeAddress}</div>
-              {booking.consigneeMobile && (
-                <div className="text-slate-400 text-xs font-bold mt-1 uppercase tracking-tighter">
-                  Contact: {booking.consigneeMobile}{booking.consigneeMobile2 ? ` / ${booking.consigneeMobile2}` : ''}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="p-0">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b-2 border-slate-900 bg-slate-50">
-                <th className="py-3 px-4 text-left font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Description</th>
-                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">HSN</th>
-                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Taka</th>
-                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-r-2 border-slate-900">Qty</th>
-                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-l-2 border-slate-900">Rate</th>
-                <th className="py-3 px-2 text-center font-black uppercase text-xs tracking-widest text-slate-900 border-x-2 border-slate-900">Disc</th>
-                <th className="py-3 px-4 text-right font-black uppercase text-xs tracking-widest text-slate-900">Value (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(booking.items || [])
-                .filter(item => item.name && item.name.trim() !== "")
-                .map((item, idx) => (
-                <tr key={item.id} className="border-b-2 border-slate-900">
-                  <td className="py-2 px-4 border-r-2 border-slate-900">
-                    <div className="font-bold text-slate-900">{item.name || 'Transport item'}</div>
-                    {item.color && <div className="text-slate-500 text-[10px]">Color: {item.color}</div>}
-                    {item.meters && <div className="text-slate-400 text-[9px] font-mono border-t border-slate-100 mt-1 pt-1 break-all uppercase tracking-tighter">{item.meters}</div>}
-                    {item.purchaseBillNumber && (
-                      <div className="text-indigo-600 font-bold text-[8px] uppercase mt-0.5">
-                        Purch Ref: {item.purchaseBillNumber} ({item.purchasePartyName})
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.hsnCode || '-'}</td>
-                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">{item.taka || '-'}</td>
-                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
-                    {item.quantity !== undefined ? `${item.quantity.toFixed(2)} ${item.unit || ''}` : '-'}
-                  </td>
-                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
-                    {item.rate !== undefined ? item.rate.toFixed(2) : '-'}
-                  </td>
-                  <td className="py-2 px-2 text-center font-bold text-slate-700 border-r-2 border-slate-900">
-                    {item.discount !== undefined && item.discount > 0 ? item.discount.toFixed(2) : '-'}
-                  </td>
-                  <td className="py-2 px-4 text-right font-bold text-slate-900">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                </tr>
-              ))}
-              {(!booking.items || booking.items.length === 0) && (
-                <tr className="border-b-2 border-slate-900">
-                  <td className="py-3 px-4 font-bold text-slate-900 border-r-2 border-slate-900">Transport Charges</td>
-                  <td className="border-r-2 border-slate-900"></td>
-                  <td className="border-r-2 border-slate-900"></td>
-                  <td className="border-r-2 border-slate-900"></td>
-                  <td className="border-r-2 border-slate-900"></td>
-                  <td className="border-r-2 border-slate-900"></td>
-                  <td className="py-3 px-4 text-right font-bold text-slate-900">{booking.basicAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          </div>
-
-          <div className="border-t-2 border-slate-900 flex justify-between items-stretch">
-            <div className="flex-1 p-8 print:p-4 border-r-2 border-slate-900">
-              {settings?.bankName && (
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
-                    <Landmark size={12} className="text-[#00cec9]" /> Bank Details
-                  </h4>
-                  <div className="grid grid-cols-[80px_1fr] gap-y-1 text-[11px]">
-                    <span className="font-bold text-slate-500 uppercase">Bank:</span>
-                    <span className="font-black text-slate-900 uppercase">{settings.bankName}</span>
-                    <span className="font-bold text-slate-500 uppercase">A/c No:</span>
-                    <span className="font-black text-slate-900 tracking-wider">{settings.accountNumber}</span>
-                    <span className="font-bold text-slate-500 uppercase">IFSC:</span>
-                    <span className="font-black text-slate-900 tracking-wider">{settings.ifscCode}</span>
-                    <span className="font-bold text-slate-500 uppercase">Branch:</span>
-                    <span className="font-black text-slate-900 uppercase">{settings.branchName}</span>
+              {/* Right Side: Totals */}
+              <div className="text-xs font-bold flex flex-col justify-between">
+                <div className="p-2 px-4 space-y-1">
+                  <div className="flex justify-between">
+                    <span>BASIC AMOUNT:</span>
+                    <span>₹{Number(booking.basicAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  </div>
+                  {booking.globalDiscount > 0 && (
+                     <div className="flex justify-between">
+                       <span>DISCOUNT:</span>
+                       <span>- ₹{Number(booking.globalDiscount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                     </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>GST TOTAL:</span>
+                    <span>₹{Number(booking.taxAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                   </div>
                 </div>
-              )}
-            </div>
-          <div className="w-80 p-8 print:p-4 space-y-1.5">
-            <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
-              <span>Basic Value:</span>
-              <span>₹{booking.basicAmount.toLocaleString()}</span>
-            </div>
-            {booking.globalDiscount > 0 && (
-              <div className="flex justify-between text-pink-600 font-black text-xs uppercase">
-                <span>Discount:</span>
-                <span>- ₹{booking.globalDiscount.toLocaleString()}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
-              <span>Taxable:</span>
-              <span>₹{(booking.basicAmount - (booking.globalDiscount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-            </div>
-            <div className="flex justify-between text-slate-500 font-bold text-xs uppercase">
-              <span>GST Total:</span>
-              <span>₹{booking.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-            </div>
-            <div className="flex justify-between text-slate-900 font-black text-lg pt-1 border-t-2 border-slate-900 mt-1">
-              <span>Total:</span>
-              <span className="text-[#00cec9]">₹{booking.grandTotal.toLocaleString()}</span>
-            </div>
-            {balance > 0 && (
-              <div className="pt-2 border-t border-slate-200 mt-2 space-y-1">
-                <div className="flex justify-between text-slate-500 font-bold text-[10px] uppercase">
-                  <span>Paid:</span>
-                  <span>₹{paidAmount.toLocaleString()}</span>
+
+                <div className="border-y border-black p-2 px-4 flex justify-between text-base font-black">
+                  <span>Grand Total:</span>
+                  <span>₹{Number(booking.grandTotal).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
-                <div className="flex justify-between text-red-600 font-black text-xl uppercase tracking-tighter">
-                  <span>Balance:</span>
-                  <span>₹{balance.toLocaleString()}</span>
+
+                <div className="p-2 px-4 space-y-1 mt-1 pb-2">
+                  <div className="flex justify-between text-[10px]">
+                    <span>PAID:</span>
+                    <span>₹{Number(paidAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-black">
+                    <span>BALANCE:</span>
+                    <span>₹{Number(balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-
-        <div className="border-t-2 border-slate-900 p-8 print:p-4 flex justify-between items-end">
-          <div className="space-y-3">
-             <p className="text-[9px] font-bold text-slate-400 italic">This is a computer generated invoice and does not require physical signature.</p>
-             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Generated via Pro Biller I</div>
-          </div>
-          <div className="text-center min-w-[12rem] relative">
-            {settings?.signature ? (
-              <div className="h-24 flex items-end justify-center mb-1">
-                <img src={settings.signature} alt="Authorized Signatory" referrerPolicy="no-referrer" className="max-h-full max-w-full object-contain" />
-              </div>
-            ) : (
-              <div className="h-24 border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-200 uppercase italic">
-                Sign / Stamp
-              </div>
-            )}
-            <div className="pt-2 border-t-2 border-slate-900">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-900">Authorized Signatory</div>
-              <div className="text-[9px] text-slate-400 mt-1 cursor-default select-none">E-Signature Verified</div>
             </div>
-          </div>
-        </div>
-        </div>
 
-        <div className="mt-12 flex flex-col gap-4 print:hidden">
-          <div className="flex gap-4">
-            <button 
-              onClick={() => window.print()}
-              className="flex-1 bg-black text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2 hover:bg-slate-900 transition-all"
-            >
-              <Printer size={20} />
-              Print
-            </button>
-            <button 
-              onClick={handleDownloadPDF}
-              className="flex-1 bg-blue-600 text-white font-black py-4 rounded-xl shadow-xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
-            >
-              <Download size={20} />
-              Download PDF
-            </button>
-            <button 
-              onClick={onClose}
-              className="px-8 bg-slate-100 text-slate-900 font-black py-4 rounded-xl hover:bg-slate-200 transition-all"
-            >
-              Close
-            </button>
+            {/* Footer Footer */}
+            <div className="border-t border-black p-4 flex justify-between items-end h-32">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-2">
+                SALE ENTRY LOGGED !
+              </div>
+              <div className="text-center">
+                <div className="text-[9px] text-gray-400 mb-6 font-bold uppercase">SIGN / STAMP</div>
+                <div className="w-48 h-px bg-black opacity-30 mb-1 mx-auto"></div>
+                <div className="text-[9px] font-black uppercase">AUTHORIZED ENTRY</div>
+                <div className="text-[8px] text-gray-500 uppercase">{settings?.companyName || "PRO BILLER SALE"}</div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
     </motion.div>
   );
 }
-
 function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses, settings }: any) {
   const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -8921,7 +8523,7 @@ function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSav
                     type="number" 
                     required
                     value={formData.amount}
-                    onChange={e => setFormData({ ...formData, amount: e.target.value as any })}
+                    onChange={e => setFormData({ ...formData, amount: e.target.value === '' ? '' : (parseFloat(e.target.value) || '') as any })}
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
                     placeholder="0.00"
                   />
