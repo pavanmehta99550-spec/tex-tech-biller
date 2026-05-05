@@ -2959,7 +2959,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                       type="number" 
                       readOnly={isLocked} 
                       value={item.quantity || ''} 
-                      onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} 
+                      onChange={e => updateItem(item.id, 'quantity', e.target.value)} 
                       onFocus={() => !isLocked && setActiveCalcId(item.id)}
                       onKeyDown={handleEnter} 
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-indigo-500" 
@@ -2994,7 +2994,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                     type="number" 
                     readOnly={isLocked} 
                     value={item.rate || ''} 
-                    onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} 
+                    onChange={e => updateItem(item.id, 'rate', e.target.value)} 
                     onKeyDown={(e) => {
                       if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
                         e.preventDefault();
@@ -3045,8 +3045,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               min="0"
               value={formData.globalDiscount || ''} 
               onChange={e => {
-                const val = parseFloat(e.target.value) || 0;
-                setFormData({ ...formData, globalDiscount: Math.max(0, val) });
+                const val = e.target.value;
+                setFormData({ ...formData, globalDiscount: val as any });
               }} 
               onKeyDown={handleEnter}
               className="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none focus:border-indigo-500 transition-all"
@@ -4391,7 +4391,7 @@ function BookingView({
                       readOnly={isLocked} 
                       step="any" 
                       value={item.quantity || ''} 
-                      onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} 
+                      onChange={e => updateItem(item.id, 'quantity', e.target.value)} 
                       onFocus={() => !isLocked && setActiveCalcId(item.id)}
                       onKeyDown={handleEnter} 
                       className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
@@ -4423,7 +4423,7 @@ function BookingView({
                 </div>
                 <div className="md:col-span-1.5 space-y-1 text-slate-900">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
-                  <input type="number" readOnly={isLocked} step="any" value={item.rate || ''} onChange={e => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="0.00" />
+                  <input type="number" readOnly={isLocked} step="any" value={item.rate || ''} onChange={e => updateItem(item.id, 'rate', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="0.00" />
                 </div>
                 <div className="md:col-span-1.5 space-y-1 text-slate-900">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Disc.</label>
@@ -4432,7 +4432,7 @@ function BookingView({
                     readOnly={isLocked} 
                     step="any" 
                     value={item.discount || ''} 
-                    onChange={e => updateItem(item.id, 'discount', parseFloat(e.target.value) || 0)} 
+                    onChange={e => updateItem(item.id, 'discount', e.target.value)} 
                     onKeyDown={(e) => {
                       if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
                         e.preventDefault();
@@ -4575,8 +4575,8 @@ function BookingView({
               disabled={hasItemDiscount}
               value={hasItemDiscount ? 0 : (formData.globalDiscount || '')} 
               onChange={e => {
-                const val = parseFloat(e.target.value) || 0;
-                setFormData({ ...formData, globalDiscount: Math.max(0, val) });
+                const val = e.target.value;
+                setFormData({ ...formData, globalDiscount: val as any });
               }} 
               className={`w-full px-4 py-3 border-2 rounded-xl font-black bg-white outline-none text-xl transition-all ${
                 hasItemDiscount 
@@ -5566,7 +5566,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel 
                           value={b.paid || ''}
                           onChange={(e) => {
                             const newAdjustments = [...billAdjustments];
-                            newAdjustments[idx].paid = parseFloat(e.target.value) || 0;
+                            newAdjustments[idx].paid = e.target.value as any;
                             setBillAdjustments(newAdjustments);
                           }}
                           className="w-full text-right px-4 py-2 border border-slate-100 rounded-lg font-black text-red-600 outline-none focus:border-red-500"
@@ -5775,7 +5775,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: an
                           value={b.paid || ''}
                           onChange={(e) => {
                             const newAdjustments = [...billAdjustments];
-                            newAdjustments[idx].paid = parseFloat(e.target.value) || 0;
+                            newAdjustments[idx].paid = e.target.value as any;
                             setBillAdjustments(newAdjustments);
                           }}
                           className="w-full text-right px-4 py-2 border border-slate-100 rounded-lg font-black text-blue-600 outline-none focus:border-blue-500"
@@ -8854,7 +8854,7 @@ function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSav
                     type="number" 
                     required
                     value={formData.amount}
-                    onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
+                    onChange={e => setFormData({ ...formData, amount: e.target.value as any })}
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
                     placeholder="0.00"
                   />
