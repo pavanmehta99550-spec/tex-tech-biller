@@ -137,7 +137,7 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: Browsers.macOS('Desktop'), // Try different browser identity
+                browser: ['AIS Automation', 'Chrome', '110.0.5481.177'],
                 syncFullHistory: false,
                 qrTimeout: 60000,
                 connectTimeoutMs: 60000, 
@@ -200,14 +200,16 @@ async function startServer() {
                     const errorMsg = error?.message || error?.stack || '';
                     console.error(`WhatsApp: Socket closed (${statusCode}). Msg: ${errorMsg}`);
                     
-                    const isTerminated = statusCode === 428 || statusCode === 515 || statusCode === 503 || 
+                    const isTerminated = statusCode === 428 || statusCode === 515 || statusCode === 503 || statusCode === 440 ||
                                        errorMsg.toLowerCase().includes('terminated') || 
                                        errorMsg.includes('Connection Terminated') ||
-                                       errorMsg.includes('hangup');
+                                       errorMsg.includes('hangup') ||
+                                       errorMsg.includes('Handshake timeout') ||
+                                       errorMsg.includes('connect ETIMEDOUT');
 
-                    if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || (isTerminated && failureCount >= 5)) {
-                        setStatus('disconnected', isTerminated ? 'Session Rejected' : 'Logged Out');
-                        console.warn('WhatsApp: Resetting session...');
+                    if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || (isTerminated && failureCount >= 3)) {
+                        setStatus('disconnected', isTerminated ? 'Session Resetting...' : 'Logged Out');
+                        console.warn('WhatsApp: Resetting session due to terminal error or logout.');
                         if (fs.existsSync(authPath)) {
                             try { fs.rmSync(authPath, { recursive: true, force: true }); } catch(e) {}
                         }
@@ -319,7 +321,7 @@ async function startServer() {
                 sock = null;
             }
             
-            const authPath = '/tmp/wa_auth';
+            const authPath = path.join(process.cwd(), 'wa_auth');
             if (fs.existsSync(authPath)) {
                 fs.rmSync(authPath, { recursive: true, force: true });
             }

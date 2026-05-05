@@ -395,6 +395,17 @@ export default function App() {
   useEffect(() => {
     let eventSource: EventSource | null = null;
     let retryTimeout: NodeJS.Timeout | null = null;
+    let pollInterval: NodeJS.Timeout | null = null;
+
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch('/api/whatsapp/status');
+        const data = await res.json();
+        setWaStatus(data);
+      } catch (e) {
+        console.warn('Failed to poll WhatsApp status');
+      }
+    };
 
     const connectSSE = () => {
       console.log("App: Connecting to WhatsApp SSE...");
@@ -420,10 +431,12 @@ export default function App() {
     };
 
     connectSSE();
+    pollInterval = setInterval(fetchStatus, 30000); // 30s poll fallback
 
     return () => {
       if (eventSource) eventSource.close();
       if (retryTimeout) clearTimeout(retryTimeout);
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, []);
 
@@ -8651,10 +8664,18 @@ function WhatsAppStatusSection({ waStatus }: { waStatus: any }) {
                 <img src={waStatus.qr} alt="WhatsApp QR Code" className="w-48 h-48 rounded-xl" />
               </div>
             ) : (
-              <div className="w-48 h-48 bg-slate-100 rounded-3xl flex items-center justify-center text-center p-6 border-2 border-dashed border-slate-200">
+              <div className="w-48 h-48 bg-slate-100 rounded-3xl flex items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 flex-col gap-3">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
                   {waStatus.detailedStatus || 'Waiting for QR Code...'}
                 </p>
+                {(waStatus.detailedStatus === 'Idle' || waStatus.detailedStatus?.includes('Error') || waStatus.detailedStatus === 'Logged Out') && (
+                  <button 
+                    onClick={handleRestart}
+                    className="mt-2 px-3 py-1.5 bg-slate-200 text-slate-600 text-[9px] font-black uppercase rounded-lg hover:bg-slate-300 transition-all"
+                  >
+                    Connect Now
+                  </button>
+                )}
               </div>
             )}
             <div className="text-center max-w-sm">
