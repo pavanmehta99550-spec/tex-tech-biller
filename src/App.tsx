@@ -6491,15 +6491,6 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
             </div>
           </div>
           <div className="flex items-center gap-6">
-            <select 
-              value={billFilter}
-              onChange={(e) => setBillFilter(e.target.value as any)}
-              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-700 outline-none focus:border-indigo-500"
-            >
-              <option value="ALL">All Transactions</option>
-              <option value="PAID">Paid Bills</option>
-              <option value="UNPAID">Unpaid Bills</option>
-            </select>
             <button 
               onClick={() => setShowLedgerPrint(true)}
               className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-200"
