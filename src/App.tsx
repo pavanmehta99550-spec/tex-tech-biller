@@ -5357,7 +5357,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
           <ChevronLeft size={24} />
         </button>
         
-        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-10">
+        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-[60]">
           <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
             <Printer size={16} /> Print
           </button>
@@ -5366,7 +5366,8 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
           </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div className="overflow-y-auto max-h-[90vh] w-full p-2">
+          <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
@@ -5540,6 +5541,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
           </div>
         </div>
       </div>
+    </div>
     </motion.div>
   );
 }
@@ -7006,11 +7008,11 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
     >
       <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border" style={{ fontFamily: 'Arial, sans-serif' }}>
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden">
+        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden z-[60]">
           <ChevronLeft size={24} />
         </button>
         
-        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-10">
+        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-[60]">
           <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
             <Printer size={16} /> Print
           </button>
@@ -7247,11 +7249,11 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
     >
       <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border" style={{ fontFamily: 'Arial, sans-serif' }}>
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden">
+        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden z-[60]">
           <ChevronLeft size={24} />
         </button>
         
-        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-10">
+        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-[60]">
           <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
             <Printer size={16} /> Print
           </button>
@@ -7437,7 +7439,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
     </motion.div>
   );
 }
-function PrintPreview({ booking, settings, payments = [], onClose }: any) {
+function PrintPreview({ booking, settings, payments = [], onClose }: { booking: Booking, settings: AppSettings | null, payments?: Payment[], onClose: () => void }) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
