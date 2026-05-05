@@ -5439,25 +5439,29 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose, 
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
     >
-      <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border" style={{ fontFamily: 'Arial, sans-serif' }}>
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden">
-          <ChevronLeft size={24} />
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+        <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
+          <ChevronLeft size={16} /> Close Preview
         </button>
         
-        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-[60]">
-          <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-          <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
-            <Printer size={16} /> Print
+        <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
+          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Printer size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Bill</span>
           </button>
-          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
-            <Download size={16} /> PDF
+          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Download size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
+          <div className="group relative">
+            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
+            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
+          </div>
         </div>
 
-        <div className="overflow-y-auto max-h-[90vh] w-full p-2">
-          <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
@@ -5631,7 +5635,6 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose, 
           </div>
         </div>
       </div>
-    </div>
     </motion.div>
   );
 }
@@ -6120,19 +6123,33 @@ function PaymentPrintPreview({ payment, settings, onClose, waStatus }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto print:absolute print:inset-0 print:p-0 print:bg-white print:backdrop-blur-none">
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl print:max-w-none print:w-full print:shadow-none print:rounded-none">
-        <div className="bg-slate-900 p-6 flex justify-between items-center print:hidden">
-          <h3 className="text-white font-black uppercase tracking-widest text-sm">Payment Voucher</h3>
-          <div className="flex gap-4">
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }} 
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
+    >
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+        <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
+          <ChevronLeft size={16} /> Close Preview
+        </button>
+        
+        <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
+          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Printer size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Voucher</span>
+          </button>
+          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Download size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
+          </button>
+          <div className="group relative">
             <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-            <button onClick={() => window.print()} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all"><Printer size={14} className="inline mr-2" /> Print</button>
-            <button onClick={handleDownloadPDF} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all"><Download size={14} className="inline mr-2" /> PDF</button>
-            <button onClick={onClose} className="bg-white/10 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-white/20 transition-all">Close</button>
+            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
           </div>
         </div>
 
-        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-800">
+        <div ref={printRef} id="print-container" className="print-container space-y-0 p-4 sm:p-10 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-800">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
@@ -6226,8 +6243,8 @@ function PaymentPrintPreview({ payment, settings, onClose, waStatus }: any) {
             </div>
           </footer>
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -6659,19 +6676,33 @@ function LedgerPrintPreview({ party, transactions, settings, onClose, waStatus }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto print:absolute print:inset-0 print:p-0 print:bg-white print:backdrop-blur-none">
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl print:max-w-none print:w-full print:shadow-none print:rounded-none">
-        <div className="bg-slate-900 p-6 flex justify-between items-center print:hidden text-white font-black uppercase text-sm tracking-widest">
-          <h3>Ledger Statement</h3>
-          <div className="flex gap-4">
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }} 
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
+    >
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+        <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
+          <ChevronLeft size={16} /> Close Preview
+        </button>
+        
+        <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
+          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Printer size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Ledger</span>
+          </button>
+          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Download size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
+          </button>
+          <div className="group relative">
             <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-            <button onClick={() => window.print()} className="bg-indigo-600 px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all">Print</button>
-            <button onClick={handleDownloadPDF} className="bg-blue-600 px-4 py-2 rounded-xl hover:bg-blue-700 transition-all">PDF</button>
-            <button onClick={onClose} className="bg-white/10 px-4 py-2 rounded-xl hover:bg-white/20 transition-all">Close</button>
+            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
           </div>
         </div>
 
-        <div ref={printRef} className="print-container p-0 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse">
+        <div ref={printRef} id="print-container" className="print-container p-4 sm:p-10 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden font-black text-[100px] uppercase">
             {settings?.companyName}
@@ -6759,8 +6790,8 @@ function LedgerPrintPreview({ party, transactions, settings, onClose, waStatus }
             </div>
           </footer>
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -7193,24 +7224,29 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose, waSt
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
     >
-      <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border" style={{ fontFamily: 'Arial, sans-serif' }}>
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden z-[60]">
-          <ChevronLeft size={24} />
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+        <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
+          <ChevronLeft size={16} /> Close Preview
         </button>
         
-        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-[60]">
-          <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-          <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
-            <Printer size={16} /> Print
+        <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
+          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Printer size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Bill</span>
           </button>
-          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
-            <Download size={16} /> PDF
+          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Download size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
+          <div className="group relative">
+            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
+            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
+          </div>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
@@ -7467,24 +7503,29 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose, wa
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
     >
-      <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border" style={{ fontFamily: 'Arial, sans-serif' }}>
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden z-[60]">
-          <ChevronLeft size={24} />
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+        <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
+          <ChevronLeft size={16} /> Close Preview
         </button>
         
-        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-[60]">
-          <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-          <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
-            <Printer size={16} /> Print
+        <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
+          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Printer size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Bill</span>
           </button>
-          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
-            <Download size={16} /> PDF
+          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Download size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
+          <div className="group relative">
+            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
+            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
+          </div>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
@@ -7745,24 +7786,29 @@ function PrintPreview({ booking, settings, payments = [], onClose, waStatus }: {
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto"
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
     >
-      <div className="bg-white w-full max-w-4xl min-h-[A4] shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border" style={{ fontFamily: 'Arial, sans-serif' }}>
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden">
-          <ChevronLeft size={24} />
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+        <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
+          <ChevronLeft size={16} /> Close Preview
         </button>
         
-        <div className="absolute top-6 right-20 flex gap-2 print:hidden z-10">
-          <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-          <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
-            <Printer size={16} /> Print
+        <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
+          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Printer size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Bill</span>
           </button>
-          <button onClick={handleDownloadPDF} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2">
-            <Download size={16} /> PDF
+          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+            <Download size={20} />
+            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
+          <div className="group relative">
+            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
+            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
+          </div>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-8 print:p-0 md:text-[11px] text-[10px]">
+        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
           <div className="border border-black">
             
             {/* Header */}
