@@ -102,6 +102,7 @@ export interface Purchase {
   partyGstin: string;
   partyName: string;
   partyAddress: string;
+  parcels?: string;
   partyMobile?: string;
   partyMobile2?: string;
   items: BillItem[];

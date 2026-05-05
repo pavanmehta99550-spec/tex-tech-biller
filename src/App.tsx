@@ -979,6 +979,7 @@ export default function App() {
       partyGstin: data.partyGstin || '',
       partyName: data.partyName || '',
       partyAddress: data.partyAddress || '',
+      parcels: data.parcels || '',
       items: (data.items || []).map(item => ({
         ...item,
         hsnCode: item.hsnCode || '',
@@ -2604,6 +2605,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       taxRate: editingPurchase?.taxRate || 5,
       date: editingPurchase?.date || new Date().toISOString(),
       partyBillNumber: editingPurchase?.partyBillNumber || '',
+      parcels: editingPurchase?.parcels || '',
       notes: editingPurchase?.notes || ''
     };
   });
@@ -2685,9 +2687,16 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
   const hasItemDiscount = useMemo(() => formData.items.some(item => (item.discount || 0) > 0), [formData.items]);
 
   const calc = useMemo(() => {
-    const basicAmount = Math.round(formData.items.reduce((sum, item) => sum + (item.amount || 0), 0) * 100) / 100;
+    // 1. Gross Amount
+    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0) * 100) / 100;
+    
+    // 2. Discount Calculation
     const effectiveGlobalDiscount = hasItemDiscount ? 0 : (formData.globalDiscount || 0);
-    const taxableValue = Math.max(0, basicAmount - effectiveGlobalDiscount);
+    
+    // 3. Taxable Value
+    const taxableValue = Math.max(0, grossAmount - effectiveGlobalDiscount);
+    
+    // 4. GST Calculation
     const tax = Math.round((taxableValue * (formData.taxRate / 100)) * 100) / 100;
     
     // Determine CGST/SGST vs IGST
@@ -2699,7 +2708,17 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
     const sgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
     const igst = isInterstate ? tax : 0;
     
-    return { basicAmount, taxableValue, tax, cgst, sgst, igst, isInterstate, total: Math.round((taxableValue + tax) * 100) / 100, effectiveGlobalDiscount };
+    return { 
+      basicAmount: grossAmount, 
+      taxableValue, 
+      tax, 
+      cgst, 
+      sgst, 
+      igst, 
+      isInterstate, 
+      total: Math.round((taxableValue + tax) * 100) / 100, 
+      effectiveGlobalDiscount 
+    };
   }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.buyerGstin, formData.partyGstin]);
 
   useEffect(() => {
@@ -3992,9 +4011,18 @@ function BookingView({
   const hasItemDiscount = useMemo(() => formData.items.some(item => (item.discount || 0) > 0), [formData.items]);
 
   const calc = useMemo(() => {
-    const basicAmount = Math.round(formData.items.reduce((sum, item) => sum + (item.amount || 0), 0) * 100) / 100;
+    // 1. Gross Amount
+    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0) * 100) / 100;
+    
+    // 2. Discount Calculation
     const effectiveGlobalDiscount = hasItemDiscount ? 0 : (formData.globalDiscount || 0);
-    const taxableValue = Math.max(0, basicAmount - effectiveGlobalDiscount);
+    // Assuming globalDiscount is the discount amount directly, based on how it's handled.
+    // If it's percentage, this might need changing but the formula steps are what was requested.
+    
+    // 3. Taxable Value
+    const taxableValue = Math.max(0, grossAmount - effectiveGlobalDiscount);
+    
+    // 4. GST Calculation
     const tax = Math.round((taxableValue * (formData.taxRate / 100)) * 100) / 100;
     
     // Determine CGST/SGST vs IGST
@@ -4006,7 +4034,17 @@ function BookingView({
     const sgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
     const igst = isInterstate ? tax : 0;
     
-    return { basicAmount, taxableValue, tax, cgst, sgst, igst, isInterstate, total: Math.round((taxableValue + tax) * 100) / 100, effectiveGlobalDiscount };
+    return { 
+      basicAmount: grossAmount, 
+      taxableValue, 
+      tax, 
+      cgst, 
+      sgst, 
+      igst, 
+      isInterstate, 
+      total: Math.round((taxableValue + tax) * 100) / 100, 
+      effectiveGlobalDiscount 
+    };
   }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.consignorGstin, formData.consigneeGstin]);
 
   useEffect(() => {
