@@ -8608,8 +8608,19 @@ function WhatsAppStatusSection({ waStatus }: { waStatus: any }) {
           </div>
         </div>
         <div className="flex gap-2">
-           {waStatus.status === 'connected' && (
+           {waStatus.status === 'connected' ? (
              <button onClick={handleLogout} className="px-4 py-2 text-xs font-black text-red-500 uppercase hover:bg-red-50 rounded-lg transition-all">Logout</button>
+           ) : (
+             <button 
+               onClick={async () => {
+                 if (confirm("Resetting session will clear all WhatsApp data. Continue?")) {
+                    await fetch('/api/whatsapp/logout', { method: 'POST' });
+                 }
+               }} 
+               className="px-4 py-2 text-xs font-black text-slate-500 uppercase hover:bg-slate-100 rounded-lg transition-all"
+             >
+               Reset Session
+             </button>
            )}
            <button 
              onClick={handleRestart} 
