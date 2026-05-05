@@ -805,6 +805,7 @@ export default function App() {
       billNumber: nextBillNum,
       lrNumber: data.lrNumber || '',
       ewbNumber: data.ewbNumber || '',
+      parcels: data.parcels || '',
       transportName: data.transportName || '',
       transportGstin: data.transportGstin || '',
       consignorGstin: data.consignorGstin || '',
