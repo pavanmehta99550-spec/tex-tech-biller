@@ -6498,6 +6498,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
 function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment }: any) {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
+  const [billFilter, setBillFilter] = useState<'ALL' | 'PAID' | 'UNPAID'>('ALL');
   const [selectedParty, setSelectedParty] = useState<any>(null);
   const [previewBooking, setPreviewBooking] = useState<any>(null);
   const [previewPurchase, setPreviewPurchase] = useState<any>(null);
@@ -6505,7 +6506,8 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
   const [previewDebitNote, setPreviewDebitNote] = useState<any>(null);
   const [previewPayment, setPreviewPayment] = useState<any>(null);
   const [showLedgerPrint, setShowLedgerPrint] = useState(false);
-  const isLocalPrintOpen = !!(previewBooking || previewPurchase || previewCreditNote || previewDebitNote || previewPayment || showLedgerPrint);
+  const [printAllTransactions, setPrintAllTransactions] = useState<any[] | null>(null);
+  const isLocalPrintOpen = !!(previewBooking || previewPurchase || previewCreditNote || previewDebitNote || previewPayment || showLedgerPrint || printAllTransactions);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -6516,6 +6518,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
         setPreviewDebitNote(null);
         setPreviewPayment(null);
         setShowLedgerPrint(false);
+        setPrintAllTransactions(null);
       }
     };
     window.addEventListener('keydown', handleEsc);
@@ -6552,8 +6555,20 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
   };
 
   if (selectedParty) {
-    const transactions = getPartyLedger(selectedParty);
-    let runningBalance = transactions.reduce((acc, t) => acc + t.amount, 0);
+    let transactions = getPartyLedger(selectedParty);
+    if (billFilter !== 'ALL') {
+      transactions = transactions.filter((t: any) => {
+        if (t.type === 'SALE' || t.type === 'PURCHASE') {
+          const paymentsList = activeTab === 'sales' ? payments : purchasePayments;
+          const info = getBillPaymentInfo(t.id, Math.abs(t.amount), paymentsList);
+          if (billFilter === 'PAID') return info.status === 'PAID';
+          if (billFilter === 'UNPAID') return info.status === 'UNPAID' || info.status === 'PARTIAL';
+        }
+        return false;
+      });
+    }
+
+    let runningBalance = transactions.reduce((acc: number, t: any) => acc + t.amount, 0);
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
@@ -6569,6 +6584,15 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
             </div>
           </div>
           <div className="flex items-center gap-6">
+            <select 
+              value={billFilter}
+              onChange={(e) => setBillFilter(e.target.value as any)}
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-700 outline-none focus:border-indigo-500"
+            >
+              <option value="ALL">All Transactions</option>
+              <option value="PAID">Paid Bills</option>
+              <option value="UNPAID">Unpaid Bills</option>
+            </select>
             <button 
               onClick={() => setShowLedgerPrint(true)}
               className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-200"
@@ -6708,6 +6732,41 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
               Purchase
             </button>
           </div>
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-end md:self-auto gap-2">
+            <select 
+              value={billFilter}
+              onChange={(e) => setBillFilter(e.target.value as any)}
+              className="px-4 py-2 bg-slate-100 rounded-xl text-[10px] font-black uppercase text-slate-700 outline-none"
+            >
+              <option value="ALL">All Bills</option>
+              <option value="PAID">Paid Bills</option>
+              <option value="UNPAID">Unpaid Bills</option>
+            </select>
+            <button 
+              onClick={() => {
+                let allTransactions: any[] = [];
+                filteredParties.forEach((p: any) => {
+                  let partyT = getPartyLedger(p);
+                  if (billFilter !== 'ALL') {
+                    partyT = partyT.filter((t: any) => {
+                      if (t.type === 'SALE' || t.type === 'PURCHASE') {
+                        const paymentsList = activeTab === 'sales' ? payments : purchasePayments;
+                        const info = getBillPaymentInfo(t.id, Math.abs(t.amount), paymentsList);
+                        if (billFilter === 'PAID') return info.status === 'PAID';
+                        if (billFilter === 'UNPAID') return info.status === 'UNPAID' || info.status === 'PARTIAL';
+                      }
+                      return false;
+                    });
+                  }
+                  allTransactions.push(...partyT);
+                });
+                setPrintAllTransactions(allTransactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+              }}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-indigo-700 transition-all flex items-center gap-1"
+            >
+              <Printer size={12} /> Print list
+            </button>
+          </div>
         </div>
       </header>
 
@@ -6755,6 +6814,14 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
           </table>
         </div>
       </div>
+      {printAllTransactions && (
+        <LedgerPrintPreview 
+          party={{ name: "ALL PARTIES", gstin: "Multiple" }} 
+          transactions={printAllTransactions} 
+          settings={settings} 
+          onClose={() => setPrintAllTransactions(null)} 
+        />
+      )}
     </motion.div>
   );
 }
