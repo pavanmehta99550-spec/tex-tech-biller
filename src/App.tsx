@@ -5280,7 +5280,7 @@ function CreditNotePrintPreview({ creditNote, settings, onClose }: { creditNote:
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white"
     >
-      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:shadow-none print:rounded-none print:p-0">
+      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:max-w-none print:w-full print:m-0 print:border-none print:shadow-none print:rounded-none print:p-0">
         <button 
           onClick={onClose}
           className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"
@@ -5884,8 +5884,8 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto print:absolute print:inset-0 print:p-0 print:bg-white print:backdrop-blur-none">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl print:max-w-none print:w-full print:shadow-none print:rounded-none">
         <div className="bg-slate-900 p-6 flex justify-between items-center print:hidden">
           <h3 className="text-white font-black uppercase tracking-widest text-sm">Payment Voucher</h3>
           <div className="flex gap-4">
@@ -6391,8 +6391,8 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto print:absolute print:inset-0 print:p-0 print:bg-white print:backdrop-blur-none">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl print:max-w-none print:w-full print:shadow-none print:rounded-none">
         <div className="bg-slate-900 p-6 flex justify-between items-center print:hidden text-white font-black uppercase text-sm tracking-widest">
           <h3>Ledger Statement</h3>
           <div className="flex gap-4">
@@ -6829,7 +6829,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white"
     >
-      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:shadow-none print:rounded-none print:p-0">
+      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:max-w-none print:w-full print:m-0 print:border-none print:shadow-none print:rounded-none print:p-0">
         <button 
           onClick={onClose}
           className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"
@@ -6837,7 +6837,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-900 print:scale-[0.98] print:origin-top">
+        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-900 ">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
@@ -7061,7 +7061,7 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white"
     >
-      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:shadow-none print:rounded-none print:p-0">
+      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:max-w-none print:w-full print:m-0 print:border-none print:shadow-none print:rounded-none print:p-0">
         <button 
           onClick={onClose}
           className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"
@@ -7269,7 +7269,7 @@ function PrintPreview({ booking, settings, payments = [], onClose }: { booking: 
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white"
     >
-      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:shadow-none print:rounded-none print:p-0">
+      <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-10 shadow-2xl relative print:max-h-none print:max-w-none print:w-full print:m-0 print:border-none print:shadow-none print:rounded-none print:p-0">
         <button 
           onClick={onClose}
           className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full print:hidden"
@@ -7277,7 +7277,7 @@ function PrintPreview({ booking, settings, payments = [], onClose }: { booking: 
           <ChevronLeft size={24} />
         </button>
 
-        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 print:scale-[0.98] print:origin-top">
+        <div ref={printRef} className="print-container space-y-0 p-0 relative overflow-hidden print:border-2 print:border-slate-900 ">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[-1] opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
