@@ -1594,6 +1594,7 @@ export default function App() {
               voiceDraft={voiceDraft}
               voiceContext={voiceContext}
               onViewHistory={() => setCurrentView('salehistory')}
+              payments={payments}
               onCancel={() => {
                 setEditingBooking(null);
                 setCurrentView('dash');
@@ -1640,6 +1641,7 @@ export default function App() {
               transports={transports}
               editingPurchase={editingPurchase}
               onViewHistory={() => setCurrentView('purchasehistory')}
+              payments={purchasePayments}
               onCancel={() => {
                 setEditingPurchase(null);
                 setCurrentView('dash');
@@ -1759,6 +1761,7 @@ export default function App() {
                 bookings={bookings}
                 purchases={purchases}
                 payments={payments}
+                purchasePayments={purchasePayments}
                 debitNotes={debitNotes} 
                 creditNotes={creditNotes} 
                 settings={settings}
@@ -2517,7 +2520,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
   );
 }
 
-function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onViewHistory, onCancel }: any) {
+function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onViewHistory, onCancel, payments = [] }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
 
@@ -3112,7 +3115,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       {showPreview && (
         <PurchasePrintPreview 
           purchase={{...formData, taxAmount: calc.tax, grandTotal: calc.total}} 
-          settings={null} 
+          settings={settings} 
+          payments={payments}
           onClose={() => setShowPreview(false)} 
         />
       )}
@@ -3725,7 +3729,8 @@ function BookingView({
   onViewHistory, 
   onCancel, 
   voiceDraft,
-  voiceContext
+  voiceContext,
+  payments = []
 }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
@@ -4682,6 +4687,7 @@ function BookingView({
               grandTotal: calc.total
             }} 
             settings={settings} 
+            payments={payments}
             onClose={() => setShowPreview(false)} 
           />
         )}
@@ -6489,7 +6495,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
   );
 }
 
-function LedgerView({ parties, purchaseParties, bookings, purchases, payments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment }: any) {
+function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment }: any) {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedParty, setSelectedParty] = useState<any>(null);
@@ -6534,10 +6540,12 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } else {
       const partyPurchases = (purchases || []).filter((p: any) => p.partyGstin === party.gstin);
+      const partyPayments = (purchasePayments || []).filter((pp: any) => pp.partyGstin === party.gstin || pp.partyId === party.id);
       const partyDNs = (debitNotes || []).filter((dn: any) => dn.partyGstin === party.gstin);
-      // Assuming payments for purchases might be handled similarly or separate, but for now showing purchases and DNs
+
       return [
         ...partyPurchases.map(p => ({ ...p, type: 'PURCHASE', amount: p.grandTotal, date: p.date })),
+        ...partyPayments.map(p => ({ ...p, type: 'PAYMENT', amount: -p.amount, date: p.date })),
         ...partyDNs.map(dn => ({ ...dn, type: 'DEBIT_NOTE', amount: -dn.grandTotal, date: dn.date }))
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
@@ -6657,8 +6665,8 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, c
         </div>
         </div>
 
-        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} onClose={() => setPreviewBooking(null)} />}
-        {previewPurchase && <PurchasePrintPreview purchase={previewPurchase} settings={settings} onClose={() => setPreviewPurchase(null)} />}
+        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} payments={payments} onClose={() => setPreviewBooking(null)} />}
+        {previewPurchase && <PurchasePrintPreview purchase={previewPurchase} settings={settings} payments={purchasePayments} onClose={() => setPreviewPurchase(null)} />}
         {previewPayment && <PaymentPrintPreview payment={previewPayment} settings={settings} onClose={() => setPreviewPayment(null)} />}
         {previewCreditNote && <CreditNotePrintPreview creditNote={previewCreditNote} settings={settings} onClose={() => setPreviewCreditNote(null)} />}
         {previewDebitNote && <DebitNotePrintPreview debitNote={previewDebitNote} settings={settings} onClose={() => setPreviewDebitNote(null)} />}
@@ -6759,8 +6767,27 @@ interface SettingsViewProps {
   onUpdateParties: (p: Party[]) => void;
 }
 
-function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purchase, settings: AppSettings | null, onClose: () => void }) {
+function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Payment[]) {
+  const BillAdjustments = allPayments.flatMap(p => p.billAdjustments || []);
+  const paidAmount = BillAdjustments
+    .filter(adj => adj.billId === billId)
+    .reduce((sum, adj) => sum + adj.amount, 0);
+  
+  const balance = grandTotal - paidAmount;
+  let status: 'PAID' | 'PARTIAL' | 'UNPAID' = 'UNPAID';
+  
+  if (balance <= 0) status = 'PAID';
+  else if (paidAmount > 0) status = 'PARTIAL';
+  
+  return { paidAmount, balance, status };
+}
+
+function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { purchase: Purchase, settings: AppSettings | null, payments?: Payment[], onClose: () => void }) {
   const printRef = useRef<HTMLDivElement>(null);
+  const { paidAmount, balance, status } = useMemo(() => 
+    getBillPaymentInfo(purchase.id, purchase.grandTotal, payments),
+    [purchase.id, purchase.grandTotal, payments]
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -6829,6 +6856,15 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
             </div>
             <div className="text-right">
               <div className="text-2xl font-black text-indigo-600 uppercase">Purchase Bill</div>
+              {status === 'PAID' && (
+                <div className="text-green-600 border-4 border-green-600 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">PAID</div>
+              )}
+              {status === 'PARTIAL' && (
+                <div className="text-orange-500 border-4 border-orange-500 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">PARTIALLY PAID</div>
+              )}
+              {status === 'UNPAID' && (
+                <div className="text-red-600 border-4 border-red-600 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">UNPAID</div>
+              )}
               <div className="text-slate-900 text-sm font-black whitespace-nowrap">Our Ref: #{purchase.billNumber}</div>
               {purchase.partyBillNumber && (
                 <div className="text-indigo-900 text-xs font-black bg-indigo-50 px-2 py-1 rounded mt-1">Party Bill: {purchase.partyBillNumber}</div>
@@ -6920,6 +6956,18 @@ function PurchasePrintPreview({ purchase, settings, onClose }: { purchase: Purch
                 <span>Grand Total:</span>
                 <span className="text-indigo-600">₹{purchase.grandTotal.toLocaleString()}</span>
               </div>
+              {balance > 0 && (
+                <div className="pt-2 border-t border-indigo-100 mt-2 space-y-1">
+                  <div className="flex justify-between text-slate-500 font-bold text-[10px] uppercase">
+                    <span>Paid:</span>
+                    <span>₹{paidAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600 font-black text-xl uppercase tracking-tighter">
+                    <span>Balance:</span>
+                    <span>₹{balance.toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -7174,8 +7222,12 @@ function DebitNotePrintPreview({ debitNote, settings, onClose }: { debitNote: De
   );
 }
 
-function PrintPreview({ booking, settings, onClose }: { booking: Booking, settings: AppSettings | null, onClose: () => void }) {
+function PrintPreview({ booking, settings, payments = [], onClose }: { booking: Booking, settings: AppSettings | null, payments?: Payment[], onClose: () => void }) {
   const printRef = useRef<HTMLDivElement>(null);
+  const { paidAmount, balance, status } = useMemo(() => 
+    getBillPaymentInfo(booking.id, booking.grandTotal, payments),
+    [booking.id, booking.grandTotal, payments]
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -7243,6 +7295,15 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
             </div>
             <div className="text-right">
               <div className="text-[#00cec9] text-2xl font-black">INVOICE</div>
+              {status === 'PAID' && (
+                <div className="text-green-600 border-4 border-green-600 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">PAID</div>
+              )}
+              {status === 'PARTIAL' && (
+                <div className="text-orange-500 border-4 border-orange-500 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">PARTIALLY PAID</div>
+              )}
+              {status === 'UNPAID' && (
+                <div className="text-red-600 border-4 border-red-600 rounded-lg px-3 py-1 font-black text-xl uppercase inline-block rotate-[-12deg] my-2">UNPAID</div>
+              )}
               <div className="text-slate-900 text-sm font-black">Bill No: #{booking.billNumber}</div>
               <div className="flex flex-col items-end gap-0.5 mt-1">
                 <div className="text-slate-500 text-[10px] font-bold">LR No: {booking.lrNumber || 'N/A'}</div>
@@ -7377,6 +7438,18 @@ function PrintPreview({ booking, settings, onClose }: { booking: Booking, settin
               <span>Total:</span>
               <span className="text-[#00cec9]">₹{booking.grandTotal.toLocaleString()}</span>
             </div>
+            {balance > 0 && (
+              <div className="pt-2 border-t border-slate-200 mt-2 space-y-1">
+                <div className="flex justify-between text-slate-500 font-bold text-[10px] uppercase">
+                  <span>Paid:</span>
+                  <span>₹{paidAmount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-red-600 font-black text-xl uppercase tracking-tighter">
+                  <span>Balance:</span>
+                  <span>₹{balance.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
