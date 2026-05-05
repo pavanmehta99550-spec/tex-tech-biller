@@ -5361,6 +5361,11 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
 
 
 function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose, waStatus }: any) {
+  const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
+  const p = creditNote;
+  const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
+  const remainingBalance = Math.max(0, p.grandTotal - totalPaid);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -5370,8 +5375,6 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose, 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const p = creditNote;
-  
   const consigneeName = p.consigneeName || p.partyName || '';
   const consigneeAddress = p.consigneeAddress || p.partyAddress || '';
   const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
@@ -5620,9 +5623,19 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose, 
                   <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
                 </div>
 
-                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50">
-                  <span>Net Amount</span>
-                  <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50 relative overflow-hidden">
+                  <div className="flex flex-col">
+                    <span>Net Amount</span>
+                    <span className={`text-[10px] mt-0.5 px-1.5 py-0.5 rounded inline-block w-fit ${isFullyPaid ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                      {isFullyPaid ? 'FULLY PAID' : remainingBalance < p.grandTotal ? 'PARTIALLY PAID' : 'UNPAID'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                    {!isFullyPaid && remainingBalance < p.grandTotal && (
+                      <span className="text-[10px] text-rose-600 font-bold mt-1 uppercase tracking-widest">Bal: ₹ {remainingBalance.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-2 pt-6 text-center flex-1 flex flex-col justify-end">
@@ -6184,7 +6197,10 @@ function PaymentPrintPreview({ payment, settings, onClose, waStatus }: any) {
           <div className="p-8 print:p-6 border-b-2 border-slate-900 bg-slate-50/10">
             <div className="flex justify-between items-center mb-6">
               <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">Total Amount Received</span>
-              <span className="text-3xl font-black text-slate-900 tracking-tighter">₹ {payment.amount.toLocaleString()}</span>
+              <div className="flex flex-col items-end">
+                <span className="text-3xl font-black text-slate-900 tracking-tighter">₹ {payment.amount.toLocaleString()}</span>
+                <span className="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded mt-1 uppercase tracking-widest">RECEIVED</span>
+              </div>
             </div>
             
             {payment.billAdjustments && payment.billAdjustments.length > 0 && (
@@ -7146,6 +7162,11 @@ function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Pay
 
 
 function PurchasePrintPreview({ purchase, settings, payments = [], onClose, waStatus }: any) {
+  const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
+  const p = purchase;
+  const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
+  const remainingBalance = Math.max(0, p.grandTotal - totalPaid);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -7155,8 +7176,6 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose, waSt
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const p = purchase;
-  
   const consigneeName = p.consigneeName || p.partyName || '';
   const consigneeAddress = p.consigneeAddress || p.partyAddress || '';
   const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
@@ -7405,9 +7424,19 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose, waSt
                   <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
                 </div>
 
-                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50">
-                  <span>Net Amount</span>
-                  <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50 relative overflow-hidden">
+                  <div className="flex flex-col">
+                    <span>Net Amount</span>
+                    <span className={`text-[10px] mt-0.5 px-1.5 py-0.5 rounded inline-block w-fit ${isFullyPaid ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                      {isFullyPaid ? 'FULLY PAID' : remainingBalance < p.grandTotal ? 'PARTIALLY PAID' : 'UNPAID'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                    {!isFullyPaid && remainingBalance < p.grandTotal && (
+                      <span className="text-[10px] text-rose-600 font-bold mt-1 uppercase tracking-widest">Bal: ₹ {remainingBalance.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-2 pt-6 text-center flex-1 flex flex-col justify-end">
@@ -7425,6 +7454,11 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose, waSt
 }
 
 function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose, waStatus }: any) {
+  const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
+  const p = debitNote;
+  const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
+  const remainingBalance = Math.max(0, p.grandTotal - totalPaid);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -7434,8 +7468,6 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose, wa
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const p = debitNote;
-  
   const consigneeName = p.consigneeName || p.partyName || '';
   const consigneeAddress = p.consigneeAddress || p.partyAddress || '';
   const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
@@ -7684,9 +7716,19 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose, wa
                   <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
                 </div>
 
-                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50">
-                  <span>Net Amount</span>
-                  <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50 relative overflow-hidden">
+                  <div className="flex flex-col">
+                    <span>Net Amount</span>
+                    <span className={`text-[10px] mt-0.5 px-1.5 py-0.5 rounded inline-block w-fit ${isFullyPaid ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                      {isFullyPaid ? 'FULLY PAID' : remainingBalance < p.grandTotal ? 'PARTIALLY PAID' : 'UNPAID'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                    {!isFullyPaid && remainingBalance < p.grandTotal && (
+                      <span className="text-[10px] text-rose-600 font-bold mt-1 uppercase tracking-widest">Bal: ₹ {remainingBalance.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-2 pt-6 text-center flex-1 flex flex-col justify-end">
@@ -7703,6 +7745,11 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose, wa
   );
 }
 function PrintPreview({ booking, settings, payments = [], onClose, waStatus }: { booking: any, settings: AppSettings | null, payments?: Payment[], onClose: () => void, waStatus: any }) {
+  const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
+  const p = booking;
+  const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
+  const remainingBalance = Math.max(0, p.grandTotal - totalPaid);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -7712,7 +7759,6 @@ function PrintPreview({ booking, settings, payments = [], onClose, waStatus }: {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const p = booking;
   // Fixing lint errors
   const consigneeName = p.consigneeName || '';
   const consigneeAddress = p.consigneeAddress || '';
@@ -7967,9 +8013,19 @@ function PrintPreview({ booking, settings, payments = [], onClose, waStatus }: {
                   <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
                 </div>
 
-                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50">
-                  <span>Net Amount</span>
-                  <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50 relative overflow-hidden">
+                  <div className="flex flex-col">
+                    <span>Net Amount</span>
+                    <span className={`text-[10px] mt-0.5 px-1.5 py-0.5 rounded inline-block w-fit ${isFullyPaid ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
+                      {isFullyPaid ? 'FULLY PAID' : remainingBalance < p.grandTotal ? 'PARTIALLY PAID' : 'UNPAID'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                    {!isFullyPaid && remainingBalance < p.grandTotal && (
+                      <span className="text-[10px] text-rose-600 font-bold mt-1 uppercase tracking-widest">Bal: ₹ {remainingBalance.toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-2 pt-6 text-center flex-1 flex flex-col justify-end">
