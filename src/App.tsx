@@ -2688,16 +2688,16 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
 
   const calc = useMemo(() => {
     // 1. Gross Amount
-    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0) * 100) / 100;
+    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0) * 100) / 100;
     
     // 2. Discount Calculation
-    const effectiveGlobalDiscount = hasItemDiscount ? 0 : (formData.globalDiscount || 0);
+    const effectiveGlobalDiscount = hasItemDiscount ? 0 : (Number(formData.globalDiscount) || 0);
     
     // 3. Taxable Value
     const taxableValue = Math.max(0, grossAmount - effectiveGlobalDiscount);
     
     // 4. GST Calculation
-    const tax = Math.round((taxableValue * (formData.taxRate / 100)) * 100) / 100;
+    const tax = Math.round((taxableValue * (Number(formData.taxRate) / 100)) * 100) / 100;
     
     // Determine CGST/SGST vs IGST
     const buyerStateCode = formData.buyerGstin?.substring(0, 2);
@@ -3114,18 +3114,18 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
 
         <div className="bg-indigo-50/50 p-8 rounded-3xl border-2 border-dashed border-indigo-200 text-right space-y-2">
           {calc.effectiveGlobalDiscount > 0 && (
-            <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{calc.effectiveGlobalDiscount.toFixed(2)}</span></div>
+            <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{Number(calc.effectiveGlobalDiscount).toFixed(2)}</span></div>
           )}
-          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{calc.taxableValue.toFixed(2)}</span></div>
+          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
           {calc.isInterstate ? (
-            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.igst.toFixed(2)}</span></div>
+            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
           ) : (
             <>
-              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{calc.cgst.toFixed(2)}</span></div>
-              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{calc.sgst.toFixed(2)}</span></div>
+              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.cgst).toFixed(2)}</span></div>
+              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.sgst).toFixed(2)}</span></div>
             </>
           )}
-          <div className="text-4xl font-black text-slate-900 tracking-tighter">Grand Total: <span className="text-indigo-600">₹{calc.total.toFixed(2)}</span></div>
+          <div className="text-4xl font-black text-slate-900 tracking-tighter">Grand Total: <span className="text-indigo-600">₹{Number(calc.total).toFixed(2)}</span></div>
         </div>
 
         <div className="flex gap-4 flex-col sm:flex-row shadow-2xl rounded-3xl overflow-hidden">
@@ -3311,8 +3311,8 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
             if (numVal < 0) return item;
           }
           const updated = { ...item, [field]: value };
-          const gross = (updated.quantity || 0) * (updated.rate || 0);
-          updated.amount = gross - (updated.discount || 0);
+          const gross = (Number(updated.quantity) || 0) * (Number(updated.rate) || 0);
+          updated.amount = gross - (Number(updated.discount) || 0);
           return updated;
         }
         return item;
@@ -3322,9 +3322,9 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
   };
 
   const calc = useMemo(() => {
-    const basicAmount = formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
-    const taxableValue = Math.max(0, basicAmount - (formData.globalDiscount || 0));
-    const tax = taxableValue * (formData.taxRate / 100);
+    const basicAmount = formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const taxableValue = Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0));
+    const tax = taxableValue * (Number(formData.taxRate) / 100);
     return { basicAmount, taxableValue, tax, total: taxableValue + tax };
   }, [formData.items, formData.globalDiscount, formData.taxRate]);
 
@@ -3597,9 +3597,9 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
         </div>
 
         <div className="bg-red-50/50 p-8 rounded-3xl border-2 border-dashed border-red-200 text-right space-y-2">
-          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{calc.taxableValue.toFixed(2)}</span></div>
-          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.tax.toFixed(2)}</span></div>
-          <div className="text-4xl font-black text-slate-900 tracking-tighter">Debit Amount: <span className="text-red-700">₹{calc.total.toFixed(2)}</span></div>
+          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
+          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.tax).toFixed(2)}</span></div>
+          <div className="text-4xl font-black text-slate-900 tracking-tighter">Debit Amount: <span className="text-red-700">₹{Number(calc.total).toFixed(2)}</span></div>
         </div>
 
         <div className="flex gap-4">
@@ -4012,10 +4012,10 @@ function BookingView({
 
   const calc = useMemo(() => {
     // 1. Gross Amount
-    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate || 0)), 0) * 100) / 100;
+    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0) * 100) / 100;
     
     // 2. Discount Calculation
-    const effectiveGlobalDiscount = hasItemDiscount ? 0 : (formData.globalDiscount || 0);
+    const effectiveGlobalDiscount = hasItemDiscount ? 0 : (Number(formData.globalDiscount) || 0);
     // Assuming globalDiscount is the discount amount directly, based on how it's handled.
     // If it's percentage, this might need changing but the formula steps are what was requested.
     
@@ -4023,7 +4023,7 @@ function BookingView({
     const taxableValue = Math.max(0, grossAmount - effectiveGlobalDiscount);
     
     // 4. GST Calculation
-    const tax = Math.round((taxableValue * (formData.taxRate / 100)) * 100) / 100;
+    const tax = Math.round((taxableValue * (Number(formData.taxRate) / 100)) * 100) / 100;
     
     // Determine CGST/SGST vs IGST
     const consignorStateCode = formData.consignorGstin?.substring(0, 2);
@@ -4670,18 +4670,18 @@ function BookingView({
 
         <div className="bg-[#e0f7f7] p-8 rounded-3xl border-2 border-dashed border-[#00cec9]/30 text-right space-y-2">
           {calc.effectiveGlobalDiscount > 0 && (
-            <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{calc.effectiveGlobalDiscount.toFixed(2)}</span></div>
+            <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{Number(calc.effectiveGlobalDiscount).toFixed(2)}</span></div>
           )}
-          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{calc.taxableValue.toFixed(2)}</span></div>
+          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
           {calc.isInterstate ? (
-            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.igst.toFixed(2)}</span></div>
+            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
           ) : (
             <>
-              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{calc.cgst.toFixed(2)}</span></div>
-              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{calc.sgst.toFixed(2)}</span></div>
+              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.cgst).toFixed(2)}</span></div>
+              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.sgst).toFixed(2)}</span></div>
             </>
           )}
-          <div className="text-4xl font-black text-slate-900 tracking-tighter">Grand Total: <span className="text-[#00cec9]">₹{calc.total.toFixed(2)}</span></div>
+          <div className="text-4xl font-black text-slate-900 tracking-tighter">Grand Total: <span className="text-[#00cec9]">₹{Number(calc.total).toFixed(2)}</span></div>
         </div>
 
         <div className="flex gap-4 flex-col sm:flex-row print:hidden">
@@ -4902,8 +4902,8 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
             if (numVal < 0) return item;
           }
           const updated = { ...item, [field]: value };
-          const gross = (updated.quantity || 0) * (updated.rate || 0);
-          updated.amount = gross - (updated.discount || 0);
+          const gross = (Number(updated.quantity) || 0) * (Number(updated.rate) || 0);
+          updated.amount = gross - (Number(updated.discount) || 0);
           return updated;
         }
         return item;
@@ -4913,9 +4913,9 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
   };
 
   const calc = useMemo(() => {
-    const basicAmount = formData.items.reduce((sum, item) => sum + (item.amount || 0), 0);
-    const taxableValue = Math.max(0, basicAmount - (formData.globalDiscount || 0));
-    const tax = taxableValue * (formData.taxRate / 100);
+    const basicAmount = formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const taxableValue = Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0));
+    const tax = taxableValue * (Number(formData.taxRate) / 100);
     return { basicAmount, taxableValue, tax, total: taxableValue + tax };
   }, [formData.items, formData.globalDiscount, formData.taxRate]);
 
@@ -5190,9 +5190,9 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
         </div>
 
         <div className="bg-green-50/50 p-8 rounded-3xl border-2 border-dashed border-green-200 text-right space-y-2">
-          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{calc.taxableValue.toFixed(2)}</span></div>
-          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{calc.tax.toFixed(2)}</span></div>
-          <div className="text-4xl font-black text-slate-900 tracking-tighter">Credit Amount: <span className="text-green-700">₹{calc.total.toFixed(2)}</span></div>
+          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
+          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.tax).toFixed(2)}</span></div>
+          <div className="text-4xl font-black text-slate-900 tracking-tighter">Credit Amount: <span className="text-green-700">₹{Number(calc.total).toFixed(2)}</span></div>
         </div>
 
         <div className="flex gap-4 print:hidden">
@@ -7450,8 +7450,8 @@ function PrintPreview({ booking, settings, payments = [], onClose }: { booking: 
   }, [onClose]);
 
   const p = booking;
-  
-  const consigneeName = p.consigneeName || p.partyName || '';
+  // Fixing lint errors
+  const consigneeName = p.consigneeName || '';
   const consigneeAddress = p.consigneeAddress || p.partyAddress || '';
   const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
   const consigneeMobile = p.consigneeMobile || p.partyMobile || '';
@@ -7841,11 +7841,11 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
       startY: 60,
       head: [["Type", "Output (Sales)", "Input (Purchase)", "Net Payable"]],
       body: [
-        ["Taxable Value", summary.output.taxable.toFixed(2), summary.input.taxable.toFixed(2), "-"],
-        ["CGST", summary.output.cgst.toFixed(2), summary.input.cgst.toFixed(2), summary.net.cgst.toFixed(2)],
-        ["SGST", summary.output.sgst.toFixed(2), summary.input.sgst.toFixed(2), summary.net.sgst.toFixed(2)],
-        ["IGST", summary.output.igst.toFixed(2), summary.input.igst.toFixed(2), summary.net.igst.toFixed(2)],
-        ["Total GST", summary.output.total.toFixed(2), summary.input.total.toFixed(2), summary.net.total.toFixed(2)],
+        ["Taxable Value", Number(summary.output.taxable).toFixed(2), Number(summary.input.taxable).toFixed(2), "-"],
+        ["CGST", Number(summary.output.cgst).toFixed(2), Number(summary.input.cgst).toFixed(2), Number(summary.net.cgst).toFixed(2)],
+        ["SGST", Number(summary.output.sgst).toFixed(2), Number(summary.input.sgst).toFixed(2), Number(summary.net.sgst).toFixed(2)],
+        ["IGST", Number(summary.output.igst).toFixed(2), Number(summary.input.igst).toFixed(2), Number(summary.net.igst).toFixed(2)],
+        ["Total GST", Number(summary.output.total).toFixed(2), Number(summary.input.total).toFixed(2), Number(summary.net.total).toFixed(2)],
       ],
     });
 
@@ -7856,7 +7856,7 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
       head: [["Inv No", "Date", "Customer", "GSTIN", "Taxable", "GST %", "Total Tax", "Total Bill"]],
       body: gstr1Data.map(d => [
         d.invoiceNo, d.date, d.customer, d.gstin,
-        d.taxableValue.toFixed(2), d.taxRate + "%", d.totalTax.toFixed(2), d.grandTotal.toFixed(2)
+        Number(d.taxableValue).toFixed(2), d.taxRate + "%", Number(d.totalTax).toFixed(2), Number(d.grandTotal).toFixed(2)
       ]),
     });
 
@@ -7871,8 +7871,8 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
           e.category,
           e.description,
           e.payeeName || '-',
-          e.amount.toFixed(2),
-          e.gstIncluded ? e.gstAmount.toFixed(2) : '0.00'
+          Number(e.amount).toFixed(2),
+          e.gstIncluded ? Number(e.gstAmount).toFixed(2) : '0.00'
         ]),
       });
     }
