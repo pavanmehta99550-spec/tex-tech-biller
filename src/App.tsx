@@ -78,6 +78,8 @@ const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGs
 
 
 
+
+
 const numberToWords = (num: number) => {
     if (!num || num === 0) return 'Zero Only';
     const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
@@ -93,6 +95,7 @@ const numberToWords = (num: number) => {
     str += (n[5] != '00') ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[Number(n[5][0])] + ' ' + a[Number(n[5][1])]) : '';
     return str + 'Only';
 };
+
 
 
 export default function App() {
@@ -5260,6 +5263,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
 
 
 
+
 function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }: any) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -5356,7 +5360,14 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
               <div className="p-2 space-y-1">
                 <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-bold">{p.billNumber}</span></div>
                 <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">{p.ewbNumber || '-'}</span></div>
+                {p.ewbNumber ? (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>
+                ) : (
+                  <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">-</span></div>
+                )}
+                {p.parcels && (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">PARCELS/BAILS:</span> <span className="uppercase font-black text-black tracking-widest">{p.parcels}</span></div>
+                )}
                 <div className="flex justify-between"><span className="font-bold">Broker:</span> <span>-</span></div>
               </div>
             </div>
@@ -6905,6 +6916,7 @@ function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Pay
 
 
 
+
 function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: any) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -7001,7 +7013,14 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
               <div className="p-2 space-y-1">
                 <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-bold">{p.billNumber}</span></div>
                 <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">{p.ewbNumber || '-'}</span></div>
+                {p.ewbNumber ? (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>
+                ) : (
+                  <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">-</span></div>
+                )}
+                {p.parcels && (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">PARCELS/BAILS:</span> <span className="uppercase font-black text-black tracking-widest">{p.parcels}</span></div>
+                )}
                 <div className="flex justify-between"><span className="font-bold">Broker:</span> <span>-</span></div>
               </div>
             </div>
@@ -7235,7 +7254,14 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
               <div className="p-2 space-y-1">
                 <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-bold">{p.billNumber}</span></div>
                 <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">{p.ewbNumber || '-'}</span></div>
+                {p.ewbNumber ? (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>
+                ) : (
+                  <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">-</span></div>
+                )}
+                {p.parcels && (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">PARCELS/BAILS:</span> <span className="uppercase font-black text-black tracking-widest">{p.parcels}</span></div>
+                )}
                 <div className="flex justify-between"><span className="font-bold">Broker:</span> <span>-</span></div>
               </div>
             </div>
@@ -7468,7 +7494,14 @@ function PrintPreview({ booking, settings, payments = [], onClose }: any) {
               <div className="p-2 space-y-1">
                 <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-bold">{p.billNumber}</span></div>
                 <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">{p.ewbNumber || '-'}</span></div>
+                {p.ewbNumber ? (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>
+                ) : (
+                  <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">-</span></div>
+                )}
+                {p.parcels && (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">PARCELS/BAILS:</span> <span className="uppercase font-black text-black tracking-widest">{p.parcels}</span></div>
+                )}
                 <div className="flex justify-between"><span className="font-bold">Broker:</span> <span>-</span></div>
               </div>
             </div>

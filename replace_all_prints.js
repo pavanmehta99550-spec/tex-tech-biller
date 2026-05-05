@@ -117,7 +117,14 @@ function ${componentName}({ ${dataPropName}, settings, payments = [], onClose }:
               <div className="p-2 space-y-1">
                 <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-bold">{p.billNumber}</span></div>
                 <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">{p.ewbNumber || '-'}</span></div>
+                {p.ewbNumber ? (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>
+                ) : (
+                  <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">-</span></div>
+                )}
+                {p.parcels && (
+                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">PARCELS/BAILS:</span> <span className="uppercase font-black text-black tracking-widest">{p.parcels}</span></div>
+                )}
                 <div className="flex justify-between"><span className="font-bold">Broker:</span> <span>-</span></div>
               </div>
             </div>
