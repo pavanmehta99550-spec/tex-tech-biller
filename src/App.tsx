@@ -1531,7 +1531,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8 print:ml-0 print:p-0 relative">
-        {currentView !== 'dash' && (
+        {currentView !== 'dash' && currentView !== 'ledger' && (
           <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-slate-200 shadow-sm z-10 print:hidden whitespace-nowrap">
             <div className="flex items-center gap-3">
               {syncStatus === 'synced' ? (
