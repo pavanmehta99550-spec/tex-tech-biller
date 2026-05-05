@@ -63,13 +63,13 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
 type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'weaverparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses' | 'millchallan' | 'partychallan' | 'weaverchallan' | 'challancompare';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
-  const cState = (consignorGstin || '').substring(0, 2);
+  const myStateCode = "24";
   const rState = (consigneeGstin || '').substring(0, 2);
-  const isInterstate = cState && rState && cState !== rState;
+  const isInterstate = rState !== myStateCode;
   
   return {
-    cgst: isInterstate ? 0 : taxTotal / 2,
-    sgst: isInterstate ? 0 : taxTotal / 2,
+    cgst: isInterstate ? 0 : Math.round((taxTotal / 2) * 100) / 100,
+    sgst: isInterstate ? 0 : Math.round((taxTotal / 2) * 100) / 100,
     igst: isInterstate ? taxTotal : 0,
     isInterstate
   };
