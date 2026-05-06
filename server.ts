@@ -147,32 +147,31 @@ async function startServer() {
 
             setStatus('disconnected', 'Connecting...');
             
-            let version;
+            let version = [2, 3000, 1017531301];
+            let isLatest = false;
             try {
                 console.log('WhatsApp: Fetching latest version...');
-                const versionResult: any = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1017531301] }));
+                const versionResult: any = await fetchLatestBaileysVersion();
                 version = versionResult.version;
-                console.log(`WhatsApp: Using version v${version.join('.')}`);
+                isLatest = versionResult.isLatest;
+                console.log(`WhatsApp: Fetched version v${version.join('.')}, isLatest: ${isLatest}`);
             } catch (err) {
-                version = [2, 3000, 1017531301];
+                console.log('WhatsApp: Failed to fetch version, using fallback.', err);
             }
-
+            
             const currentSock = makeWASocket({
                 version,
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: Browsers.macOS('Desktop'),
+                browser: Browsers.macOS('Chrome'),
                 syncFullHistory: false,
                 shouldSyncHistoryMessage: () => false,
-                qrTimeout: 40000, // Slightly shorter timeout for faster cycling
+                qrTimeout: 60000,
                 connectTimeoutMs: 60000, 
-                defaultQueryTimeoutMs: 60000,
-                keepAliveIntervalMs: 15000, 
+                defaultQueryTimeoutMs: 0,
+                keepAliveIntervalMs: 10000, 
                 markOnlineOnConnect: true,
-                retryRequestDelayMs: 5000,
-                generateHighQualityLinkPreview: false,
-                linkPreviewImageThumbnailWidth: 192,
                 shouldIgnoreJid: (jid) => jid.includes('@broadcast'),
             });
 
@@ -216,8 +215,8 @@ async function startServer() {
                                        errorMsg.includes('hangup') ||
                                        errorMsg.includes('Handshake timeout');
 
-                    if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || (isTerminated && failureCount >= 3)) {
-                        console.warn('WhatsApp: Terminal dissociation. Purging auth data.');
+                    if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || statusCode === 405 || (isTerminated && failureCount >= 3)) {
+                        console.warn('WhatsApp: Terminal dissociation or connection failure (405). Purging auth data.');
                         if (fs.existsSync(authPath)) {
                             try { fs.rmSync(authPath, { recursive: true, force: true }); } catch(e) {}
                         }
@@ -226,7 +225,7 @@ async function startServer() {
                         reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000); 
                     } else {
                         failureCount++;
-                        const delay = Math.min(5000 * failureCount, 30000);
+                        const delay = Math.min(5000 + (failureCount * 2000), 30000);
                         console.log(`WhatsApp: Reconnecting in ${delay/1000}s...`);
                         setStatus('disconnected', 'Offline: Reconnecting...');
                         reconnectTimer = setTimeout(() => connectToWhatsApp(), delay);
