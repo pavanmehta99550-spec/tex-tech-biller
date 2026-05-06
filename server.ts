@@ -4,103 +4,36 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import makeWASocket, { 
     DisconnectReason, 
+    useMultiFileAuthState,
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
-    Browsers,
-    initAuthCreds,
-    BufferJSON,
-    AuthenticationState,
-    WAProto
+    Browsers
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
 import { Boom } from '@hapi/boom';
 import fs from 'fs';
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
 
+// --- FIREBASE IMPORTS ---
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// --- FIREBASE CONFIG (Aapki Chabi) ---
 const firebaseConfig = {
   apiKey: "AIzaSyAAylk4kI5has8jdwX0ef29vcRkLPoSoNw",
   authDomain: "clipnova-f259d.firebaseapp.com",
   projectId: "clipnova-f259d",
   storageBucket: "clipnova-f259d.firebasestorage.app",
   messagingSenderId: "1021594403404",
-  appId: "1:1021594403404:web:19507943ef63890047aae9",
-  measurementId: "G-K6SWPH27MP"
+  appId: "1:1021594403404:web:19507943ef63890047aae9"
 };
 
+// Initialize Firebase
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
-
-export const useFirestoreAuthState = async (collectionName: string): Promise<{ state: AuthenticationState, saveCreds: () => Promise<void> }> => {
-    const writeData = async (data: any, id: string) => {
-        try {
-            const parsedData = JSON.parse(JSON.stringify(data, BufferJSON.replacer));
-            await setDoc(doc(db, collectionName, id), parsedData);
-        } catch (error) {
-            console.error('Error writing auth state to Firestore:', error);
-        }
-    };
-
-    const readData = async (id: string) => {
-        try {
-            const docSnap = await getDoc(doc(db, collectionName, id));
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                return JSON.parse(JSON.stringify(data), BufferJSON.reviver);
-            }
-        } catch (error) {
-            console.error('Error reading auth state from Firestore:', error);
-        }
-        return null;
-    };
-
-    const removeData = async (id: string) => {
-        try {
-            await deleteDoc(doc(db, collectionName, id));
-        } catch (error) {
-            console.error('Error removing auth state from Firestore:', error);
-        }
-    };
-
-    const creds = (await readData('creds')) || initAuthCreds();
-
-    return {
-        state: {
-            creds,
-            keys: {
-                get: async (type, ids) => {
-                    const data: { [key: string]: any } = {};
-                    await Promise.all(ids.map(async id => {
-                        let value = await readData(`${type}-${id}`);
-                        if (type === 'app-state-sync-key' && value) {
-                            value = WAProto.Message.AppStateSyncKeyData.fromObject(value);
-                        }
-                        data[id] = value;
-                    }));
-                    return data;
-                },
-                set: async (data) => {
-                    const tasks: Promise<void>[] = [];
-                    for (const category in data) {
-                        for (const id in data[category as keyof typeof data]) {
-                            const value = data[category as keyof typeof data][id];
-                            const fileId = `${category}-${id}`;
-                            tasks.push(value ? writeData(value, fileId) : removeData(fileId));
-                        }
-                    }
-                    await Promise.all(tasks);
-                }
-            }
-        },
-        saveCreds: async () => {
-            return writeData(creds, 'creds');
-        }
-    };
-};
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Global Anti-Crash Handlers
 process.on('uncaughtException', (err) => {
@@ -117,9 +50,7 @@ async function startServer() {
     const app = express();
     const PORT = 3000;
 
-    // Health check
     app.get('/health', (req, res) => res.send('OK'));
-
     app.use(express.json({ limit: '50mb' }));
 
     let sock: any = null;
@@ -127,48 +58,157 @@ async function startServer() {
     let connectionStatus: string = 'disconnected';
     let detailedStatus: string = 'Idle';
     let failureCount = 0;
-    let backoffDelay = 5000;
 
     let isInitializing = false;
     let initWatchdog: NodeJS.Timeout | null = null;
     let reconnectTimer: NodeJS.Timeout | null = null;
 
-    // Multi-client status broadcasting
     const clients = new Set<express.Response>();
     const broadcastStatus = () => {
-        const data = JSON.stringify({ 
-            status: connectionStatus, 
-            detailedStatus, 
-            hasQr: !!qrCode,
-            qr: qrCode 
-        });
-        clients.forEach(client => {
-            try {
-                client.write(`data: ${data}\n\n`);
-            } catch (e) {
-                clients.delete(client);
-            }
-        });
+        const data = JSON.stringify({ status: connectionStatus, detailedStatus, hasQr: !!qrCode, qr: qrCode });
+        clients.forEach(client => { try { client.write(`data: ${data}\n\n`); } catch (e) { clients.delete(client); } });
     };
 
-    // Keep SSE connections alive
-    setInterval(() => {
-        clients.forEach(client => {
-            try {
-                client.write(': heartbeat\n\n');
-            } catch (e) {
-                clients.delete(client);
-            }
-        });
-    }, 25000);
-
-    // Update status and broadcast
     const setStatus = (status: string, detailed: string = '') => {
         console.log(`WhatsApp Status Change: ${status} | ${detailed}`);
         connectionStatus = status;
         detailedStatus = detailed;
         broadcastStatus();
     };
+
+    // --- NEW: API TO GET DATA FROM CLOUD ---
+    app.get('/api/get-entries', async (req, res) => {
+        try {
+            const q = query(collection(db, "entries"), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            const entries = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            res.json(entries);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to fetch from Cloud' });
+        }
+    });
+
+    // --- UPDATED: API TO SEND BILL AND SAVE TO CLOUD ---
+    app.post('/api/whatsapp/send-bill', async (req, res) => {
+        const { phone, billNumber, pdfBase64, partyName, amount } = req.body;
+
+        if (!phone || !pdfBase64) return res.status(400).json({ error: 'Phone and PDF required' });
+
+        try {
+            // 1. Save to Firebase First (Hotspot badalne par ye kaam aayega)
+            await addDoc(collection(db, "entries"), {
+                partyName,
+                billNumber,
+                amount,
+                phone,
+                timestamp: new Date().toISOString()
+            });
+            console.log('Data saved to Google Cloud!');
+
+            // 2. Send WhatsApp
+            if (connectionStatus === 'connected' && sock) {
+                let cleanPhone = phone.replace(/\D/g, '');
+                if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+                const jid = `${cleanPhone}@s.whatsapp.net`;
+                const buffer = Buffer.from(pdfBase64.split(',')[1], 'base64');
+
+                await sock.sendMessage(jid, {
+                    document: buffer,
+                    fileName: `Bill_${billNumber || 'Invoice'}.pdf`,
+                    mimetype: 'application/pdf',
+                    caption: `Hello ${partyName || 'Customer'},\n\nAttached is your Bill #${billNumber || ''}.\n\nThank you!`
+                });
+            }
+
+            res.json({ success: true, cloudSaved: true });
+        } catch (error) {
+            console.error('Cloud Save/Send Error:', error);
+            res.status(500).json({ error: 'Process failed' });
+        }
+    });
+
+    // REST OF WHATSAPP SSE LOGIC
+    app.get('/api/whatsapp/sse', (req, res) => {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+
+        const sendData = (data: any) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+        sendData({ status: connectionStatus, detailedStatus, hasQr: !!qrCode, qr: qrCode });
+
+        if (detailedStatus === 'Idle' && !isInitializing) connectToWhatsApp();
+
+        const clientWriter = { write: (msg: string) => res.write(msg) } as express.Response;
+        clients.add(clientWriter);
+        req.on('close', () => clients.delete(clientWriter));
+    });
+
+    setInterval(() => {
+        clients.forEach(client => {
+            try { client.write(': heartbeat\n\n'); } catch (e) { clients.delete(client); }
+        });
+    }, 25000);
+
+    app.get('/api/whatsapp/status', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.json({ status: connectionStatus, detailedStatus, hasQr: !!qrCode, qr: qrCode });
+    });
+
+    app.get('/api/whatsapp/qr', (req, res) => {
+        if (qrCode) {
+            res.json({ qr: qrCode });
+        } else {
+            res.status(404).json({ error: 'QR not available' });
+        }
+    });
+
+    app.post('/api/whatsapp/logout', async (req, res) => {
+        try {
+            console.log('API: POST /whatsapp/logout');
+            if (sock) {
+                try {
+                    await sock.logout();
+                } catch (e) {
+                    console.error('Logout error:', e);
+                }
+                sock = null;
+            }
+            
+            const authPath = path.join(process.cwd(), 'wa_auth');
+            try {
+                if (fs.existsSync(authPath)) {
+                    fs.rmSync(authPath, { recursive: true, force: true });
+                }
+            } catch(e) {}
+            
+            qrCode = null;
+            connectionStatus = 'disconnected';
+            detailedStatus = 'Logged Out';
+            isInitializing = false;
+            
+            res.json({ success: true });
+            setTimeout(connectToWhatsApp, 2000);
+        } catch (error) {
+            console.error('Logout handler error:', error);
+            res.status(500).json({ error: String(error) });
+        }
+    });
+
+    app.post('/api/whatsapp/restart', (req, res) => {
+        console.log('API: POST /whatsapp/restart');
+        isInitializing = false;
+        qrCode = null;
+        if (sock) {
+            try {
+                sock.ev.removeAllListeners('connection.update');
+                sock.end(undefined);
+            } catch (e) {}
+            sock = null;
+        }
+        connectToWhatsApp();
+        res.json({ success: true });
+    });
 
     async function connectToWhatsApp() {
         if (isInitializing) {
@@ -209,14 +249,18 @@ async function startServer() {
             }
 
             qrCode = null;
-            console.log('WhatsApp: Loading auth state from Firestore database...');
+            const authPath = path.join(process.cwd(), 'wa_auth');
+            if (!fs.existsSync(authPath)) fs.mkdirSync(authPath, { recursive: true });
+
+            console.log('WhatsApp: Loading auth state from:', authPath);
             let state, saveCreds;
             try {
-                const authState = await useFirestoreAuthState('wa_auth_bot1'); // using a unique collection name for the session
+                const authState = await useMultiFileAuthState(authPath);
                 state = authState.state;
                 saveCreds = authState.saveCreds;
             } catch (err) {
-                console.error('WhatsApp: Auth state loading from Firestore failed:', err);
+                console.error('WhatsApp: Auth state loading failed, clearing corrupted data.');
+                if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
                 isInitializing = false;
                 setTimeout(() => connectToWhatsApp(), 2000);
                 return;
@@ -226,12 +270,12 @@ async function startServer() {
 
             setStatus('disconnected', 'Connecting...');
             
-            let version = [2, 3000, 1017531301];
+            let version: [number, number, number] = [2, 3000, 1017531301];
             let isLatest = false;
             try {
                 console.log('WhatsApp: Fetching latest version...');
                 const versionResult: any = await fetchLatestBaileysVersion();
-                version = versionResult.version;
+                version = versionResult.version as [number, number, number];
                 isLatest = versionResult.isLatest;
                 console.log(`WhatsApp: Fetched version v${version.join('.')}, isLatest: ${isLatest}`);
             } catch (err) {
@@ -243,7 +287,7 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: Browsers.macOS('Chrome'),
+                browser: Browsers.macOS('Desktop'),
                 syncFullHistory: false,
                 shouldSyncHistoryMessage: () => false,
                 qrTimeout: 60000,
@@ -297,8 +341,9 @@ async function startServer() {
                     if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || statusCode === 405 || (isTerminated && failureCount >= 3)) {
                         console.warn('WhatsApp: Terminal dissociation or connection failure (405). Purging auth data.');
                         try {
-                            const entries = await getDocs(collection(db, 'wa_auth_bot1'));
-                            for (const d of entries.docs) await deleteDoc(d.ref);
+                            if (fs.existsSync(authPath)) {
+                                fs.rmSync(authPath, { recursive: true, force: true });
+                            }
                         } catch(e) {}
                         setStatus('disconnected', 'Resetting Session...');
                         failureCount = 0;
@@ -333,143 +378,6 @@ async function startServer() {
         }
     }
 
-    // API Routes
-    app.get('/api/whatsapp/sse', (req, res) => {
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.flushHeaders();
-
-        const sendData = (data: any) => {
-            res.write(`data: ${JSON.stringify(data)}\n\n`);
-        };
-
-        // Send current state immediately
-        sendData({ 
-            status: connectionStatus, 
-            detailedStatus, 
-            hasQr: !!qrCode,
-            qr: qrCode 
-        });
-
-        // Auto-start if idle
-        if (detailedStatus === 'Idle' && !isInitializing) {
-            console.log('App: Client connected and WhatsApp is Idle. Starting connection...');
-            connectToWhatsApp();
-        }
-
-        // Add to broadcast group
-        const clientWriter = {
-            write: (msg: string) => res.write(msg)
-        } as express.Response;
-        
-        clients.add(clientWriter);
-
-        req.on('close', () => {
-            clients.delete(clientWriter);
-        });
-    });
-
-    app.get('/api/whatsapp/status', (req, res) => {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.json({ 
-            status: connectionStatus, 
-            detailedStatus, 
-            hasQr: !!qrCode,
-            qr: qrCode 
-        });
-    });
-
-    app.get('/api/whatsapp/qr', (req, res) => {
-        if (qrCode) {
-            res.json({ qr: qrCode });
-        } else {
-            res.status(404).json({ error: 'QR not available' });
-        }
-    });
-
-    app.post('/api/whatsapp/logout', async (req, res) => {
-        try {
-            console.log('API: POST /whatsapp/logout');
-            if (sock) {
-                try {
-                    await sock.logout();
-                } catch (e) {
-                    console.error('Logout error:', e);
-                }
-                sock = null;
-            }
-            
-            try {
-                const entries = await getDocs(collection(db, 'wa_auth_bot1'));
-                for (const d of entries.docs) await deleteDoc(d.ref);
-            } catch(e) {}
-            
-            qrCode = null;
-            connectionStatus = 'disconnected';
-            detailedStatus = 'Logged Out';
-            isInitializing = false;
-            
-            res.json({ success: true });
-            
-            // Re-initialize to show fresh QR
-            setTimeout(connectToWhatsApp, 2000);
-        } catch (error) {
-            console.error('Logout handler error:', error);
-            res.status(500).json({ error: String(error) });
-        }
-    });
-
-    app.post('/api/whatsapp/restart', (req, res) => {
-        console.log('API: POST /whatsapp/restart');
-        isInitializing = false;
-        qrCode = null;
-        if (sock) {
-            try {
-                sock.ev.removeAllListeners('connection.update');
-                sock.end(undefined);
-            } catch (e) {}
-            sock = null;
-        }
-        connectToWhatsApp();
-        res.json({ success: true });
-    });
-
-    app.post('/api/whatsapp/send-bill', async (req, res) => {
-        const { phone, billNumber, pdfBase64, partyName } = req.body;
-
-        if (!phone || !pdfBase64) {
-            return res.status(400).json({ error: 'Phone and PDF are required' });
-        }
-
-        if (connectionStatus !== 'connected') {
-            return res.status(400).json({ error: 'WhatsApp is not connected' });
-        }
-
-        try {
-            // Clean phone number: remove non-digits, add country code if missing (Indian default)
-            let cleanPhone = phone.replace(/\D/g, '');
-            if (cleanPhone.length === 10) {
-                cleanPhone = '91' + cleanPhone;
-            }
-            const jid = `${cleanPhone}@s.whatsapp.net`;
-
-            // Prepare PDF buffer
-            const buffer = Buffer.from(pdfBase64.split(',')[1], 'base64');
-
-            await sock.sendMessage(jid, {
-                document: buffer,
-                fileName: `Bill_${billNumber || 'Invoice'}.pdf`,
-                mimetype: 'application/pdf',
-                caption: `Hello ${partyName || 'Customer'},\n\nAttached is your Bill #${billNumber || ''}.\n\nThank you for your business! 🙏`
-            });
-
-            res.json({ success: true });
-        } catch (error) {
-            console.error('Failed to send WhatsApp message:', error);
-            res.status(500).json({ error: 'Failed to send message' });
-        }
-    });
 
     const distPath = path.join(process.cwd(), 'dist');
     const isProd = process.env.NODE_ENV === 'production' && fs.existsSync(distPath);
