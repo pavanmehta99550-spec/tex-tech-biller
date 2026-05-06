@@ -4,15 +4,100 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import makeWASocket, { 
     DisconnectReason, 
-    useMultiFileAuthState,
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
-    Browsers
+    Browsers,
+    initAuthCreds,
+    BufferJSON,
+    AuthenticationState,
+    WAProto
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
 import { Boom } from '@hapi/boom';
 import fs from 'fs';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAAylk4kI5has8jdwX0ef29vcRkLPoSoNw",
+  authDomain: "clipnova-f259d.firebaseapp.com",
+  projectId: "clipnova-f259d",
+  storageBucket: "clipnova-f259d.firebasestorage.app",
+  messagingSenderId: "1021594403404",
+  appId: "1:1021594403404:web:19507943ef63890047aae9",
+  measurementId: "G-K6SWPH27MP"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+export const useFirestoreAuthState = async (collectionName: string): Promise<{ state: AuthenticationState, saveCreds: () => Promise<void> }> => {
+    const writeData = async (data: any, id: string) => {
+        try {
+            const parsedData = JSON.parse(JSON.stringify(data, BufferJSON.replacer));
+            await setDoc(doc(db, collectionName, id), parsedData);
+        } catch (error) {
+            console.error('Error writing auth state to Firestore:', error);
+        }
+    };
+
+    const readData = async (id: string) => {
+        try {
+            const docSnap = await getDoc(doc(db, collectionName, id));
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                return JSON.parse(JSON.stringify(data), BufferJSON.reviver);
+            }
+        } catch (error) {
+            console.error('Error reading auth state from Firestore:', error);
+        }
+        return null;
+    };
+
+    const removeData = async (id: string) => {
+        try {
+            await deleteDoc(doc(db, collectionName, id));
+        } catch (error) {
+            console.error('Error removing auth state from Firestore:', error);
+        }
+    };
+
+    const creds = (await readData('creds')) || initAuthCreds();
+
+    return {
+        state: {
+            creds,
+            keys: {
+                get: async (type, ids) => {
+                    const data: { [key: string]: any } = {};
+                    await Promise.all(ids.map(async id => {
+                        let value = await readData(`${type}-${id}`);
+                        if (type === 'app-state-sync-key' && value) {
+                            value = WAProto.Message.AppStateSyncKeyData.fromObject(value);
+                        }
+                        data[id] = value;
+                    }));
+                    return data;
+                },
+                set: async (data) => {
+                    const tasks: Promise<void>[] = [];
+                    for (const category in data) {
+                        for (const id in data[category as keyof typeof data]) {
+                            const value = data[category as keyof typeof data][id];
+                            const fileId = `${category}-${id}`;
+                            tasks.push(value ? writeData(value, fileId) : removeData(fileId));
+                        }
+                    }
+                    await Promise.all(tasks);
+                }
+            }
+        },
+        saveCreds: async () => {
+            return writeData(creds, 'creds');
+        }
+    };
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -124,20 +209,14 @@ async function startServer() {
             }
 
             qrCode = null;
-            const authPath = path.join(process.cwd(), 'wa_auth');
-            if (!fs.existsSync(authPath)) {
-                fs.mkdirSync(authPath, { recursive: true });
-            }
-
-            console.log('WhatsApp: Loading auth state from:', authPath);
+            console.log('WhatsApp: Loading auth state from Firestore database...');
             let state, saveCreds;
             try {
-                const authState = await useMultiFileAuthState(authPath);
+                const authState = await useFirestoreAuthState('wa_auth_bot1'); // using a unique collection name for the session
                 state = authState.state;
                 saveCreds = authState.saveCreds;
             } catch (err) {
-                console.error('WhatsApp: Auth state loading failed, clearing corrupted data.');
-                if (fs.existsSync(authPath)) fs.rmSync(authPath, { recursive: true, force: true });
+                console.error('WhatsApp: Auth state loading from Firestore failed:', err);
                 isInitializing = false;
                 setTimeout(() => connectToWhatsApp(), 2000);
                 return;
@@ -217,9 +296,10 @@ async function startServer() {
 
                     if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || statusCode === 405 || (isTerminated && failureCount >= 3)) {
                         console.warn('WhatsApp: Terminal dissociation or connection failure (405). Purging auth data.');
-                        if (fs.existsSync(authPath)) {
-                            try { fs.rmSync(authPath, { recursive: true, force: true }); } catch(e) {}
-                        }
+                        try {
+                            const entries = await getDocs(collection(db, 'wa_auth_bot1'));
+                            for (const d of entries.docs) await deleteDoc(d.ref);
+                        } catch(e) {}
                         setStatus('disconnected', 'Resetting Session...');
                         failureCount = 0;
                         reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000); 
@@ -320,10 +400,10 @@ async function startServer() {
                 sock = null;
             }
             
-            const authPath = path.join(process.cwd(), 'wa_auth');
-            if (fs.existsSync(authPath)) {
-                fs.rmSync(authPath, { recursive: true, force: true });
-            }
+            try {
+                const entries = await getDocs(collection(db, 'wa_auth_bot1'));
+                for (const d of entries.docs) await deleteDoc(d.ref);
+            } catch(e) {}
             
             qrCode = null;
             connectionStatus = 'disconnected';
