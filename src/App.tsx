@@ -95,6 +95,15 @@ const numberToWords = (num: number) => {
 
 
 
+function Watermark({ paymentStatus }: { paymentStatus: 'PAID' | 'UNPAID' | string }) {
+  const isPaid = paymentStatus === 'PAID';
+  return (
+    <div className={`watermark ${isPaid ? 'paid' : ''}`}>
+      {paymentStatus}
+    </div>
+  );
+}
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -186,6 +195,27 @@ export default function App() {
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false); 
+  const [globalSearch, setGlobalSearch] = useState('');
+
+  const handleGlobalSearch = (query: string) => {
+    if (!query) return;
+    const foundBooking = bookings.find(b => b.billNumber?.toString() === query);
+    if (foundBooking) {
+      setEditingBooking(foundBooking);
+      setCurrentView('inv');
+      setGlobalSearch('');
+      return;
+    }
+    const foundPurchase = purchases.find(p => p.billNumber?.toString() === query);
+    if (foundPurchase) {
+      setEditingPurchase(foundPurchase);
+      setCurrentView('pur');
+      setGlobalSearch('');
+      return;
+    }
+    alert('Entry not found');
+  }
+
 
   useEffect(() => storage.set('purchaseParties', purchaseParties), [purchaseParties]);
   useEffect(() => storage.set('saleParties', saleParties), [saleParties]);
@@ -1496,6 +1526,17 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8 print:ml-0 print:p-0 relative">
+        <div className="w-full max-w-6xl mx-auto mb-8 bg-white border border-slate-200 p-4 rounded-2xl flex items-center shadow-lg sticky top-8 z-30">
+          <Search className="text-slate-400 ml-4" size={20} />
+          <input 
+            type="text" 
+            placeholder="Global Search: Enter Bill #" 
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleGlobalSearch(globalSearch)}
+            className="w-full px-4 py-2 font-bold outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg"
+          />
+        </div>
         {currentView !== 'dash' && currentView !== 'ledg' && (
           <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/80 backdrop-blur px-6 py-3 rounded-2xl border border-slate-200 shadow-sm z-10 print:hidden whitespace-nowrap">
             <div className="flex items-center gap-3">
