@@ -287,14 +287,14 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: false,
-                browser: Browsers.macOS('Desktop'),
+                browser: ['Windows', 'Chrome', '111.0.0.0'],
                 syncFullHistory: false,
                 shouldSyncHistoryMessage: () => false,
                 qrTimeout: 60000,
                 connectTimeoutMs: 60000, 
                 defaultQueryTimeoutMs: 0,
-                keepAliveIntervalMs: 10000, 
-                markOnlineOnConnect: true,
+                keepAliveIntervalMs: 15000, 
+                markOnlineOnConnect: false,
                 shouldIgnoreJid: (jid) => jid.includes('@broadcast'),
             });
 
@@ -333,13 +333,14 @@ async function startServer() {
                     
                     console.error(`WhatsApp: Connection Closed. Status: ${statusCode}. Error: ${errorMsg}`);
                     
-                    const isTerminated = statusCode === 428 || statusCode === 515 || statusCode === 503 || statusCode === 440 ||
+                    const isTerminated = statusCode === 515 || statusCode === 503 || statusCode === 440 ||
                                        errorMsg.toLowerCase().includes('terminated') || 
                                        errorMsg.includes('hangup') ||
                                        errorMsg.includes('Handshake timeout');
 
-                    if (statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || statusCode === 405 || (isTerminated && failureCount >= 3)) {
-                        console.warn('WhatsApp: Terminal dissociation or connection failure (405). Purging auth data.');
+                    const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || statusCode === 405 || (isTerminated && failureCount >= 3);
+                    if (isLoggedOut && statusCode !== 428) {
+                        console.warn('WhatsApp: Terminal dissociation or connection failure (' + statusCode + '). Purging auth data.');
                         try {
                             if (fs.existsSync(authPath)) {
                                 fs.rmSync(authPath, { recursive: true, force: true });
