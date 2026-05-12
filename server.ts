@@ -296,7 +296,6 @@ async function startServer() {
                 keepAliveIntervalMs: 20000, 
                 markOnlineOnConnect: true,
                 shouldIgnoreJid: (jid) => jid.includes('@broadcast'),
-                transactionOpts: { maxRetries: 5, delayBetweenTxsMs: 500 },
                 getMessage: async (key) => { return { conversation: 'heartbeat' } }
             });
 
