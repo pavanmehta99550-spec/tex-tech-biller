@@ -343,7 +343,11 @@ export default function App() {
           switch(currentView) {
             case 'inv': setEditingBooking(null); break;
             case 'pur': setEditingPurchase(null); break;
-            default: break; // Or trigger something default if needed
+            case 'saleparty': 
+            case 'purchaseparty': 
+              window.dispatchEvent(new CustomEvent('app-trigger-add-new'));
+              break;
+            default: break; 
           }
           return;
         }
@@ -2789,8 +2793,22 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`} 
             />
           </div>
+          <div className="space-y-4">
+             <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Broker</label>
+             <select
+               value={formData.brokerId}
+               onChange={(e) => setFormData({ ...formData, brokerId: e.target.value })}
+               onKeyDown={handleEnter}
+               className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+             >
+               <option value="">Select Broker</option>
+               {brokers.map((b: any) => (
+                 <option key={b.id} value={b.id}>{b.name}</option>
+               ))}
+             </select>
+          </div>
         </div>
-
+        
         <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-2xl">
           <div className="flex items-center gap-2 mb-4">
             <Lock size={14} className="text-indigo-600" />
@@ -7769,6 +7787,7 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
     return filteredSales.map((b: any) => {
       const taxable = b.basicAmount - (b.globalDiscount || 0);
       return {
+        id: b.id,
         invoiceNo: b.billNumber,
         date: b.date.split('T')[0],
         customer: b.consigneeName,
@@ -7779,10 +7798,32 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         sgst: b.sgstAmount || 0,
         igst: b.igstAmount || 0,
         totalTax: b.taxAmount,
-        grandTotal: b.grandTotal
+        grandTotal: b.grandTotal,
+        hsn: (b.items && b.items[0]?.hsnCode) || 'N/A'
       };
     });
   }, [filteredSales]);
+
+  const gstr2Data = useMemo(() => {
+    return filteredPurchases.map((p: any) => {
+      const taxable = p.basicAmount - (p.globalDiscount || 0);
+      return {
+        id: p.id,
+        invoiceNo: p.partyBillNumber || p.billNumber,
+        date: p.date.split('T')[0],
+        supplier: p.partyName,
+        gstin: p.partyGstin,
+        taxableValue: taxable,
+        taxRate: p.taxRate,
+        cgst: p.cgstAmount || 0,
+        sgst: p.sgstAmount || 0,
+        igst: p.igstAmount || 0,
+        totalTax: p.taxAmount,
+        grandTotal: p.grandTotal,
+        hsn: (p.items && p.items[0]?.hsnCode) || 'N/A'
+      };
+    });
+  }, [filteredPurchases]);
 
   const summary = useMemo(() => {
     const salesTax = filteredSales.reduce((acc: any, b: any) => {
@@ -8028,6 +8069,51 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
                   {gstr1Data.length === 0 && (
                     <tr>
                       <td colSpan={9} className="px-6 py-12 text-center text-slate-400 font-bold italic">No sales found for this period.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden mt-8">
+            <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Receipt size={16} className="text-[#00cec9]" /> GSTR-2 (Purchase Details)</h3>
+              <span className="text-[10px] font-bold bg-white/10 px-3 py-1 rounded-full">{filteredPurchases.length} Records</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="px-6 py-4">Inv #</th>
+                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4">Supplier</th>
+                    <th className="px-6 py-4">HSN</th>
+                    <th className="px-6 py-4 text-right">Taxable</th>
+                    <th className="px-6 py-4 text-right">GST %</th>
+                    <th className="px-6 py-4 text-right">Total GST</th>
+                    <th className="px-6 py-4 text-right font-black text-slate-900">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {gstr2Data.map((d) => (
+                    <tr key={d.invoiceNo || d.id || Math.random().toString()} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-black text-sm">#{d.invoiceNo}</td>
+                      <td className="px-6 py-4 font-bold text-slate-500 text-xs">{d.date}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-900 text-sm">{d.supplier}</div>
+                        <div className="text-[9px] font-black text-slate-400 uppercase">{d.gstin || 'NO GSTIN'}</div>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-slate-500 text-xs">{d.hsn}</td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.taxableValue.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-500 text-xs">{d.taxRate}%</td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.totalTax.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-right font-black text-slate-900 text-sm">₹{d.grandTotal.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  {gstr2Data.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 font-bold italic">No purchases found for this period.</td>
                     </tr>
                   )}
                 </tbody>
@@ -8604,6 +8690,15 @@ function SettingsView({ settings, onSave }: any) {
 }
 
 function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [], bookings = [], purchases = [], creditNotes = [], debitNotes = [], payments = [] }: any) {
+  useEffect(() => {
+    const handleAddNew = () => {
+      setEditingId(null);
+      setPartyForm({ name: '', gstin: '', address: '', mobile: '', mobile2: '' });
+    };
+    window.addEventListener('app-trigger-add-new', handleAddNew);
+    return () => window.removeEventListener('app-trigger-add-new', handleAddNew);
+  }, []);
+
   const [partyForm, setPartyForm] = useState({
     name: '',
     gstin: '',
