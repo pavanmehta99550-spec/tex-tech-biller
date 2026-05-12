@@ -599,7 +599,7 @@ export default function App() {
 
     const timer = setTimeout(syncData, 200); 
     return () => clearTimeout(timer);
-  }, [user, customLoginId, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, expenses, millChallans, partyChallans, weaverChallans, weaverParties, settings, lastBackupDate, isDataLoaded]);
+  }, [user, customLoginId, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, expenses, millChallans, partyChallans, weaverChallans, weaverParties, brokers, commissions, brokerPayments, settings, lastBackupDate, isDataLoaded]);
 
   useEffect(() => {
     if (isAuthenticated) {
