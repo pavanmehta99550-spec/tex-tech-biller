@@ -1260,6 +1260,7 @@ export default function App() {
       billAdjustments: data.billAdjustments
     };
 
+    setIsSyncing(true);
     if (isUpdate) {
       setPayments(prev => prev.map(p => p.id === data.id ? newPayment : p));
       
@@ -1284,7 +1285,6 @@ export default function App() {
       setSaleParties(prev => prev.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
     }
 
-    alert(isUpdate ? "Payment Record Updated Successfully!" : "Payment Record Saved Successfully!");
     setCurrentView('ledg');
   };
 
@@ -1307,6 +1307,7 @@ export default function App() {
       billAdjustments: data.billAdjustments
     };
 
+    setIsSyncing(true);
     if (isUpdate) {
       setPurchasePayments(prev => prev.map(p => p.id === data.id ? newPayment : p));
       
@@ -1331,7 +1332,6 @@ export default function App() {
       setPurchaseParties(prev => prev.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
     }
 
-    alert(isUpdate ? "Send Payment Record Updated Successfully!" : "Send Payment Record Saved Successfully!");
     setCurrentView('ledg');
   };
 
@@ -1848,7 +1848,7 @@ export default function App() {
                 onDeletePayment={handleDeletePayment}
                 onEditPayment={(p: any) => {
                   setEditingPayment(p);
-                  setCurrentView(p.type === 'PURCHASE_PAYMENT' ? 'sendpay' : 'pay');
+                  setCurrentView(p.originalType === 'PURCHASE_PAYMENT' ? 'sendpay' : 'pay');
                 }}
                 onEditBooking={(b: any) => {
                   setEditingBooking(b);
@@ -5662,23 +5662,26 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
   }, [selectedParty, purchases]);
 
   useEffect(() => {
-    if (editingPayment) return;
     if (selectedParty) {
       setBillAdjustments(partyPurchases.map((p: any) => {
-        const info = getBillPaymentInfo(p.id, p.grandTotal, payments);
-        if (info.status === 'PAID') return null;
+        const otherPayments = payments.filter((py: any) => py.id !== editingPayment?.id);
+        const info = getBillPaymentInfo(p.id, p.grandTotal, otherPayments);
+        const existingAdj = editingPayment?.billAdjustments?.find((adj: any) => adj.billId === p.id);
+        const paidAmount = existingAdj ? existingAdj.paid : '';
+
+        if (info.status === 'PAID' && !existingAdj) return null;
         return {
           billId: p.id,
           billNumber: p.billNumber,
           grandTotal: p.grandTotal,
           balance: info.balance,
-          paid: ''
+          paid: paidAmount
         };
       }).filter(Boolean));
     } else {
       setBillAdjustments([]);
     }
-  }, [selectedParty, partyPurchases, payments]);
+  }, [selectedParty, partyPurchases, payments, editingPayment]);
 
   const totalAdjusted = billAdjustments.reduce((sum, b) => sum + (parseFloat(b.paid) || 0), 0);
 
@@ -5928,23 +5931,26 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
   }, [selectedParty, bookings]);
 
   useEffect(() => {
-    if (editingPayment) return; // Don't auto-calculate if editing
     if (selectedParty) {
       setBillAdjustments(partyBookings.map((b: any) => {
-        const info = getBillPaymentInfo(b.id, b.grandTotal, payments);
-        if (info.status === 'PAID') return null;
+        const otherPayments = payments.filter((p: any) => p.id !== editingPayment?.id);
+        const info = getBillPaymentInfo(b.id, b.grandTotal, otherPayments);
+        const existingAdj = editingPayment?.billAdjustments?.find((adj: any) => adj.billId === b.id);
+        const paidAmount = existingAdj ? existingAdj.paid : '';
+
+        if (info.status === 'PAID' && !existingAdj) return null;
         return {
           billId: b.id,
           billNumber: b.billNumber,
           grandTotal: b.grandTotal,
           balance: info.balance,
-          paid: '' 
+          paid: paidAmount 
         };
       }).filter(Boolean));
     } else {
       setBillAdjustments([]);
     }
-  }, [selectedParty, partyBookings, payments]);
+  }, [selectedParty, partyBookings, payments, editingPayment]);
 
   const totalAdjusted = billAdjustments.reduce((sum, b) => sum + (parseFloat(b.paid) || 0), 0);
 
@@ -6896,7 +6902,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
 
       return [
         ...partyBookings.map(b => ({ ...b, type: 'SALE', amount: b.grandTotal, date: b.date })),
-        ...partyPayments.map(p => ({ ...p, type: 'PAYMENT', amount: -p.amount, date: p.date })),
+        ...partyPayments.map(p => ({ ...p, type: 'PAYMENT', originalType: 'SALE_PAYMENT', amount: -p.amount, date: p.date })),
         ...partyCNs.map(cn => ({ ...cn, type: 'CREDIT_NOTE', amount: -cn.grandTotal, date: cn.date }))
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } else {
@@ -6906,7 +6912,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
 
       return [
         ...partyPurchases.map(p => ({ ...p, type: 'PURCHASE', amount: p.grandTotal, date: p.date })),
-        ...partyPayments.map(p => ({ ...p, type: 'PAYMENT', amount: -p.amount, date: p.date })),
+        ...partyPayments.map(p => ({ ...p, type: 'PAYMENT', originalType: 'PURCHASE_PAYMENT', amount: -p.amount, date: p.date })),
         ...partyDNs.map(dn => ({ ...dn, type: 'DEBIT_NOTE', amount: -dn.grandTotal, date: dn.date }))
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
