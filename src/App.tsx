@@ -534,6 +534,9 @@ export default function App() {
     const activeId = user?.uid || customLoginId;
     if (!activeId) return;
 
+    loadedKeys.current.clear();
+    setIsDataLoaded(false);
+
     const dataCollections = [
       { key: 'purchaseParties', setter: setPurchaseParties },
       { key: 'saleParties', setter: setSaleParties },
@@ -608,85 +611,92 @@ export default function App() {
       settings, lastBackupDate
     };
     
+    let hasChanges = false;
     Object.keys(data).forEach(key => {
       const currentVal = JSON.stringify(data[key]);
       if (currentVal !== prevData.current[key]) {
         lastWriteTime.current[key] = Date.now();
         prevData.current[key] = currentVal;
         setSyncStatus('pending');
+        hasChanges = true;
       }
     });
+
+    if (hasChanges) {
+       setIsSyncing(true);
+    }
   }, [purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, expenses, millChallans, partyChallans, weaverChallans, weaverParties, settings, lastBackupDate]);
+
+  const forceSyncData = async () => {
+    const activeId = auth.currentUser?.uid || storage.get('customLoginId', null);
+    if (!activeId) return;
+    
+    setIsSyncing(true);
+    try {
+      const batch: any = {
+        purchaseParties,
+        saleParties,
+        itemsMaster,
+        transports,
+        bookings,
+        purchases,
+        'debit-notes': debitNotes,
+        'credit-notes': creditNotes,
+        payments,
+        purchasePayments,
+        expenses,
+        millChallans,
+        partyChallans,
+        weaverChallans,
+        weaverParties,
+        brokers,
+        commissions,
+        brokerPayments,
+        settings,
+        lastBackupDate
+      };
+
+      const syncPromises = Object.entries(batch).map(async ([key, value]) => {
+        if (value !== undefined) {
+           const stringified = JSON.stringify(value);
+           if (stringified !== lastSyncedData.current[key]) {
+              const docPath = auth.currentUser ? `users/${auth.currentUser.uid}/appData/${key}` : `custom_accounts/${activeId}/appData/${key}`;
+              const pathParts = docPath.split('/');
+              const [col, docId, subCol, subDocId] = pathParts;
+              
+              await setDoc(doc(db, col, docId, subCol, subDocId), { value });
+              lastSyncedData.current[key] = stringified;
+           }
+        }
+      });
+      
+      await Promise.all(syncPromises);
+      setSyncStatus('synced');
+      
+      if (activeId && !auth.currentUser && settings?.adminPassword) {
+         await setDoc(doc(db, 'custom_credentials', activeId), { 
+           password: settings.adminPassword,
+           username: settings.adminUsername || activeId,
+           updatedAt: new Date().toISOString()
+         });
+      }
+    } catch (err) {
+      console.error("Sync failed", err);
+      setSyncStatus('error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Sync to Firebase on changes
   useEffect(() => {
     const activeId = user?.uid || customLoginId;
     if (!activeId || !isDataLoaded) return;
     
-    const syncData = async () => {
-      setIsSyncing(true);
-      try {
-        const batch: any = {
-          purchaseParties,
-          saleParties,
-          itemsMaster,
-          transports,
-          bookings,
-          purchases,
-          'debit-notes': debitNotes,
-          'credit-notes': creditNotes,
-          payments,
-          purchasePayments,
-          expenses,
-          millChallans,
-          partyChallans,
-          weaverChallans,
-          weaverParties,
-          brokers,
-          commissions,
-          brokerPayments,
-          settings,
-          lastBackupDate
-        };
-
-        const syncPromises = Object.entries(batch).map(async ([key, value]) => {
-          if (value !== undefined) {
-             const stringified = JSON.stringify(value);
-             // ONLY sync if the current local value is different from what we last synced
-             // with the server (either via write or via snapshot).
-             if (stringified !== lastSyncedData.current[key]) {
-                const docPath = user ? `users/${user.uid}/appData/${key}` : `custom_accounts/${customLoginId}/appData/${key}`;
-                const pathParts = docPath.split('/');
-                const [col, docId, subCol, subDocId] = pathParts;
-                
-                await setDoc(doc(db, col, docId, subCol, subDocId), { value });
-                lastSyncedData.current[key] = stringified;
-             }
-          }
-        });
-        
-        await Promise.all(syncPromises);
-        setSyncStatus('synced');
-        
-        // Also ensure current password is synced if using custom ID
-        if (customLoginId && settings?.adminPassword) {
-           await setDoc(doc(db, 'custom_credentials', customLoginId), { 
-             password: settings.adminPassword,
-             username: settings.adminUsername || customLoginId,
-             updatedAt: new Date().toISOString()
-           });
-        }
-      } catch (err) {
-        console.error("Sync failed", err);
-        setSyncStatus('error');
-      } finally {
-        setIsSyncing(false);
-      }
-    };
-
-    const timer = setTimeout(syncData, 200); 
+    const timer = setTimeout(forceSyncData, 200); 
     return () => clearTimeout(timer);
   }, [user, customLoginId, purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, expenses, millChallans, partyChallans, weaverChallans, weaverParties, brokers, commissions, brokerPayments, settings, lastBackupDate, isDataLoaded]);
+
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -2043,7 +2053,9 @@ export default function App() {
                 </button>
                 <div className="flex gap-4">
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
+                      if (isSyncing) return; // Optional safety
+                      await forceSyncData();
                       auth.signOut();
                       resetData();
                       setIsAuthenticated(false);
@@ -2053,13 +2065,14 @@ export default function App() {
                       setShowLogoutConfirm(false);
                       setLogoutFocusedIdx(-1);
                     }}
+                    disabled={isSyncing}
                     className={`flex-1 py-5 rounded-3xl font-black text-xs uppercase tracking-widest transition-all ${
                       logoutFocusedIdx === 1
                         ? "bg-black text-white ring-4 ring-red-200"
-                        : "bg-red-600 text-white hover:bg-red-700"
+                        : "bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                     }`}
                   >
-                    Logout Anyway
+                    {isSyncing ? 'Syncing...' : 'Logout Anyway'}
                   </button>
                   <button 
                     onClick={() => {
@@ -2075,6 +2088,18 @@ export default function App() {
                     Stay Logged In
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+        
+        {isSyncing && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-3xl shadow-2xl flex items-center gap-6">
+              <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-100 border-t-indigo-600"></div>
+              <div>
+                <p className="font-black text-slate-900 uppercase tracking-widest text-lg">Syncing...</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Please do not close</p>
               </div>
             </motion.div>
           </div>
