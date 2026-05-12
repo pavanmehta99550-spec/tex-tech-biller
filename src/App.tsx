@@ -244,7 +244,6 @@ export default function App() {
     };
 
     const connectSSE = () => {
-      console.log("App: Connecting to WhatsApp SSE...");
       if (eventSource) eventSource.close();
       
       eventSource = new EventSource('/api/whatsapp/sse');
@@ -259,7 +258,6 @@ export default function App() {
       };
 
       eventSource.onerror = () => {
-        console.warn('WhatsApp SSE link lost. Retrying in 5s...');
         if (eventSource) eventSource.close();
         if (retryTimeout) clearTimeout(retryTimeout);
         retryTimeout = setTimeout(connectSSE, 5000);
@@ -1417,6 +1415,24 @@ export default function App() {
             Update App
           </button>
         </nav>
+
+        <div className="p-4 border-t border-slate-700 bg-black/30 m-2 rounded-2xl">
+          <div className="flex items-center justify-between mb-3">
+             <div className="flex items-center gap-2">
+               <div className={`w-2 h-2 rounded-full ${waStatus.status === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : waStatus.status === 'error' ? 'bg-red-500' : 'bg-orange-500'} animate-pulse`}></div>
+               <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">WhatsApp Linked</span>
+             </div>
+             {waStatus.status === 'connected' && (
+               <button onClick={() => fetch('/api/whatsapp/logout', { method: 'POST' })} className="text-[9px] font-black text-red-500 uppercase hover:underline">Logout</button>
+             )}
+          </div>
+          <div className="text-[14px] font-black uppercase text-white tracking-tight">
+            {waStatus.status === 'connected' ? 'Connected' : waStatus.detailedStatus}
+          </div>
+          {!waStatus.qr && waStatus.status !== 'connected' && (
+            <button onClick={() => fetch('/api/whatsapp/restart', { method: 'POST' })} className="mt-2 w-full py-2 bg-indigo-600/20 text-indigo-400 rounded-lg text-[9px] font-black uppercase hover:bg-indigo-600/30 transition-all">Link Now</button>
+          )}
+        </div>
 
         <div className="p-4 border-t border-slate-700 space-y-2">
           <button 
@@ -6892,7 +6908,6 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
           transactions={printAllTransactions} 
           settings={settings} 
           onClose={() => setPrintAllTransactions(null)} 
-          waStatus={waStatus}
         />
       )}
     </motion.div>
@@ -8459,138 +8474,6 @@ function BankDetailsView({ settings, onUpdateSettings }: any) {
   );
 }
 
-function WhatsAppStatusSection({ waStatus }: { waStatus: any }) {
-  const [isRestarting, setIsRestarting] = useState(false);
-
-  const handleLogout = async () => {
-    if (!confirm("Are you sure you want to logout from WhatsApp?")) return;
-    await fetch('/api/whatsapp/logout', { method: 'POST' });
-  };
-
-  const handleRestart = async () => {
-    setIsRestarting(true);
-    await fetch('/api/whatsapp/restart', { method: 'POST' });
-    setTimeout(() => setIsRestarting(false), 2000);
-  };
-
-  return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-8">
-      <div className="bg-slate-50 p-6 flex items-center justify-between border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl ${waStatus.status === 'connected' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-            <MessageSquare size={20} />
-          </div>
-          <div>
-            <h3 className="font-black text-slate-900 uppercase text-sm">WhatsApp Automation</h3>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              Status: {waStatus.status === 'connected' ? 'Ready to send' : 'Not setup'}
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-           {waStatus.status === 'connected' ? (
-             <button onClick={handleLogout} className="px-4 py-2 text-xs font-black text-red-500 uppercase hover:bg-red-50 rounded-lg transition-all">Logout</button>
-           ) : (
-             <button 
-               onClick={async () => {
-                 if (confirm("Resetting session will clear all WhatsApp data. Continue?")) {
-                    await fetch('/api/whatsapp/logout', { method: 'POST' });
-                 }
-               }} 
-               className="px-4 py-2 text-xs font-black text-slate-500 uppercase hover:bg-slate-100 rounded-lg transition-all"
-             >
-               Reset Session
-             </button>
-           )}
-           <button 
-             onClick={handleRestart} 
-             disabled={isRestarting}
-             className="px-4 py-2 bg-slate-900 text-white text-xs font-black uppercase rounded-lg hover:bg-black transition-all flex items-center gap-2"
-           >
-             <RefreshCw size={12} className={isRestarting ? 'animate-spin' : ''} />
-             {isRestarting ? 'Restarting...' : 'Restart'}
-           </button>
-        </div>
-      </div>
-
-      <div className="p-8">
-        {waStatus.status === 'connected' ? (
-          <div className="flex items-center gap-6">
-             <div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center">
-               <Check size={32} />
-             </div>
-             <div>
-                <h4 className="font-black text-slate-900 text-lg uppercase">Connected & Active</h4>
-                <p className="text-slate-500 font-bold text-sm">Automated bill sharing is now enabled for all customers.</p>
-             </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-6">
-            {waStatus.qr ? (
-              <div className="bg-white border-2 border-dashed border-slate-200 p-4 rounded-3xl inline-block shadow-inner">
-                <img src={waStatus.qr} alt="WhatsApp QR Code" className="w-48 h-48 rounded-xl" />
-              </div>
-            ) : (
-              <div className="w-48 h-48 bg-slate-100 rounded-3xl flex items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 flex-col gap-3">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
-                  {waStatus.detailedStatus || 'Waiting for QR Code...'}
-                </p>
-                {(waStatus.detailedStatus === 'Idle' || waStatus.detailedStatus?.includes('Error') || waStatus.detailedStatus === 'Logged Out') && (
-                  <button 
-                    onClick={handleRestart}
-                    className="mt-2 px-3 py-1.5 bg-slate-200 text-slate-600 text-[9px] font-black uppercase rounded-lg hover:bg-slate-300 transition-all"
-                  >
-                    Connect Now
-                  </button>
-                )}
-              </div>
-            )}
-            <div className="text-center max-w-sm">
-               <h4 className="font-black text-slate-900 uppercase">Scan to Connect</h4>
-               <p className="text-slate-500 font-bold text-xs mt-1 leading-relaxed">
-                 Open WhatsApp on your phone, go to Settings &gt; Linked Devices and scan this code to enable bill automation.
-               </p>
-            </div>
-          </div>
-        ) }
-      </div>
-    </div>
-  );
-}
-
-function WhatsAppButton({ waStatus, onSend }: { waStatus: any, onSend: () => Promise<void> }) {
-  const [isSending, setIsSending] = useState(false);
-
-  const handleClick = async () => {
-    if (waStatus.status !== 'connected') {
-      alert("WhatsApp focus disconnected! Please go to Settings and scan the QR code to connect.");
-      return;
-    }
-    setIsSending(true);
-    try {
-      await onSend();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  return (
-    <button 
-      onClick={handleClick}
-      disabled={isSending}
-      className={`px-4 py-2 transition-colors text-white font-bold rounded-lg shadow-lg flex items-center gap-2 ${waStatus.status === 'connected' ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-400 cursor-not-allowed'}`}
-    >
-      {isSending ? (
-        <RefreshCw size={16} className="animate-spin" />
-      ) : (
-        <MessageSquare size={16} />
-      )}
-      {isSending ? 'Sending...' : 'WhatsApp'}
-    </button>
-  );
-}
 
 function SettingsView({ settings, onSave, waStatus }: any) {
   const [formData, setFormData] = useState<AppSettings>({
@@ -8686,7 +8569,6 @@ function SettingsView({ settings, onSave, waStatus }: any) {
         </div>
       ) : (
         <form onSubmit={handleSave} className="p-10 space-y-6">
-          <WhatsAppStatusSection waStatus={waStatus} />
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-1">
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Company / Consignor Name</label>
@@ -8770,6 +8652,37 @@ function SettingsView({ settings, onSave, waStatus }: any) {
               </div>
             </div>
             <p className="text-[10px] text-slate-400 font-bold ml-1 uppercase">Default: admin / 1234. Change these for security.</p>
+          </div>
+
+          <div className="pt-8 border-t border-slate-100 flex flex-col items-center">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">WhatsApp Connection</h3>
+            {waStatus.status === 'connected' ? (
+              <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-3xl w-full text-center">
+                <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
+                  <Check size={24} className="bg-emerald-100 rounded-full p-1" />
+                  <span className="font-black uppercase tracking-tighter text-lg">WhatsApp Connected</span>
+                </div>
+                <p className="text-emerald-700/60 text-xs font-bold uppercase tracking-widest">System is ready to send bills</p>
+                <button type="button" onClick={() => fetch('/api/whatsapp/logout', { method: 'POST' })} className="mt-6 text-red-500 font-black uppercase text-[10px] tracking-widest hover:underline">Logout & Disconnect</button>
+              </div>
+            ) : (
+              <div className="w-full flex flex-col items-center">
+                {waStatus.qr ? (
+                  <div className="p-8 bg-white border-4 border-indigo-100 rounded-[40px] shadow-2xl">
+                    <img src={waStatus.qr} alt="WA QR" className="w-48 h-48" />
+                    <div className="mt-4 text-center">
+                      <div className="text-[10px] font-black uppercase text-slate-400 animate-pulse tracking-widest">Scan with WhatsApp</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[40px] w-full text-center">
+                     <RefreshCw className="mx-auto mb-4 text-indigo-400" size={32} />
+                     <div className="text-slate-500 font-bold text-sm tracking-tight">{waStatus.detailedStatus || 'Waiting for QR...'}</div>
+                  </div>
+                )}
+                <button type="button" onClick={() => fetch('/api/whatsapp/restart', { method: 'POST' })} className="mt-6 bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl">Get New QR Code</button>
+              </div>
+            )}
           </div>
 
           <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-4">
@@ -10292,5 +10205,28 @@ function ChallanCompareView({ millChallans, partyChallans, weaverChallans = [] }
         </div>
       )}
     </motion.div>
+  );
+}
+
+function WhatsAppButton({ waStatus, onSend }: { waStatus: any, onSend: () => void }) {
+  const [isSending, setIsSending] = useState(false);
+  const handleSend = async () => {
+    setIsSending(true);
+    try {
+      await onSend();
+    } catch (e) {
+      console.error(e);
+    }
+    setIsSending(false);
+  };
+  if (waStatus.status !== 'connected') return null;
+  return (
+    <button
+      onClick={handleSend}
+      disabled={isSending}
+      className={`p-3 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition shadow-lg flex items-center justify-center ${isSending ? 'animate-pulse' : ''}`}
+    >
+      {isSending ? <RefreshCw size={20} className="animate-spin" /> : <MessageSquare size={20} />}
+    </button>
   );
 }
