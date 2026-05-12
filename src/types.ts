@@ -116,6 +116,7 @@ export interface Purchase {
   grandTotal: number;
   notes?: string;
   partyBillNumber?: string;
+  brokerId?: string;
 }
 
 export interface DebitNote {

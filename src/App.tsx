@@ -882,6 +882,39 @@ export default function App() {
       notes: data.notes || ''
     };
 
+    // Commission Logic
+    const broker = brokers.find(b => b.id === newPurchase.brokerId);
+    if (broker && newPurchase.brokerId) {
+      const mapping = broker.partyMappings?.find(m => m.partyId === party?.id);
+      if (mapping) {
+        const commAmount = mapping.type === 'fixed' 
+          ? mapping.rate 
+          : Math.round(newPurchase.grandTotal * (mapping.rate / 100));
+          
+        const newComm: BrokerCommission = {
+          id: Math.random().toString(36).substr(2, 9),
+          brokerId: broker.id,
+          brokerName: broker.name,
+          partyId: party!.id,
+          partyName: party!.name,
+          billId: newPurchase.id,
+          billNumber: newPurchase.billNumber,
+          billDate: newPurchase.date,
+          billAmount: newPurchase.grandTotal,
+          commissionRate: mapping.rate,
+          commissionType: mapping.type,
+          commissionAmount: commAmount,
+          status: 'UNPAID',
+          paidAmount: 0,
+          date: new Date().toISOString()
+        };
+        setCommissions(prev => {
+          const others = prev.filter(c => c.billId !== newPurchase.id);
+          return [newComm, ...others];
+        });
+      }
+    }
+
     if (isUpdate) {
       setPurchases(prev => prev.map(b => b.id === data.id ? newPurchase : b));
       
@@ -1512,6 +1545,8 @@ export default function App() {
                 brokers={brokers}
                 commissions={commissions}
                 payments={brokerPayments}
+                bookings={bookings}
+                purchases={purchases}
                 onSavePayment={(p) => setBrokerPayments(prev => [p, ...prev])}
                 onDeletePayment={(id) => setBrokerPayments(prev => prev.filter(p => p.id !== id))}
               />
@@ -1572,6 +1607,7 @@ export default function App() {
               purchases={purchases}
               itemsMaster={itemsMaster}
               transports={transports}
+              brokers={brokers}
               editingPurchase={editingPurchase}
               onViewHistory={() => setCurrentView('purchasehistory')}
               payments={purchasePayments}
@@ -2453,7 +2489,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
   );
 }
 
-function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onViewHistory, onCancel, payments = [] }: any) {
+function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onViewHistory, onCancel, payments = [], brokers = [] }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
 
@@ -2512,6 +2548,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       taxRate: editingPurchase?.taxRate || 5,
       date: editingPurchase?.date || new Date().toISOString(),
       partyBillNumber: editingPurchase?.partyBillNumber || '',
+      brokerId: editingPurchase?.brokerId || '',
       parcels: editingPurchase?.parcels || '',
       notes: editingPurchase?.notes || ''
     };
@@ -2541,6 +2578,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
         taxRate: currentEditingPurchase.taxRate || 5,
         date: currentEditingPurchase.date || new Date().toISOString(),
         partyBillNumber: currentEditingPurchase.partyBillNumber || '',
+        brokerId: currentEditingPurchase.brokerId || '',
         parcels: currentEditingPurchase.parcels || '',
         notes: currentEditingPurchase.notes || ''
       });
@@ -2883,6 +2921,20 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 className={`w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
                 placeholder="Party Bill No. (Required)"
               />
+            </div>
+            <div>
+              <label className="text-[11px] font-black text-indigo-600 uppercase tracking-wider mb-1 block font-black">Broker</label>
+              <select
+                value={formData.brokerId || ''}
+                disabled={isLocked}
+                onChange={e => setFormData({ ...formData, brokerId: e.target.value })}
+                className={`w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
+              >
+                <option value="">Select Broker</option>
+                {brokers.map((b: any) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -10206,13 +10258,16 @@ function BrokersView({ brokers, parties, onSave }: any) {
   );
 }
 
-function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDeletePayment }: any) {
+function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDeletePayment, bookings, purchases }: any) {
   const [selectedBroker, setSelectedBroker] = useState<any>(null);
   
   const brokerCommissions = useMemo(() => {
     if (!selectedBroker) return [];
-    return commissions.filter((c: any) => c.brokerId === selectedBroker.id);
-  }, [selectedBroker, commissions]);
+    return commissions.filter((c: any) => c.brokerId === selectedBroker.id).map((c: any) => ({
+      ...c,
+      transactionType: bookings.some((b: any) => b.id === c.billId) ? 'SALE' : 'PURCHASE'
+    }));
+  }, [selectedBroker, commissions, bookings]);
 
   const brokerPayments = useMemo(() => {
     if (!selectedBroker) return [];
@@ -10224,7 +10279,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
       ...brokerCommissions.map(c => ({ 
         id: c.id, 
         date: c.date || c.billDate, 
-        type: 'COMMISSION', 
+        type: 'COMMISSION - ' + c.transactionType, 
         ref: `Bill #${c.billNumber}`, 
         party: c.partyName,
         dr: c.commissionAmount, 
@@ -10244,9 +10299,11 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
   }, [brokerCommissions, brokerPayments]);
 
   const stats = useMemo(() => {
-    const totalEarned = brokerCommissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+    const totalSaleComm = brokerCommissions.filter(c => c.transactionType === 'SALE').reduce((sum, c) => sum + c.commissionAmount, 0);
+    const totalPurchaseComm = brokerCommissions.filter(c => c.transactionType === 'PURCHASE').reduce((sum, c) => sum + c.commissionAmount, 0);
+    const totalEarned = totalSaleComm + totalPurchaseComm;
     const totalPaid = brokerPayments.reduce((sum, p) => sum + p.amount, 0);
-    return { totalEarned, totalPaid, balance: totalEarned - totalPaid };
+    return { totalSaleComm, totalPurchaseComm, totalEarned, totalPaid, balance: totalEarned - totalPaid };
   }, [brokerCommissions, brokerPayments]);
 
   const [paymentForm, setPaymentForm] = useState({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
@@ -10288,18 +10345,22 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="bg-indigo-600 p-8 rounded-[40px] text-white shadow-xl">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Total Commission</div>
-              <div className="text-4xl font-black tracking-tighter italic">₹ {Math.round(stats.totalEarned).toLocaleString()}</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Sale Commission</div>
+              <div className="text-3xl font-black tracking-tighter italic">₹ {Math.round(stats.totalSaleComm).toLocaleString()}</div>
+            </div>
+            <div className="bg-blue-600 p-8 rounded-[40px] text-white shadow-xl">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Purchase Commission</div>
+              <div className="text-3xl font-black tracking-tighter italic">₹ {Math.round(stats.totalPurchaseComm).toLocaleString()}</div>
             </div>
             <div className="bg-emerald-500 p-8 rounded-[40px] text-white shadow-xl">
               <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Commission Paid</div>
-              <div className="text-4xl font-black tracking-tighter italic">₹ {Math.round(stats.totalPaid).toLocaleString()}</div>
+              <div className="text-3xl font-black tracking-tighter italic">₹ {Math.round(stats.totalPaid).toLocaleString()}</div>
             </div>
             <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
               <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Balance Remaining</div>
-              <div className="text-4xl font-black tracking-tighter italic">₹ {Math.round(stats.balance).toLocaleString()}</div>
+              <div className="text-3xl font-black tracking-tighter italic">₹ {Math.round(stats.balance).toLocaleString()}</div>
             </div>
           </div>
 
