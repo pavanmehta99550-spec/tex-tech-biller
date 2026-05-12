@@ -270,7 +270,7 @@ async function startServer() {
 
             setStatus('disconnected', 'Connecting...');
             
-            let version: [number, number, number] = [2, 3000, 1019058934];
+            let version: [number, number, number] = [2, 3000, 1015901307];
             let isLatest = false;
             try {
                 console.log('WhatsApp: Fetching latest version...');
@@ -279,7 +279,7 @@ async function startServer() {
                 isLatest = versionResult.isLatest;
                 console.log(`WhatsApp: Fetched version v${version.join('.')}, isLatest: ${isLatest}`);
             } catch (err) {
-                console.log('WhatsApp: Failed to fetch version, using fallback.', err);
+                console.log('WhatsApp: Failed to fetch version, using stable fallback.', err);
             }
             
             const currentSock = makeWASocket({
@@ -287,15 +287,17 @@ async function startServer() {
                 logger,
                 auth: state,
                 printQRInTerminal: true,
-                browser: ["Ubuntu", "Chrome", "20.0.0"],
+                browser: Browsers.macOS('Desktop'),
                 syncFullHistory: false,
                 shouldSyncHistoryMessage: () => false,
                 qrTimeout: 60000,
-                connectTimeoutMs: 60000, 
-                defaultQueryTimeoutMs: 60000,
-                keepAliveIntervalMs: 30000, 
+                connectTimeoutMs: 90000, 
+                defaultQueryTimeoutMs: 90000,
+                keepAliveIntervalMs: 20000, 
                 markOnlineOnConnect: true,
                 shouldIgnoreJid: (jid) => jid.includes('@broadcast'),
+                transactionOpts: { maxRetries: 5, delayBetweenTxsMs: 500 },
+                getMessage: async (key) => { return { conversation: 'heartbeat' } }
             });
 
             sock = currentSock;
