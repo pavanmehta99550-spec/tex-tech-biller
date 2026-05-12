@@ -20,21 +20,17 @@
 }
 
 .watermark {
-  position: fixed;
-  top: 50%;
+  position: absolute;
+  top: 40%;
   left: 50%;
+  opacity: 0.1;
+  font-size: 100px;
   transform: translate(-50%, -50%) rotate(-45deg);
-  font-size: 10rem;
-  font-weight: 900;
-  color: rgba(220, 38, 38, 0.1); /* Red for Unpaid */
   pointer-events: none;
   z-index: 9999;
   text-transform: uppercase;
   white-space: nowrap;
-}
-
-.watermark.paid {
-  color: rgba(5, 150, 105, 0.1); /* Green for Paid */
+  font-weight: 900;
 }
 
 @media print {

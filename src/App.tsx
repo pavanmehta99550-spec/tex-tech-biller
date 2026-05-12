@@ -95,10 +95,13 @@ const numberToWords = (num: number) => {
 
 
 
-function Watermark({ paymentStatus }: { paymentStatus: 'PAID' | 'UNPAID' | string }) {
-  const isPaid = paymentStatus === 'PAID';
+function Watermark({ paymentStatus }: { paymentStatus: 'PAID' | 'PARTIAL' | 'UNPAID' | string }) {
+  let color = '#dc2626'; // red
+  if (paymentStatus === 'PAID') color = '#059669'; // green
+  if (paymentStatus === 'PARTIAL') color = '#fbbf24'; // amber/orange
+
   return (
-    <div className={`watermark ${isPaid ? 'paid' : ''}`}>
+    <div className="watermark" style={{ color }}>
       {paymentStatus}
     </div>
   );
@@ -400,14 +403,20 @@ export default function App() {
         if (key === 'n') {
           e.preventDefault();
           switch(currentView) {
-            case 'inv': setEditingBooking(null); break;
-            case 'pur': setEditingPurchase(null); break;
-            case 'dn': setEditingDebitNote(null); break;
-            case 'cn': setEditingCreditNote(null); break;
-            case 'pay': 
-            case 'sendpay':
-              setEditingPayment(null);
+            case 'inv': 
+            case 'salehistory':
+              setEditingBooking(null); 
+              setCurrentView('inv');
               break;
+            case 'pur': 
+            case 'purchasehistory':
+              setEditingPurchase(null); 
+              setCurrentView('pur');
+              break;
+            case 'dn': setEditingDebitNote(null); setCurrentView('dn'); break;
+            case 'cn': setEditingCreditNote(null); setCurrentView('cn'); break;
+            case 'pay': setEditingPayment(null); setCurrentView('pay'); break;
+            case 'sendpay': setEditingPayment(null); setCurrentView('sendpay'); break;
             case 'saleparty': 
             case 'purchaseparty': 
               window.dispatchEvent(new CustomEvent('app-trigger-add-new'));
@@ -1561,7 +1570,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8 print:ml-0 print:p-0 relative">
-        {currentStatus && <Watermark paymentStatus={currentStatus === 'PAID' ? 'PAID' : 'UNPAID'} />}
+        {currentStatus && <Watermark paymentStatus={currentStatus} />}
         <div className="w-full max-w-6xl mx-auto mb-8 bg-white border border-slate-200 p-4 rounded-2xl flex items-center shadow-lg sticky top-8 z-30 print:hidden">
           <Search className="text-slate-400 ml-4" size={20} />
           <input 
@@ -5605,7 +5614,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
     </motion.div>
   );
 }
-function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel }: any) {
+function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel, payments = [] }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
   const [chequeDate, setChequeDate] = useState(editingPayment?.chequeDate || '');
@@ -5630,16 +5639,21 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel 
   useEffect(() => {
     if (editingPayment) return;
     if (selectedParty) {
-      setBillAdjustments(partyPurchases.map((p: any) => ({
-        billId: p.id,
-        billNumber: p.billNumber,
-        grandTotal: p.grandTotal,
-        paid: 0
-      })));
+      setBillAdjustments(partyPurchases.map((p: any) => {
+        const info = getBillPaymentInfo(p.id, p.grandTotal, payments);
+        if (info.status === 'PAID') return null;
+        return {
+          billId: p.id,
+          billNumber: p.billNumber,
+          grandTotal: p.grandTotal,
+          balance: info.balance,
+          paid: ''
+        };
+      }).filter(Boolean));
     } else {
       setBillAdjustments([]);
     }
-  }, [selectedParty, partyPurchases]);
+  }, [selectedParty, partyPurchases, payments]);
 
   const totalAdjusted = billAdjustments.reduce((sum, b) => sum + (parseFloat(b.paid) || 0), 0);
 
@@ -5747,6 +5761,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel 
                   <tr className="bg-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <th className="px-6 py-4">Purchase Bill No.</th>
                     <th className="px-6 py-4">Bill Total</th>
+                    <th className="px-6 py-4">Pending (Balance)</th>
                     <th className="px-6 py-4 text-right">Adjust Amount</th>
                   </tr>
                 </thead>
@@ -5755,6 +5770,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel 
                     <tr key={b.billId} className="bg-white">
                       <td className="px-6 py-4 font-black text-slate-900"># {b.billNumber}</td>
                       <td className="px-6 py-4 font-bold text-slate-500 text-sm">₹ {b.grandTotal.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-bold text-red-500 text-sm">₹ {(b.balance || b.grandTotal).toLocaleString()}</td>
                       <td className="px-6 py-4">
                         <input 
                           type="number"
@@ -5863,7 +5879,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel 
   );
 }
 
-function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: any) {
+function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, payments = [] }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [amount, setAmount] = useState(editingPayment?.amount?.toString() || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
@@ -5889,16 +5905,21 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: an
   useEffect(() => {
     if (editingPayment) return; // Don't auto-calculate if editing
     if (selectedParty) {
-      setBillAdjustments(partyBookings.map((b: any) => ({
-        billId: b.id,
-        billNumber: b.billNumber,
-        grandTotal: b.grandTotal,
-        paid: 0 // In a real app, track individual bill progress
-      })));
+      setBillAdjustments(partyBookings.map((b: any) => {
+        const info = getBillPaymentInfo(b.id, b.grandTotal, payments);
+        if (info.status === 'PAID') return null;
+        return {
+          billId: b.id,
+          billNumber: b.billNumber,
+          grandTotal: b.grandTotal,
+          balance: info.balance,
+          paid: '' 
+        };
+      }).filter(Boolean));
     } else {
       setBillAdjustments([]);
     }
-  }, [selectedParty, partyBookings]);
+  }, [selectedParty, partyBookings, payments]);
 
   const totalAdjusted = billAdjustments.reduce((sum, b) => sum + (parseFloat(b.paid) || 0), 0);
 
@@ -6008,6 +6029,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: an
                   <tr className="bg-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <th className="px-6 py-4">Bill No.</th>
                     <th className="px-6 py-4">Bill Total</th>
+                    <th className="px-6 py-4">Pending (Balance)</th>
                     <th className="px-6 py-4 text-right">Adjustment Amount</th>
                   </tr>
                 </thead>
@@ -6016,6 +6038,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: an
                     <tr key={b.billId} className="bg-white">
                       <td className="px-6 py-4 font-black text-slate-900"># {b.billNumber}</td>
                       <td className="px-6 py-4 font-bold text-slate-500 text-sm">₹ {b.grandTotal.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-bold text-red-500 text-sm">₹ {(b.balance || b.grandTotal).toLocaleString()}</td>
                       <td className="px-6 py-4">
                         <input 
                           type="number"
@@ -6743,7 +6766,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
             <thead>
               <tr className="bg-slate-50 border-b-2 border-slate-900 font-black uppercase text-slate-600">
                 <th className="py-3 px-4 text-left border-r-2 border-slate-900">Date</th>
-                <th className="py-3 px-4 text-left border-r-2 border-slate-900 w-1/3">Description / Reference</th>
+                <th className="py-3 px-4 text-left border-r-2 border-slate-900 w-1/3">Bill No/Ref</th>
                 <th className="py-3 px-4 text-right border-r-2 border-slate-900">Debit (₹)</th>
                 <th className="py-3 px-4 text-right border-r-2 border-slate-900">Credit (₹)</th>
                 <th className="py-3 px-4 text-right">Balance (₹)</th>
@@ -6927,7 +6950,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
                 <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
                   <th className="px-8 py-5">Date</th>
                   <th className="px-8 py-5">Transaction Type</th>
-                  <th className="px-8 py-5">Reference No.</th>
+                  <th className="px-8 py-5">Bill No/Ref</th>
                   <th className="px-8 py-5 text-right">Debit (+)</th>
                   <th className="px-8 py-5 text-right">Credit (-)</th>
                   <th className="px-8 py-5 text-right">Balance</th>
