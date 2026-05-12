@@ -2570,7 +2570,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
           }
           const updated = { ...item, [field]: value };
           const gross = (updated.quantity || 0) * (updated.rate || 0);
-          updated.amount = gross - (updated.discount || 0);
+          updated.amount = Math.round(gross - (updated.discount || 0));
           return updated;
         }
         return item;
@@ -2595,14 +2595,14 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
   const hasItemDiscount = useMemo(() => formData.items.some(item => (item.discount || 0) > 0), [formData.items]);
 
   const calc = useMemo(() => {
-    // 1. Gross Amount
-    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0));
+    // 1. Gross Amount - Round each item amount first
+    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
     
     // 2. Discount Calculation
     const effectiveGlobalDiscount = hasItemDiscount ? 0 : Math.round(Number(formData.globalDiscount) || 0);
 
     // 3. Taxable Value
-    const taxableValue = Math.max(0, grossAmount - effectiveGlobalDiscount);
+    const taxableValue = Math.round(Math.max(0, grossAmount - effectiveGlobalDiscount));
     
     // 4. GST Calculation
     const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
@@ -3102,6 +3102,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
       dn.purchaseBillNumber?.toString().includes(searchTerm)
     );
   }, [debitNotes, searchTerm]);
+
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       const form = (e.currentTarget as any).form;
@@ -3126,6 +3127,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
       }
     }
   };
+
   const [formData, setFormData] = useState(() => {
     const nextAutoNum = (debitNotes || []).reduce((max: number, b: any) => Math.max(max, b.noteNumber || 0), 0) + 1;
     return {
@@ -3149,13 +3151,17 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
 
   const fetchPurchase = () => {
     setInvoiceError('');
-    const billNo = formData.purchaseBillNumber.trim();
+    const billNo = formData.purchaseBillNumber.trim().toLowerCase();
     if (!billNo) {
       setInvoiceError('Please enter a Bill Number');
       return;
     }
 
-    const purchase = purchases.find((p: any) => p.billNumber?.toString() === billNo || p.id === billNo);
+    const purchase = purchases.find((p: any) => 
+      p.billNumber?.toString().toLowerCase() === billNo || 
+      p.id?.toLowerCase() === billNo ||
+      p.partyBillNumber?.toString().toLowerCase() === billNo
+    );
     if (purchase) {
       setFormData({
         ...formData,
@@ -3220,7 +3226,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
           }
           const updated = { ...item, [field]: value };
           const gross = (Number(updated.quantity) || 0) * (Number(updated.rate) || 0);
-          updated.amount = gross - (Number(updated.discount) || 0);
+          updated.amount = Math.round(gross - (Number(updated.discount) || 0));
           return updated;
         }
         return item;
@@ -3230,10 +3236,10 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
   };
 
   const calc = useMemo(() => {
-    const basicAmount = formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const taxableValue = Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0));
-    const tax = taxableValue * (Number(formData.taxRate) / 100);
-    return { basicAmount, taxableValue, tax, total: taxableValue + tax };
+    const basicAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
+    const taxableValue = Math.round(Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0)));
+    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
+    return { basicAmount, taxableValue, tax, total: Math.round(taxableValue + tax) };
   }, [formData.items, formData.globalDiscount, formData.taxRate]);
 
   useEffect(() => {
@@ -3841,7 +3847,7 @@ function BookingView({
           }
           const updated = { ...item, [field]: value };
           const gross = (updated.quantity || 0) * (updated.rate || 0);
-          updated.amount = gross - (updated.discount || 0);
+          updated.amount = Math.round(gross - (updated.discount || 0));
           return updated;
         }
         return item;
@@ -3866,14 +3872,14 @@ function BookingView({
   const hasItemDiscount = useMemo(() => formData.items.some(item => (item.discount || 0) > 0), [formData.items]);
 
   const calc = useMemo(() => {
-    // 1. Gross Amount
-    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0));
+    // 1. Gross Amount - Round each item amount first
+    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
     
     // 2. Discount Calculation
     const effectiveGlobalDiscount = hasItemDiscount ? 0 : Math.round(Number(formData.globalDiscount) || 0);
     
     // 3. Taxable Value
-    const taxableValue = Math.max(0, grossAmount - effectiveGlobalDiscount);
+    const taxableValue = Math.round(Math.max(0, grossAmount - effectiveGlobalDiscount));
     
     // 4. GST Calculation
     const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
@@ -4756,7 +4762,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
           }
           const updated = { ...item, [field]: value };
           const gross = (Number(updated.quantity) || 0) * (Number(updated.rate) || 0);
-          updated.amount = gross - (Number(updated.discount) || 0);
+          updated.amount = Math.round(gross - (Number(updated.discount) || 0));
           return updated;
         }
         return item;
@@ -4766,10 +4772,10 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
   };
 
   const calc = useMemo(() => {
-    const basicAmount = formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const taxableValue = Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0));
-    const tax = taxableValue * (Number(formData.taxRate) / 100);
-    return { basicAmount, taxableValue, tax, total: taxableValue + tax };
+    const basicAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
+    const taxableValue = Math.round(Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0)));
+    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
+    return { basicAmount, taxableValue, tax, total: Math.round(taxableValue + tax) };
   }, [formData.items, formData.globalDiscount, formData.taxRate]);
 
   useEffect(() => {
@@ -6573,7 +6579,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
       });
     }
 
-    let runningBalance = transactions.reduce((acc: number, t: any) => acc + t.amount, 0);
+    let runningBalance = Math.round(transactions.reduce((acc: number, t: any) => acc + t.amount, 0));
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
@@ -6685,7 +6691,12 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
                       </div>
                     </td>
                     <td className="px-8 py-5 font-black text-slate-900">
-                      {t.billNumber || t.invoiceNumber || t.noteNumber || t.id.slice(0, 8) || '-'}
+                      <div className="flex flex-col">
+                        <span>{t.billNumber || t.invoiceNumber || t.noteNumber || t.id.slice(0, 8) || '-'}</span>
+                        {t.type === 'PURCHASE' && t.partyBillNumber && (
+                          <span className="text-[9px] text-indigo-500 font-black uppercase">Party Bill: {t.partyBillNumber}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-8 py-5 text-right font-bold text-slate-700">
                       {t.amount > 0 ? `₹ ${Math.round(t.amount).toLocaleString()}` : '-'}
@@ -6964,7 +6975,8 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
                 <div className="flex"><span className="w-32 font-bold">Remittance:</span> <span></span></div>
               </div>
               <div className="p-2 space-y-1">
-                <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-bold">{p.billNumber}</span></div>
+                <div className="flex justify-between font-black text-red-600"><span className="font-bold">Our Bill No:</span> <span className="uppercase font-bold">#{p.billNumber}</span></div>
+                <div className="flex justify-between font-black text-indigo-700"><span className="font-bold">Party Bill No:</span> <span className="uppercase font-bold">{p.partyBillNumber || '-'}</span></div>
                 <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
                 {p.ewbNumber ? (
                   <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>

@@ -1,6 +1,6 @@
 {
-  "name": "Vyapaar Pro GST",
-  "description": "Professional GST billing and ledger management system with local data storage, automated backups, and financial year tracking.",
+  "name": "Tex-Tech Biller Pro",
+  "description": "Professional Textile GST Billing & Ledger System by Pavan Mehta. Features: Party wise Broker Commissions, 100% Math.round() Financial Integrity, Purchase Bill No. Tracking, and Multi-Device Firebase Sync.",
   "requestFramePermissions": [
     "microphone"
   ],
