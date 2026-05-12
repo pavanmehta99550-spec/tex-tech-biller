@@ -48,8 +48,6 @@ import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem } from './types';
 import Login from './components/Login';
-import VoiceAssistant from './components/VoiceAssistant';
-import { processVoiceTranscript } from './services/voiceService';
 
 // Initial Party Database
 const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
@@ -176,169 +174,6 @@ export default function App() {
     };
   }, [bookings, purchases, creditNotes, debitNotes, payments]);
 
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(() => storage.get('isVoiceEnabled', false));
-  const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
-  const [voiceContext, setVoiceContext] = useState<'idle' | 'bill_party' | 'bill_item' | 'bill_rate' | 'bill_discount' | 'bill_qty' | 'bill_gst' | 'bill_confirm'>('idle');
-  const [voiceDraft, setVoiceDraft] = useState<any>({});
-
-  const speak = useCallback((text: string) => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'hi-IN';
-    utterance.rate = 1.0;
-    utterance.pitch = 1.1; // Slightly higher pitch for friendliness
-    window.speechSynthesis.speak(utterance);
-  }, []);
-
-  const handleVoiceCommand = useCallback(async (command: string) => {
-    const cmd = command.toLowerCase();
-    if (cmd.length < 2) return;
-
-    setIsVoiceProcessing(true);
-    console.log("Voice Command AI Request:", cmd);
-
-    try {
-      // AI Processing
-      const result = await processVoiceTranscript(cmd, {
-        currentView,
-        saleParties,
-        itemsMaster,
-        voiceContext,
-        voiceDraft
-      });
-
-      console.log("AI result:", result);
-
-      if (result.textResponse) {
-        speak(result.textResponse);
-      }
-
-      // Handle Actions
-      const action = result.action;
-      let target = result.target || result.params?.target || result.params?.view || result.view;
-
-      console.log(`Voice Engine Action: ${action}, Target: ${target}`);
-
-      // Fallback: If action is NAVIGATE but no target is found, try to infer from textResponse
-      if (action === 'NAVIGATE' && !target && result.textResponse) {
-        const text = result.textResponse.toLowerCase();
-        if (text.includes("setting") || text.includes("सेटिंग") || text.includes("configuration")) target = "settings";
-        else if (text.includes("bill") || text.includes("बिल") || text.includes("invoice") || text.includes("fatiyu")) target = "billing";
-        else if (text.includes("stock") || text.includes("inventory") || text.includes("maal") || text.includes("godown")) target = "inventory";
-        else if (text.includes("ledger") || text.includes("ledg") || text.includes("khata") || text.includes("लेजर") || text.includes("udhari")) target = "ledger";
-        else if (text.includes("home") || text.includes("dash") || text.includes("main") || text.includes("galla")) target = "home";
-        else if (text.includes("history") || text.includes("sales") || text.includes("bechan")) target = "history";
-        else if (text.includes("purchase") || text.includes("kharidi")) target = "purchase";
-        else if (text.includes("party") || text.includes("customer") || text.includes("girahak")) target = "party";
-        else if (text.includes("supplier") || text.includes("purchase party")) target = "supplier";
-        else if (text.includes("expense") || text.includes("kharcha")) target = "expense";
-        else if (text.includes("backup") || text.includes("data")) target = "backup";
-        
-        if (target) console.log(`Inferred target from text: ${target}`);
-      }
-
-      switch (action) {
-        case 'NAVIGATE':
-          if (target) {
-            const targetMap: any = {
-              'inventory': 'items',
-              'stock': 'items',
-              'billing': 'inv',
-              'invoice': 'inv',
-              'ledger': 'ledg',
-              'khata': 'ledg',
-              'home': 'dash',
-              'dashboard': 'dash',
-              'history': 'salehistory',
-              'sales': 'salehistory',
-              'purchase': 'purchasehistory',
-              'party': 'saleparty',
-              'customer': 'saleparty',
-              'supplier': 'purchaseparty',
-              'settings': 'settings',
-              'backup': 'backup',
-              'expense': 'expenses',
-              'expenses': 'expenses'
-            };
-            const view = targetMap[target.toLowerCase()] || target;
-            console.log(`Switching View to: ${view}`);
-            setCurrentView(view);
-          }
-          break;
-        case 'CANCEL':
-          speak("Ji bhai, cancel kar diya gaya hai.");
-          setVoiceContext('idle');
-          setVoiceDraft({});
-          setCurrentView('dash');
-          break;
-        case 'CONTINUE_CONVERSATION':
-          if (result.params) {
-            const normalized = {
-              ...result.params,
-              partyName: result.params.party || result.params.partyName,
-              itemName: result.params.item || result.params.itemName
-            };
-            setVoiceDraft((prev: any) => ({ ...prev, ...normalized }));
-          }
-          if (result.params?.nextStep) {
-            setVoiceContext(result.params.nextStep);
-          }
-          break;
-        case 'ADD_ITEM':
-          if (result.params) {
-            setCurrentView('inv');
-            const normalized = {
-              ...result.params,
-              partyName: result.params.party || result.params.partyName,
-              itemName: result.params.item || result.params.itemName
-            };
-            setVoiceDraft((prev: any) => ({ ...prev, ...normalized }));
-            setVoiceContext('bill_confirm');
-          }
-          break;
-        case 'SAVE_BILL':
-          if (voiceDraft.partyName && (voiceDraft.itemName || voiceDraft.qty)) {
-            const party = saleParties.find(p => p.name === voiceDraft.partyName);
-            const newBooking: Partial<Booking> = {
-              date: new Date().toISOString(),
-              consigneeName: voiceDraft.partyName,
-              consigneeAddress: party?.address || '',
-              consigneeGstin: party?.gstin || '',
-              taxRate: voiceDraft.gst || 5,
-              items: [{
-                id: Math.random().toString(36).substr(2, 9),
-                name: voiceDraft.itemName || 'Item',
-                quantity: voiceDraft.qty || 0,
-                rate: voiceDraft.rate || 0,
-                discount: voiceDraft.discount || 0,
-                amount: (voiceDraft.qty || 0) * (voiceDraft.rate || 0),
-                unit: 'PCS',
-                color: '',
-                hsnCode: '',
-                taka: ''
-              }]
-            };
-            handleSaveBooking(newBooking);
-            speak("Ji bhai, bill save ho gaya hai.");
-          } else {
-            speak("Bhai, bill ki details adhuri hain. Pehle party aur item confirm kijiye.");
-          }
-          setVoiceContext('idle');
-          setVoiceDraft({});
-          break;
-        default:
-          break;
-      }
-    } catch (error) {
-      console.error("Gemini Voice Processing Error:", error);
-      speak("Maaf kijiye bhai, signal mein thodi dikat hai.");
-    } finally {
-      setIsVoiceProcessing(false);
-    }
-  }, [currentView, saleParties, itemsMaster, voiceContext, voiceDraft, speak, setCurrentView, handleSaveBooking]);
-
-  
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
   const [previewPurchase, setPreviewPurchase] = useState<Purchase | null>(null);
   const [previewDebitNote, setPreviewDebitNote] = useState<DebitNote | null>(null);
@@ -348,6 +183,7 @@ export default function App() {
   const [editingDebitNote, setEditingDebitNote] = useState<DebitNote | null>(null);
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false); // keep for backward compatibility in some places or just remove if sure
 
   useEffect(() => storage.set('purchaseParties', purchaseParties), [purchaseParties]);
   useEffect(() => storage.set('saleParties', saleParties), [saleParties]);
@@ -1666,8 +1502,6 @@ export default function App() {
               itemsMaster={itemsMaster}
               transports={transports}
               editingBooking={editingBooking}
-              voiceDraft={voiceDraft}
-              voiceContext={voiceContext}
               onViewHistory={() => setCurrentView('salehistory')}
               payments={payments}
               waStatus={waStatus}
@@ -2074,22 +1908,6 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
-
-      <VoiceAssistant 
-        isEnabled={isVoiceEnabled} 
-        onToggle={(val) => {
-          console.log("Voice Assistant Toggle Clicked. Target State:", val);
-          setIsVoiceEnabled(val);
-          storage.set('isVoiceEnabled', val);
-          if (val) {
-            speak("Voice Assistant chalu ho gaya hai. Main aapki kya madad kar sakta hoon?");
-          } else {
-            speak("Voice Assistant band kar diya gaya hai.");
-          }
-        }} 
-        onCommand={handleVoiceCommand} 
-        isProcessing={isVoiceProcessing}
-      />
     </div>
   );
 }
@@ -3826,8 +3644,6 @@ function BookingView({
   editingBooking, 
   onViewHistory, 
   onCancel, 
-  voiceDraft,
-  voiceContext,
   payments = [],
   waStatus
 }: any) {
@@ -3932,57 +3748,6 @@ function BookingView({
       notes: editingBooking?.notes || ''
     };
   });
-
-  // Sync Voice Draft to Form Data
-  useEffect(() => {
-    if (voiceDraft) {
-      setFormData(prev => {
-        let updated = { ...prev };
-        
-        // Party selection
-        if (voiceDraft.partyName && voiceDraft.partyName !== prev.consigneeName) {
-          const party = parties.find((p: any) => p.name === voiceDraft.partyName);
-          updated.consigneeName = voiceDraft.partyName;
-          if (party) {
-            updated.consigneeAddress = party.address || '';
-            updated.consigneeGstin = party.gstin || '';
-            updated.consigneeMobile = party.phone || '';
-          }
-        }
-
-        // Item addition / update
-        if (voiceDraft.itemName || voiceDraft.qty || voiceDraft.rate) {
-          const lastItem = updated.items[updated.items.length - 1];
-          const hasEmptyRow = !lastItem.name && !lastItem.quantity;
-          
-          let targetItemIdx = updated.items.length - 1;
-          
-          const newItems = updated.items.map((item, idx) => {
-            if (idx === targetItemIdx) {
-              const updatedItem = { ...item };
-              if (voiceDraft.itemName) updatedItem.name = voiceDraft.itemName;
-              if (voiceDraft.qty) updatedItem.quantity = voiceDraft.qty;
-              if (voiceDraft.rate) updatedItem.rate = voiceDraft.rate;
-              if (voiceDraft.discount) updatedItem.discount = voiceDraft.discount;
-              
-              const gross = (updatedItem.quantity || 0) * (updatedItem.rate || 0);
-              updatedItem.amount = gross - (updatedItem.discount || 0);
-              return updatedItem;
-            }
-            return item;
-          });
-
-          updated.items = newItems;
-        }
-
-        if (voiceDraft.gst) {
-          updated.taxRate = voiceDraft.gst;
-        }
-
-        return updated;
-      });
-    }
-  }, [voiceDraft, parties]);
 
   const isLocked = useMemo(() => {
     if (navigatedBillLocked) return true;
