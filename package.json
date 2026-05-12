@@ -6,7 +6,8 @@
   "scripts": {
     "build": "NODE_OPTIONS=--max-old-space-size=4096 tsc",
     "start": "node dist/server.js",
-    "dev": "vite"
+    "dev": "vite",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^1.51.0",
