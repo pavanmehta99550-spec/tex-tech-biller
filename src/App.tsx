@@ -338,6 +338,16 @@ export default function App() {
         const editingKeys = ['c', 'v', 'x', 'a', 'z', 'y'];
         if (editingKeys.includes(key)) return;
 
+        if (key === 'n') {
+          e.preventDefault();
+          switch(currentView) {
+            case 'inv': setEditingBooking(null); break;
+            case 'pur': setEditingPurchase(null); break;
+            default: break; // Or trigger something default if needed
+          }
+          return;
+        }
+
         // i: Sale, p: Purchase, d: Debit Note, c: Credit Note, e: Expense
         const ctrlShortcutMap: Record<string, View> = {
           'i': 'inv',
@@ -346,7 +356,6 @@ export default function App() {
           'c': 'cn',
           'e': 'expenses',
           'r': 'pay',
-          'n': 'sendpay',
           's': 'inv' // Common habit to save/new invoice
         };
 
