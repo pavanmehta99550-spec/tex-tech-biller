@@ -35,7 +35,6 @@ import {
   Landmark,
   Eye,
   EyeOff,
-  MessageSquare,
   Mic,
 } from 'lucide-react';
 import { storage } from './lib/storage';
@@ -183,7 +182,7 @@ export default function App() {
   const [editingDebitNote, setEditingDebitNote] = useState<DebitNote | null>(null);
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false); // keep for backward compatibility in some places or just remove if sure
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false); 
 
   useEffect(() => storage.set('purchaseParties', purchaseParties), [purchaseParties]);
   useEffect(() => storage.set('saleParties', saleParties), [saleParties]);
@@ -217,7 +216,6 @@ export default function App() {
     setSettings(null);
     setIsDataLoaded(false);
     loadedKeys.current.clear();
-    // Clear localStorage for session keys
     const keys = [
       'purchaseParties', 'saleParties', 'itemsMaster', 'transports', 
       'bookings', 'purchases', 'debit-notes', 'credit-notes', 
@@ -225,54 +223,6 @@ export default function App() {
     ];
     keys.forEach(key => storage.remove(key));
   };
-
-  const [waStatus, setWaStatus] = useState<any>({ status: 'disconnected', detailedStatus: 'Idle', hasQr: false, qr: null });
-
-  useEffect(() => {
-    let eventSource: EventSource | null = null;
-    let retryTimeout: NodeJS.Timeout | null = null;
-    let pollInterval: NodeJS.Timeout | null = null;
-
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch('/api/whatsapp/status');
-        const data = await res.json();
-        setWaStatus(data);
-      } catch (e) {
-        console.warn('Failed to poll WhatsApp status');
-      }
-    };
-
-    const connectSSE = () => {
-      if (eventSource) eventSource.close();
-      
-      eventSource = new EventSource('/api/whatsapp/sse');
-      
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setWaStatus(data);
-        } catch (e) {
-          // Ignore heartbeat/non-json messages
-        }
-      };
-
-      eventSource.onerror = () => {
-        if (eventSource) eventSource.close();
-        if (retryTimeout) clearTimeout(retryTimeout);
-        retryTimeout = setTimeout(connectSSE, 5000);
-      };
-    };
-
-    connectSSE();
-    pollInterval = setInterval(fetchStatus, waStatus.status === 'connected' ? 30000 : 5000); 
-
-    return () => {
-      if (eventSource) eventSource.close();
-      if (retryTimeout) clearTimeout(retryTimeout);
-      if (pollInterval) clearInterval(pollInterval);
-    };
-  }, [waStatus.status]);
 
   // Firebase Auth Listener
   useEffect(() => {
@@ -1416,24 +1366,6 @@ export default function App() {
           </button>
         </nav>
 
-        <div className="p-4 border-t border-slate-700 bg-black/30 m-2 rounded-2xl">
-          <div className="flex items-center justify-between mb-3">
-             <div className="flex items-center gap-2">
-               <div className={`w-2 h-2 rounded-full ${waStatus.status === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : waStatus.status === 'error' ? 'bg-red-500' : 'bg-orange-500'} animate-pulse`}></div>
-               <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">WhatsApp Linked</span>
-             </div>
-             {waStatus.status === 'connected' && (
-               <button onClick={() => fetch('/api/whatsapp/logout', { method: 'POST' })} className="text-[9px] font-black text-red-500 uppercase hover:underline">Logout</button>
-             )}
-          </div>
-          <div className="text-[14px] font-black uppercase text-white tracking-tight">
-            {waStatus.status === 'connected' ? 'Connected' : waStatus.detailedStatus}
-          </div>
-          {!waStatus.qr && waStatus.status !== 'connected' && (
-            <button onClick={() => fetch('/api/whatsapp/restart', { method: 'POST' })} className="mt-2 w-full py-2 bg-indigo-600/20 text-indigo-400 rounded-lg text-[9px] font-black uppercase hover:bg-indigo-600/30 transition-all">Link Now</button>
-          )}
-        </div>
-
         <div className="p-4 border-t border-slate-700 space-y-2">
           <button 
             onClick={() => {
@@ -1520,7 +1452,6 @@ export default function App() {
               editingBooking={editingBooking}
               onViewHistory={() => setCurrentView('salehistory')}
               payments={payments}
-              waStatus={waStatus}
               onCancel={() => {
                 setEditingBooking(null);
                 setCurrentView('dash');
@@ -1775,7 +1706,7 @@ export default function App() {
               settings={{...(settings || {}), viewMode: 'bank'}}
               onUpdateSettings={setSettings}
             />}
-            {currentView === 'settings' && <SettingsView key="settings" settings={settings} onSave={setSettings} waStatus={waStatus} />}
+            {currentView === 'settings' && <SettingsView key="settings" settings={settings} onSave={setSettings} />}
           </AnimatePresence>
           </div>
 
@@ -1785,7 +1716,6 @@ export default function App() {
                 booking={previewBooking} 
                 settings={settings} 
                 onClose={() => setPreviewBooking(null)} 
-                waStatus={waStatus}
               />
             )}
             {previewPurchase && (
@@ -1793,7 +1723,6 @@ export default function App() {
                 purchase={previewPurchase} 
                 settings={settings} 
                 onClose={() => setPreviewPurchase(null)} 
-                waStatus={waStatus}
               />
             )}
             {previewDebitNote && (
@@ -1801,7 +1730,6 @@ export default function App() {
                 debitNote={previewDebitNote} 
                 settings={settings} 
                 onClose={() => setPreviewDebitNote(null)} 
-                waStatus={waStatus}
               />
             )}
             {previewCreditNote && (
@@ -1809,7 +1737,6 @@ export default function App() {
                 creditNote={previewCreditNote} 
                 settings={settings} 
                 onClose={() => setPreviewCreditNote(null)} 
-                waStatus={waStatus}
               />
             )}
           </AnimatePresence>
@@ -3660,8 +3587,7 @@ function BookingView({
   editingBooking, 
   onViewHistory, 
   onCancel, 
-  payments = [],
-  waStatus
+  payments = []
 }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
@@ -4588,7 +4514,6 @@ function BookingView({
             settings={settings} 
             payments={payments}
             onClose={() => setShowPreview(false)} 
-            waStatus={waStatus}
           />
         )}
       </form>
@@ -5141,7 +5066,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
 
 
 
-function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose, waStatus }: any) {
+function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }: any) {
   const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
   const p = creditNote;
   const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
@@ -5186,38 +5111,6 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose, 
     }
   };
 
-  const handleWhatsAppSend = async () => {
-    const element = document.getElementById('print-container');
-    if (!element) return;
-    try {
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      const pdfDataUri = pdf.output('datauristring');
-
-      const response = await fetch('/api/whatsapp/send-bill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: consigneeMobile,
-          billNumber: p.billNumber || p.invoiceNo,
-          pdfBase64: pdfDataUri,
-          partyName: consigneeName
-        })
-      });
-
-      const resData = await response.json();
-      if (resData.success) alert("✅ Bill sent to WhatsApp!");
-      else alert("❌ WhatsApp failed: " + (resData.error || 'Unknown error'));
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error sending WhatsApp");
-    }
-  };
-
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -5239,10 +5132,6 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose, 
             <Download size={20} />
             <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
-          <div className="group relative">
-            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
-          </div>
         </div>
 
         <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
@@ -5848,7 +5737,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: an
   );
 }
 
-function PaymentPrintPreview({ payment, settings, onClose, waStatus }: any) {
+function PaymentPrintPreview({ payment, settings, onClose }: any) {
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -5937,10 +5826,6 @@ function PaymentPrintPreview({ payment, settings, onClose, waStatus }: any) {
             <Download size={20} />
             <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
-          <div className="group relative">
-            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
-          </div>
         </div>
 
         <div ref={printRef} id="print-container" className="print-container space-y-0 p-4 sm:p-10 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-800">
@@ -6426,7 +6311,7 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
   );
 }
 
-function LedgerPrintPreview({ party, transactions, settings, onClose, waStatus }: any) {
+function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
   const printRef = useRef<HTMLDivElement>(null);
   const runningBalance = transactions.reduce((acc: number, t: any) => acc + t.amount, 0);
 
@@ -6493,10 +6378,6 @@ function LedgerPrintPreview({ party, transactions, settings, onClose, waStatus }
             <Download size={20} />
             <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
-          <div className="group relative">
-            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
-          </div>
         </div>
 
         <div ref={printRef} id="print-container" className="print-container p-4 sm:p-10 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse">
@@ -6592,7 +6473,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose, waStatus }
   );
 }
 
-function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment, waStatus }: any) {
+function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment }: any) {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
   const [billFilter, setBillFilter] = useState<'ALL' | 'PAID' | 'UNPAID'>('ALL');
@@ -6777,12 +6658,12 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
         </div>
         </div>
 
-        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} payments={payments} onClose={() => setPreviewBooking(null)} waStatus={waStatus} />}
-        {previewPurchase && <PurchasePrintPreview purchase={previewPurchase} settings={settings} payments={purchasePayments} onClose={() => setPreviewPurchase(null)} waStatus={waStatus} />}
-        {previewPayment && <PaymentPrintPreview payment={previewPayment} settings={settings} onClose={() => setPreviewPayment(null)} waStatus={waStatus} />}
-        {previewCreditNote && <CreditNotePrintPreview creditNote={previewCreditNote} settings={settings} onClose={() => setPreviewCreditNote(null)} waStatus={waStatus} />}
-        {previewDebitNote && <DebitNotePrintPreview debitNote={previewDebitNote} settings={settings} onClose={() => setPreviewDebitNote(null)} waStatus={waStatus} />}
-        {showLedgerPrint && <LedgerPrintPreview party={selectedParty} transactions={transactions} settings={settings} onClose={() => setShowLedgerPrint(false)} waStatus={waStatus} />}
+        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} payments={payments} onClose={() => setPreviewBooking(null)} />}
+        {previewPurchase && <PurchasePrintPreview purchase={previewPurchase} settings={settings} payments={purchasePayments} onClose={() => setPreviewPurchase(null)} />}
+        {previewPayment && <PaymentPrintPreview payment={previewPayment} settings={settings} onClose={() => setPreviewPayment(null)} />}
+        {previewCreditNote && <CreditNotePrintPreview creditNote={previewCreditNote} settings={settings} onClose={() => setPreviewCreditNote(null)} />}
+        {previewDebitNote && <DebitNotePrintPreview debitNote={previewDebitNote} settings={settings} onClose={() => setPreviewDebitNote(null)} />}
+        {showLedgerPrint && <LedgerPrintPreview party={selectedParty} transactions={transactions} settings={settings} onClose={() => setShowLedgerPrint(false)} />}
       </motion.div>
     );
   }
@@ -6941,7 +6822,7 @@ function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Pay
 
 
 
-function PurchasePrintPreview({ purchase, settings, payments = [], onClose, waStatus }: any) {
+function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: any) {
   const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
   const p = purchase;
   const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
@@ -6986,38 +6867,6 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose, waSt
     }
   };
 
-  const handleWhatsAppSend = async () => {
-    const element = document.getElementById('print-container');
-    if (!element) return;
-    try {
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      const pdfDataUri = pdf.output('datauristring');
-
-      const response = await fetch('/api/whatsapp/send-bill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: consigneeMobile,
-          billNumber: p.billNumber || p.invoiceNo,
-          pdfBase64: pdfDataUri,
-          partyName: consigneeName
-        })
-      });
-
-      const resData = await response.json();
-      if (resData.success) alert("✅ Bill sent to WhatsApp!");
-      else alert("❌ WhatsApp failed: " + (resData.error || 'Unknown error'));
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error sending WhatsApp");
-    }
-  };
-
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -7039,10 +6888,6 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose, waSt
             <Download size={20} />
             <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
-          <div className="group relative">
-            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
-          </div>
         </div>
 
         <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
@@ -7233,7 +7078,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose, waSt
   );
 }
 
-function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose, waStatus }: any) {
+function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: any) {
   const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
   const p = debitNote;
   const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
@@ -7278,38 +7123,6 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose, wa
     }
   };
 
-  const handleWhatsAppSend = async () => {
-    const element = document.getElementById('print-container');
-    if (!element) return;
-    try {
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      const pdfDataUri = pdf.output('datauristring');
-
-      const response = await fetch('/api/whatsapp/send-bill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: consigneeMobile,
-          billNumber: p.billNumber || p.invoiceNo,
-          pdfBase64: pdfDataUri,
-          partyName: consigneeName
-        })
-      });
-
-      const resData = await response.json();
-      if (resData.success) alert("✅ Bill sent to WhatsApp!");
-      else alert("❌ WhatsApp failed: " + (resData.error || 'Unknown error'));
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error sending WhatsApp");
-    }
-  };
-
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -7331,10 +7144,6 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose, wa
             <Download size={20} />
             <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
-          <div className="group relative">
-            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
-          </div>
         </div>
 
         <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
@@ -7524,7 +7333,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose, wa
     </motion.div>
   );
 }
-function PrintPreview({ booking, settings, payments = [], onClose, waStatus }: { booking: any, settings: AppSettings | null, payments?: Payment[], onClose: () => void, waStatus: any }) {
+function PrintPreview({ booking, settings, payments = [], onClose }: { booking: any, settings: AppSettings | null, payments?: Payment[], onClose: () => void }) {
   const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
   const p = booking;
   const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
@@ -7575,38 +7384,6 @@ function PrintPreview({ booking, settings, payments = [], onClose, waStatus }: {
     }
   };
 
-  const handleWhatsAppSend = async () => {
-    const element = document.getElementById('print-container');
-    if (!element) return;
-    try {
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      const pdfDataUri = pdf.output('datauristring');
-
-      const response = await fetch('/api/whatsapp/send-bill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: consigneeMobile,
-          billNumber: p.billNumber || p.invoiceNo,
-          pdfBase64: pdfDataUri,
-          partyName: consigneeName
-        })
-      });
-
-      const resData = await response.json();
-      if (resData.success) alert("✅ Bill sent to WhatsApp!");
-      else alert("❌ WhatsApp failed: " + (resData.error || 'Unknown error'));
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error sending WhatsApp");
-    }
-  };
-
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -7628,10 +7405,6 @@ function PrintPreview({ booking, settings, payments = [], onClose, waStatus }: {
             <Download size={20} />
             <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
-          <div className="group relative">
-            <WhatsAppButton waStatus={waStatus} onSend={handleWhatsAppSend} />
-            <span className="absolute left-14 top-3 px-2 py-1 bg-emerald-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Send WhatsApp</span>
-          </div>
         </div>
 
         <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
@@ -8475,7 +8248,7 @@ function BankDetailsView({ settings, onUpdateSettings }: any) {
 }
 
 
-function SettingsView({ settings, onSave, waStatus }: any) {
+function SettingsView({ settings, onSave }: any) {
   const [formData, setFormData] = useState<AppSettings>({
     companyName: settings?.companyName || '',
     gstin: settings?.gstin || '',
@@ -8652,37 +8425,6 @@ function SettingsView({ settings, onSave, waStatus }: any) {
               </div>
             </div>
             <p className="text-[10px] text-slate-400 font-bold ml-1 uppercase">Default: admin / 1234. Change these for security.</p>
-          </div>
-
-          <div className="pt-8 border-t border-slate-100 flex flex-col items-center">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">WhatsApp Connection</h3>
-            {waStatus.status === 'connected' ? (
-              <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-3xl w-full text-center">
-                <div className="flex items-center justify-center gap-2 text-emerald-600 mb-2">
-                  <Check size={24} className="bg-emerald-100 rounded-full p-1" />
-                  <span className="font-black uppercase tracking-tighter text-lg">WhatsApp Connected</span>
-                </div>
-                <p className="text-emerald-700/60 text-xs font-bold uppercase tracking-widest">System is ready to send bills</p>
-                <button type="button" onClick={() => fetch('/api/whatsapp/logout', { method: 'POST' })} className="mt-6 text-red-500 font-black uppercase text-[10px] tracking-widest hover:underline">Logout & Disconnect</button>
-              </div>
-            ) : (
-              <div className="w-full flex flex-col items-center">
-                {waStatus.qr ? (
-                  <div className="p-8 bg-white border-4 border-indigo-100 rounded-[40px] shadow-2xl">
-                    <img src={waStatus.qr} alt="WA QR" className="w-48 h-48" />
-                    <div className="mt-4 text-center">
-                      <div className="text-[10px] font-black uppercase text-slate-400 animate-pulse tracking-widest">Scan with WhatsApp</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[40px] w-full text-center">
-                     <RefreshCw className="mx-auto mb-4 text-indigo-400" size={32} />
-                     <div className="text-slate-500 font-bold text-sm tracking-tight">{waStatus.detailedStatus || 'Waiting for QR...'}</div>
-                  </div>
-                )}
-                <button type="button" onClick={() => fetch('/api/whatsapp/restart', { method: 'POST' })} className="mt-6 bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl">Get New QR Code</button>
-              </div>
-            )}
           </div>
 
           <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-4">
@@ -10205,28 +9947,5 @@ function ChallanCompareView({ millChallans, partyChallans, weaverChallans = [] }
         </div>
       )}
     </motion.div>
-  );
-}
-
-function WhatsAppButton({ waStatus, onSend }: { waStatus: any, onSend: () => void }) {
-  const [isSending, setIsSending] = useState(false);
-  const handleSend = async () => {
-    setIsSending(true);
-    try {
-      await onSend();
-    } catch (e) {
-      console.error(e);
-    }
-    setIsSending(false);
-  };
-  if (waStatus.status !== 'connected') return null;
-  return (
-    <button
-      onClick={handleSend}
-      disabled={isSending}
-      className={`p-3 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition shadow-lg flex items-center justify-center ${isSending ? 'animate-pulse' : ''}`}
-    >
-      {isSending ? <RefreshCw size={20} className="animate-spin" /> : <MessageSquare size={20} />}
-    </button>
   );
 }
