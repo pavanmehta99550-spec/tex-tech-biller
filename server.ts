@@ -270,7 +270,7 @@ async function startServer() {
 
             setStatus('disconnected', 'Connecting...');
             
-            let version: [number, number, number] = [2, 3000, 1017531301];
+            let version: [number, number, number] = [2, 3000, 1019058934];
             let isLatest = false;
             try {
                 console.log('WhatsApp: Fetching latest version...');
@@ -286,15 +286,15 @@ async function startServer() {
                 version,
                 logger,
                 auth: state,
-                printQRInTerminal: false,
-                browser: ['Windows', 'Chrome', '111.0.0.0'],
+                printQRInTerminal: true,
+                browser: ["Ubuntu", "Chrome", "20.0.0"],
                 syncFullHistory: false,
                 shouldSyncHistoryMessage: () => false,
                 qrTimeout: 60000,
                 connectTimeoutMs: 60000, 
-                defaultQueryTimeoutMs: 0,
-                keepAliveIntervalMs: 15000, 
-                markOnlineOnConnect: false,
+                defaultQueryTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000, 
+                markOnlineOnConnect: true,
                 shouldIgnoreJid: (jid) => jid.includes('@broadcast'),
             });
 
@@ -331,22 +331,26 @@ async function startServer() {
                     const statusCode = error?.output?.statusCode;
                     const errorMsg = error?.message || error?.stack || 'Unknown Close Reason';
                     
-                    console.error(`WhatsApp: Connection Closed. Status: ${statusCode}. Error: ${errorMsg}`);
+                    const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+                    console.log(`WhatsApp: Connection closed due to: ${errorMsg}, reconnecting: ${shouldReconnect}`);
                     
                     const isTerminated = statusCode === 515 || statusCode === 503 || statusCode === 440 ||
                                        errorMsg.toLowerCase().includes('terminated') || 
                                        errorMsg.includes('hangup') ||
                                        errorMsg.includes('Handshake timeout');
 
-                    const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === DisconnectReason.badSession || statusCode === 405 || (isTerminated && failureCount >= 3);
-                    if (isLoggedOut && statusCode !== 428) {
-                        console.warn('WhatsApp: Terminal dissociation or connection failure (' + statusCode + '). Purging auth data.');
-                        try {
-                            if (fs.existsSync(authPath)) {
-                                fs.rmSync(authPath, { recursive: true, force: true });
-                            }
-                        } catch(e) {}
-                        setStatus('disconnected', 'Resetting Session...');
+                    const isTerminal = statusCode === DisconnectReason.badSession || statusCode === 405 || (isTerminated && failureCount >= 3);
+                    
+                    if (!shouldReconnect || isTerminal) {
+                        console.warn(`WhatsApp: Terminal state reached (Status: ${statusCode}). Purging auth data if not logout.`);
+                        if (statusCode !== DisconnectReason.loggedOut) {
+                            try {
+                                if (fs.existsSync(authPath)) {
+                                    fs.rmSync(authPath, { recursive: true, force: true });
+                                }
+                            } catch(e) {}
+                        }
+                        setStatus('disconnected', statusCode === DisconnectReason.loggedOut ? 'Logged Out' : 'Resetting Session...');
                         failureCount = 0;
                         reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000); 
                     } else {
