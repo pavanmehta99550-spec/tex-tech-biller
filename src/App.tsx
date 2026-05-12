@@ -199,22 +199,51 @@ export default function App() {
 
   const handleGlobalSearch = (query: string) => {
     if (!query) return;
-    const foundBooking = bookings.find(b => b.billNumber?.toString() === query);
+    const qLower = query.toLowerCase();
+    
+    const foundBooking = bookings.find(b => b.billNumber?.toString() === query || b.lrNumber?.toLowerCase() === qLower);
     if (foundBooking) {
       setEditingBooking(foundBooking);
       setCurrentView('inv');
       setGlobalSearch('');
       return;
     }
-    const foundPurchase = purchases.find(p => p.billNumber?.toString() === query);
+    const foundPurchase = purchases.find(p => p.billNumber?.toString() === query || p.partyBillNumber?.toString() === query);
     if (foundPurchase) {
       setEditingPurchase(foundPurchase);
       setCurrentView('pur');
       setGlobalSearch('');
       return;
     }
-    alert('Entry not found');
+    // Search in challans
+    const allChallans = [...millChallans, ...partyChallans, ...weaverChallans];
+    const foundChallan = allChallans.find(c => c.challanNumber?.toString() === query);
+    if (foundChallan) {
+        // Find which type of challan it is
+        if (millChallans.some(c => c.id === foundChallan.id)) setCurrentView('millchallan');
+        else if (partyChallans.some(c => c.id === foundChallan.id)) setCurrentView('partychallan');
+        else if (weaverChallans.some(c => c.id === foundChallan.id)) setCurrentView('weaverchallan');
+        
+        // We might need a state for editing challan?
+        // For now just navigate
+        setGlobalSearch('');
+        return;
+    }
+    alert('Entry not found (Checked Bills, LR, Challans)');
   }
+
+  // Calculate current entry payment status for watermark
+  const currentStatus = useMemo(() => {
+    if (currentView === 'inv' && editingBooking) {
+      const info = getBillPaymentInfo(editingBooking.id, editingBooking.grandTotal, payments);
+      return info.status;
+    }
+    if (currentView === 'pur' && editingPurchase) {
+      const info = getBillPaymentInfo(editingPurchase.id, editingPurchase.grandTotal, purchasePayments);
+      return info.status;
+    }
+    return null;
+  }, [currentView, editingBooking, editingPurchase, payments, purchasePayments]);
 
 
   useEffect(() => storage.set('purchaseParties', purchaseParties), [purchaseParties]);
@@ -373,6 +402,12 @@ export default function App() {
           switch(currentView) {
             case 'inv': setEditingBooking(null); break;
             case 'pur': setEditingPurchase(null); break;
+            case 'dn': setEditingDebitNote(null); break;
+            case 'cn': setEditingCreditNote(null); break;
+            case 'pay': 
+            case 'sendpay':
+              setEditingPayment(null);
+              break;
             case 'saleparty': 
             case 'purchaseparty': 
               window.dispatchEvent(new CustomEvent('app-trigger-add-new'));
@@ -1526,11 +1561,12 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8 print:ml-0 print:p-0 relative">
-        <div className="w-full max-w-6xl mx-auto mb-8 bg-white border border-slate-200 p-4 rounded-2xl flex items-center shadow-lg sticky top-8 z-30">
+        {currentStatus && <Watermark paymentStatus={currentStatus === 'PAID' ? 'PAID' : 'UNPAID'} />}
+        <div className="w-full max-w-6xl mx-auto mb-8 bg-white border border-slate-200 p-4 rounded-2xl flex items-center shadow-lg sticky top-8 z-30 print:hidden">
           <Search className="text-slate-400 ml-4" size={20} />
           <input 
             type="text" 
-            placeholder="Global Search: Enter Bill #" 
+            placeholder="Quick Bill Finder: Enter Bill # / LR # / Challan #" 
             value={globalSearch}
             onChange={(e) => setGlobalSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleGlobalSearch(globalSearch)}
@@ -1744,7 +1780,8 @@ export default function App() {
                 key={`pay-${editingPayment?.id || 'new'}`} 
                 onSave={handleSavePayment} 
                 parties={saleParties} 
-                bookings={bookings} 
+                bookings={bookings}
+                payments={payments}
                 editingPayment={editingPayment}
                 onCancel={() => {
                   setEditingPayment(null);
@@ -1757,7 +1794,8 @@ export default function App() {
                 key={`sendpay-${editingPayment?.id || 'new'}`} 
                 onSave={handleSavePurchasePayment} 
                 parties={purchaseParties} 
-                purchases={purchases} 
+                purchases={purchases}
+                payments={purchasePayments}
                 editingPayment={editingPayment}
                 onCancel={() => {
                   setEditingPayment(null);
@@ -5574,6 +5612,14 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel 
   const [notes, setNotes] = useState(editingPayment?.notes || '');
   const [billAdjustments, setBillAdjustments] = useState<any[]>(editingPayment?.billAdjustments || []);
   const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
+  const [partySearch, setPartySearch] = useState('');
+
+  const filteredParties = useMemo(() => {
+    return parties.filter((p: any) => 
+      p.name.toLowerCase().includes(partySearch.toLowerCase()) || 
+      p.gstin.toLowerCase().includes(partySearch.toLowerCase())
+    );
+  }, [parties, partySearch]);
 
   const selectedParty = parties.find((p: any) => p.id === selectedId);
   const partyPurchases = useMemo(() => {
@@ -5637,19 +5683,33 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel 
       }} className="p-10 space-y-10">
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Select Purchase Party</label>
-            <select 
-              value={selectedId} 
-              disabled={!!editingPayment}
-              onChange={e => setSelectedId(e.target.value)}
-              className={`w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-red-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
-            >
-              <option value="">-- Choose Party --</option>
-              {parties.map((p: any) => (
-                <option key={p.id} value={p.id}>{p.name} ({p.gstin})</option>
-              ))}
-            </select>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Search & Select Purchase Party</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    type="text"
+                    placeholder="Type name or GSTIN..."
+                    value={partySearch}
+                    onChange={e => setPartySearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-red-500"
+                  />
+                </div>
+                <select 
+                  value={selectedId} 
+                  disabled={!!editingPayment}
+                  onChange={e => setSelectedId(e.target.value)}
+                  className={`w-40 px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-red-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
+                >
+                  <option value="">Quick Select</option>
+                  {filteredParties.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -5769,6 +5829,36 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel 
           </p>
         </div>
       </form>
+
+      {/* Payment History Section */}
+      {selectedParty && payments && payments.filter((p: any) => p.partyId === selectedParty.id).length > 0 && (
+        <div className="p-10 border-t-2 border-dashed border-slate-100 bg-slate-50/50">
+          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">Payment History for {selectedParty.name}</h3>
+          <div className="space-y-4">
+            {payments.filter((p: any) => p.partyId === selectedParty.id).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p: any) => (
+              <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
+                <div>
+                  <p className="text-xs font-bold text-slate-500">{new Date(p.date).toLocaleDateString()}</p>
+                  <p className="text-sm font-black text-slate-900 mt-0.5">₹ {p.amount.toLocaleString()}</p>
+                  {p.chequeNumber && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Ref: {p.chequeNumber}</p>}
+                </div>
+                {p.billAdjustments && p.billAdjustments.length > 0 && (
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Adjusted Bills</p>
+                    <div className="flex gap-1 justify-end flex-wrap max-w-[200px]">
+                      {p.billAdjustments.map((ba: any) => (
+                        <span key={ba.billId} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200">
+                          #{ba.billNumber}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -5781,6 +5871,14 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: an
   const [notes, setNotes] = useState(editingPayment?.notes || '');
   const [billAdjustments, setBillAdjustments] = useState<any[]>(editingPayment?.billAdjustments || []);
   const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
+  const [partySearch, setPartySearch] = useState('');
+
+  const filteredParties = useMemo(() => {
+    return parties.filter((p: any) => 
+      p.name.toLowerCase().includes(partySearch.toLowerCase()) || 
+      p.gstin.toLowerCase().includes(partySearch.toLowerCase())
+    );
+  }, [parties, partySearch]);
 
   const selectedParty = parties.find((p: any) => p.id === selectedId);
   const partyBookings = useMemo(() => {
@@ -5845,19 +5943,33 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: an
         
         {/* Section 1: Party Selection */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Select Sale Party</label>
-            <select 
-              value={selectedId} 
-              disabled={!!editingPayment}
-              onChange={e => setSelectedId(e.target.value)}
-              className={`w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
-            >
-              <option value="">-- Choose Party --</option>
-              {parties.map((p: any) => (
-                <option key={p.id} value={p.id}>{p.name} ({p.gstin})</option>
-              ))}
-            </select>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Search & Select Sale Party</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    type="text"
+                    placeholder="Type name or GSTIN..."
+                    value={partySearch}
+                    onChange={e => setPartySearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500"
+                  />
+                </div>
+                <select 
+                  value={selectedId} 
+                  disabled={!!editingPayment}
+                  onChange={e => setSelectedId(e.target.value)}
+                  className={`w-40 px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
+                >
+                  <option value="">Quick Select</option>
+                  {filteredParties.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -5979,6 +6091,36 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel }: an
           </p>
         </div>
       </form>
+
+      {/* Payment History Section */}
+      {selectedParty && payments && payments.filter((p: any) => p.partyId === selectedParty.id).length > 0 && (
+        <div className="p-10 border-t-2 border-dashed border-slate-100 bg-slate-50/50">
+          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">Payment History for {selectedParty.name}</h3>
+          <div className="space-y-4">
+            {payments.filter((p: any) => p.partyId === selectedParty.id).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p: any) => (
+              <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
+                <div>
+                  <p className="text-xs font-bold text-slate-500">{new Date(p.date).toLocaleDateString()}</p>
+                  <p className="text-sm font-black text-slate-900 mt-0.5">₹ {p.amount.toLocaleString()}</p>
+                  {p.chequeNumber && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Ref: {p.chequeNumber}</p>}
+                </div>
+                {p.billAdjustments && p.billAdjustments.length > 0 && (
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Adjusted Bills</p>
+                    <div className="flex gap-1 justify-end flex-wrap max-w-[200px]">
+                      {p.billAdjustments.map((ba: any) => (
+                        <span key={ba.billId} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200">
+                          #{ba.billNumber}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -6617,7 +6759,14 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
                   <td className="py-3 px-4 font-bold border-r-2 border-slate-900">{new Date(t.date).toLocaleDateString()}</td>
                   <td className="py-3 px-4 border-r-2 border-slate-900">
                     <div className="font-bold uppercase tracking-tight">{t.type.replace('_', ' ')}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">REF: {t.billNumber || t.invoiceNumber || t.noteNumber || String(t.id).slice(0, 8)}</div>
+                    {t.type === 'PAYMENT' && t.billAdjustments ? (
+                      <div className="text-[10px] text-indigo-600 font-black mt-0.5">
+                        Settled: {t.billAdjustments.map((ba: any) => `#${ba.billNumber}`).join(', ')}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-400 font-mono">REF: {t.billNumber || t.invoiceNumber || t.noteNumber || String(t.id).slice(0, 8)}</div>
+                    )}
+                    {t.chequeNumber && <div className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">CHQ/REF: {t.chequeNumber}</div>}
                   </td>
                   <td className="py-3 px-4 text-right border-r-2 border-slate-900 font-bold">
                     {t.amount > 0 ? t.amount.toLocaleString() : '-'}
@@ -6717,6 +6866,15 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
 
   if (selectedParty) {
     let transactions = getPartyLedger(selectedParty);
+    // Sort oldest first for balance calculation
+    transactions.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let runningBalance = 0;
+    transactions = transactions.map((t: any) => {
+      runningBalance += t.amount;
+      return { ...t, balance: runningBalance };
+    });
+
     if (billFilter !== 'ALL') {
       transactions = transactions.filter((t: any) => {
         if (t.type === 'SALE' || t.type === 'PURCHASE') {
@@ -6729,7 +6887,9 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
       });
     }
 
-    let runningBalance = Math.round(transactions.reduce((acc: number, t: any) => acc + t.amount, 0));
+    // Sort back to newest first for display
+    transactions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
@@ -6770,6 +6930,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
                   <th className="px-8 py-5">Reference No.</th>
                   <th className="px-8 py-5 text-right">Debit (+)</th>
                   <th className="px-8 py-5 text-right">Credit (-)</th>
+                  <th className="px-8 py-5 text-right">Balance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -6842,7 +7003,20 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
                     </td>
                     <td className="px-8 py-5 font-black text-slate-900">
                       <div className="flex flex-col">
-                        <span>{t.billNumber || t.invoiceNumber || t.noteNumber || t.id.slice(0, 8) || '-'}</span>
+                        {t.type === 'PAYMENT' && t.billAdjustments ? (
+                          <>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Adjusted Bills</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {t.billAdjustments.map((ba: any) => (
+                                <span key={ba.billId} className="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded text-[9px] border border-indigo-100">
+                                  #{ba.billNumber}
+                                </span>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <span>{t.billNumber || t.invoiceNumber || t.noteNumber || (typeof t.id === 'string' ? t.id.slice(0,8) : t.id) || '-'}</span>
+                        )}
                         {t.type === 'PURCHASE' && t.partyBillNumber && (
                           <span className="text-[9px] text-indigo-500 font-black uppercase">Party Bill: {t.partyBillNumber}</span>
                         )}
@@ -6853,6 +7027,9 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
                     </td>
                     <td className="px-8 py-5 text-right font-bold text-slate-700">
                       {t.amount < 0 ? `₹ ${Math.round(Math.abs(t.amount)).toLocaleString()}` : '-'}
+                    </td>
+                    <td className={`px-8 py-5 text-right font-black ${t.balance > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                      ₹ {Math.round(t.balance).toLocaleString()}
                     </td>
                   </tr>
                 ))}
