@@ -2503,7 +2503,6 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       partyAddress: editingPurchase?.partyAddress || '',
       partyMobile: editingPurchase?.partyMobile || '',
       partyMobile2: editingPurchase?.partyMobile2 || '',
-      // Add settings data to form data if needed, or just display it from settings prop
       buyerName: settings?.companyName || '',
       buyerGstin: settings?.gstin || '',
       buyerAddress: settings?.address || '',
@@ -2517,6 +2516,31 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       notes: editingPurchase?.notes || ''
     };
   });
+
+  useEffect(() => {
+    if (editingPurchase) {
+      setFormData({
+        id: editingPurchase.id || '',
+        billNumber: editingPurchase.billNumber,
+        partyGstin: editingPurchase.partyGstin || '',
+        partyName: editingPurchase.partyName || '',
+        partyAddress: editingPurchase.partyAddress || '',
+        partyMobile: editingPurchase.partyMobile || '',
+        partyMobile2: editingPurchase.partyMobile2 || '',
+        buyerName: settings?.companyName || '',
+        buyerGstin: settings?.gstin || '',
+        buyerAddress: settings?.address || '',
+        items: editingPurchase.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }],
+        basicAmount: editingPurchase.basicAmount || 0,
+        globalDiscount: editingPurchase.globalDiscount || 0,
+        taxRate: editingPurchase.taxRate || 5,
+        date: editingPurchase.date || new Date().toISOString(),
+        partyBillNumber: editingPurchase.partyBillNumber || '',
+        parcels: editingPurchase.parcels || '',
+        notes: editingPurchase.notes || ''
+      });
+    }
+  }, [editingPurchase, settings]);
 
   const isLocked = useMemo(() => {
     if (!editingPurchase) return false;
