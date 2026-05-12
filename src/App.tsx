@@ -2517,30 +2517,34 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
     };
   });
 
+  const currentEditingPurchase = useMemo(() => {
+    return purchases.find((p: Purchase) => p.id === editingPurchase?.id) || editingPurchase;
+  }, [purchases, editingPurchase]);
+
   useEffect(() => {
-    if (editingPurchase) {
+    if (currentEditingPurchase) {
       setFormData({
-        id: editingPurchase.id || '',
-        billNumber: editingPurchase.billNumber,
-        partyGstin: editingPurchase.partyGstin || '',
-        partyName: editingPurchase.partyName || '',
-        partyAddress: editingPurchase.partyAddress || '',
-        partyMobile: editingPurchase.partyMobile || '',
-        partyMobile2: editingPurchase.partyMobile2 || '',
+        id: currentEditingPurchase.id || '',
+        billNumber: currentEditingPurchase.billNumber,
+        partyGstin: currentEditingPurchase.partyGstin || '',
+        partyName: currentEditingPurchase.partyName || '',
+        partyAddress: currentEditingPurchase.partyAddress || '',
+        partyMobile: currentEditingPurchase.partyMobile || '',
+        partyMobile2: currentEditingPurchase.partyMobile2 || '',
         buyerName: settings?.companyName || '',
         buyerGstin: settings?.gstin || '',
         buyerAddress: settings?.address || '',
-        items: editingPurchase.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }],
-        basicAmount: editingPurchase.basicAmount || 0,
-        globalDiscount: editingPurchase.globalDiscount || 0,
-        taxRate: editingPurchase.taxRate || 5,
-        date: editingPurchase.date || new Date().toISOString(),
-        partyBillNumber: editingPurchase.partyBillNumber || '',
-        parcels: editingPurchase.parcels || '',
-        notes: editingPurchase.notes || ''
+        items: currentEditingPurchase.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }],
+        basicAmount: currentEditingPurchase.basicAmount || 0,
+        globalDiscount: currentEditingPurchase.globalDiscount || 0,
+        taxRate: currentEditingPurchase.taxRate || 5,
+        date: currentEditingPurchase.date || new Date().toISOString(),
+        partyBillNumber: currentEditingPurchase.partyBillNumber || '',
+        parcels: currentEditingPurchase.parcels || '',
+        notes: currentEditingPurchase.notes || ''
       });
     }
-  }, [editingPurchase, settings]);
+  }, [currentEditingPurchase, settings]);
 
   const isLocked = useMemo(() => {
     if (!editingPurchase) return false;
