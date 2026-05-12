@@ -45,7 +45,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
-import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem } from './types';
+import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem, Broker, BrokerCommission, BrokerPayment } from './types';
 import Login from './components/Login';
 
 // Initial Party Database
@@ -65,9 +65,9 @@ const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGs
   const isInterstate = rState !== myStateCode;
   
   return {
-    cgst: isInterstate ? 0 : Math.round((taxTotal / 2) * 100) / 100,
-    sgst: isInterstate ? 0 : Math.round((taxTotal / 2) * 100) / 100,
-    igst: isInterstate ? taxTotal : 0,
+    cgst: isInterstate ? 0 : Math.round(taxTotal / 2),
+    sgst: isInterstate ? 0 : Math.round(taxTotal / 2),
+    igst: isInterstate ? Math.round(taxTotal) : 0,
     isInterstate
   };
 };
@@ -110,7 +110,7 @@ export default function App() {
   const loadedKeys = useRef<Set<string>>(new Set());
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
-    'dn', 'cn', 'weaverchallan', 'weaverparty', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'transports', 'gstreport', 
+    'dn', 'cn', 'weaverchallan', 'weaverparty', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'brokers', 'broker-ledger', 'transports', 'gstreport', 
     'signature', 'bankdetails', 'backup', 'settings'
   ], []);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
@@ -148,6 +148,9 @@ export default function App() {
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => storage.get('credit-notes', []));
   const [payments, setPayments] = useState<Payment[]>(() => storage.get('payments', []));
   const [purchasePayments, setPurchasePayments] = useState<Payment[]>(() => storage.get('purchasePayments', []));
+  const [brokers, setBrokers] = useState<Broker[]>(() => storage.get('brokers', []));
+  const [commissions, setCommissions] = useState<BrokerCommission[]>(() => storage.get('commissions', []));
+  const [brokerPayments, setBrokerPayments] = useState<BrokerPayment[]>(() => storage.get('brokerPayments', []));
   const [settings, setSettings] = useState<AppSettings | null>(() => storage.get('settings', null));
 
   const stats = useMemo(() => {
@@ -199,6 +202,9 @@ export default function App() {
   useEffect(() => storage.set('expenses', expenses), [expenses]);
   useEffect(() => storage.set('payments', payments), [payments]);
   useEffect(() => storage.set('purchasePayments', purchasePayments), [purchasePayments]);
+  useEffect(() => storage.set('brokers', brokers), [brokers]);
+  useEffect(() => storage.set('commissions', commissions), [commissions]);
+  useEffect(() => storage.set('brokerPayments', brokerPayments), [brokerPayments]);
   useEffect(() => storage.set('settings', settings), [settings]);
   useEffect(() => storage.set('lastBackupDate', lastBackupDate), [lastBackupDate]);
 
@@ -457,6 +463,9 @@ export default function App() {
       { key: 'partyChallans', setter: setPartyChallans },
       { key: 'weaverChallans', setter: setWeaverChallans },
       { key: 'weaverParties', setter: setWeaverParties },
+      { key: 'brokers', setter: setBrokers },
+      { key: 'commissions', setter: setCommissions },
+      { key: 'brokerPayments', setter: setBrokerPayments },
       { key: 'settings', setter: setSettings },
       { key: 'lastBackupDate', setter: setLastBackupDate },
     ];
@@ -546,6 +555,9 @@ export default function App() {
           partyChallans,
           weaverChallans,
           weaverParties,
+          brokers,
+          commissions,
+          brokerPayments,
           settings,
           lastBackupDate
         };
@@ -666,6 +678,39 @@ export default function App() {
       date: data.date || new Date().toISOString(),
       notes: data.notes || ''
     };
+
+    // Commission Logic
+    const broker = brokers.find(b => b.partyMappings?.some(m => m.partyId === consignee?.id));
+    if (broker) {
+      const mapping = broker.partyMappings?.find(m => m.partyId === consignee?.id);
+      if (mapping) {
+        const commAmount = mapping.type === 'fixed' 
+          ? mapping.rate 
+          : Math.round(newBooking.grandTotal * (mapping.rate / 100));
+          
+        const newComm: BrokerCommission = {
+          id: Math.random().toString(36).substr(2, 9),
+          brokerId: broker.id,
+          brokerName: broker.name,
+          partyId: consignee!.id,
+          partyName: consignee!.name,
+          billId: newBooking.id,
+          billNumber: newBooking.billNumber,
+          billDate: newBooking.date,
+          billAmount: newBooking.grandTotal,
+          commissionRate: mapping.rate,
+          commissionType: mapping.type,
+          commissionAmount: commAmount,
+          status: 'UNPAID',
+          paidAmount: 0,
+          date: new Date().toISOString()
+        };
+        setCommissions(prev => {
+          const others = prev.filter(c => c.billId !== newBooking.id);
+          return [newComm, ...others];
+        });
+      }
+    }
 
     if (isUpdate) {
       setBookings(prev => prev.map(b => b.id === data.id ? newBooking : b));
@@ -1297,7 +1342,7 @@ export default function App() {
                 v === 'dash' ? LayoutDashboard :
                 v === 'inv' ? Receipt :
                 v === 'salehistory' || v === 'purchasehistory' || v === 'ledg' ? BookText :
-                v === 'saleparty' || v === 'purchaseparty' ? Users :
+                v === 'saleparty' || v === 'purchaseparty' || v === 'brokers' ? Users :
                 v === 'pur' ? ShoppingBag :
                 v === 'dn' ? AlertCircle :
                 v === 'cn' ? TrendingUp :
@@ -1310,6 +1355,7 @@ export default function App() {
                 v === 'pay' || v === 'sendpay' ? CreditCard :
                 v === 'transports' ? Truck :
                 v === 'gstreport' ? TrendingUp :
+                v === 'broker-ledger' ? BookText :
                 v === 'signature' ? PenTool :
                 v === 'bankdetails' ? Landmark :
                 v === 'backup' ? Download :
@@ -1335,6 +1381,8 @@ export default function App() {
                 v === 'pay' ? "Receive Payment" :
                 v === 'sendpay' ? "Send Payment" :
                 v === 'ledg' ? "Party Ledger" :
+                v === 'brokers' ? "Brokers Master" :
+                v === 'broker-ledger' ? "Broker Ledger" :
                 v === 'transports' ? "Transports" :
                 v === 'gstreport' ? "GST Reports" :
                 v === 'signature' ? "Upload Signature" :
@@ -1452,6 +1500,22 @@ export default function App() {
               onDeletePurchase={handleDeletePurchase}
               onPreviewPurchase={(p: Purchase) => setPreviewPurchase(p)}
             />}
+            {currentView === 'brokers' && (
+              <BrokersView 
+                brokers={brokers}
+                parties={saleParties}
+                onSave={(updated) => setBrokers(updated)}
+              />
+            )}
+            {currentView === 'broker-ledger' && (
+              <BrokerLedgerView 
+                brokers={brokers}
+                commissions={commissions}
+                payments={brokerPayments}
+                onSavePayment={(p) => setBrokerPayments(prev => [p, ...prev])}
+                onDeletePayment={(id) => setBrokerPayments(prev => prev.filter(p => p.id !== id))}
+              />
+            )}
             {currentView === 'inv' && <BookingView 
               key={`inv-${editingBooking?.id || 'new'}-${bookings.length}`} 
               onSave={handleSaveBooking} 
@@ -1637,7 +1701,23 @@ export default function App() {
                 onDeletePayment={handleDeletePayment}
                 onEditPayment={(p: any) => {
                   setEditingPayment(p);
-                  setCurrentView('pay');
+                  setCurrentView(p.type === 'PURCHASE_PAYMENT' ? 'sendpay' : 'pay');
+                }}
+                onEditBooking={(b: any) => {
+                  setEditingBooking(b);
+                  setCurrentView('inv');
+                }}
+                onEditPurchase={(p: any) => {
+                  setEditingPurchase(p);
+                  setCurrentView('pur');
+                }}
+                onEditCreditNote={(cn: any) => {
+                  setEditingCreditNote(cn);
+                  setCurrentView('cn');
+                }}
+                onEditDebitNote={(dn: any) => {
+                  setEditingDebitNote(dn);
+                  setCurrentView('dn');
                 }}
               />
             )}
@@ -2516,24 +2596,24 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
 
   const calc = useMemo(() => {
     // 1. Gross Amount
-    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0) * 100) / 100;
+    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0));
     
     // 2. Discount Calculation
-    const effectiveGlobalDiscount = hasItemDiscount ? 0 : (Number(formData.globalDiscount) || 0);
-    
+    const effectiveGlobalDiscount = hasItemDiscount ? 0 : Math.round(Number(formData.globalDiscount) || 0);
+
     // 3. Taxable Value
     const taxableValue = Math.max(0, grossAmount - effectiveGlobalDiscount);
     
     // 4. GST Calculation
-    const tax = Math.round((taxableValue * (Number(formData.taxRate) / 100)) * 100) / 100;
+    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
     
     // Determine CGST/SGST vs IGST
     const buyerStateCode = formData.buyerGstin?.substring(0, 2);
     const supplierStateCode = formData.partyGstin?.substring(0, 2);
     const isInterstate = buyerStateCode && supplierStateCode && buyerStateCode !== supplierStateCode;
     
-    const cgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
-    const sgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
+    const cgst = isInterstate ? 0 : Math.round(tax / 2);
+    const sgst = isInterstate ? 0 : Math.round(tax / 2);
     const igst = isInterstate ? tax : 0;
     
     return { 
@@ -2544,7 +2624,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       sgst, 
       igst, 
       isInterstate, 
-      total: Math.round((taxableValue + tax) * 100) / 100, 
+      total: Math.round(taxableValue + tax), 
       effectiveGlobalDiscount 
     };
   }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.buyerGstin, formData.partyGstin]);
@@ -3787,26 +3867,24 @@ function BookingView({
 
   const calc = useMemo(() => {
     // 1. Gross Amount
-    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0) * 100) / 100;
+    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.rate) || 0)), 0));
     
     // 2. Discount Calculation
-    const effectiveGlobalDiscount = hasItemDiscount ? 0 : (Number(formData.globalDiscount) || 0);
-    // Assuming globalDiscount is the discount amount directly, based on how it's handled.
-    // If it's percentage, this might need changing but the formula steps are what was requested.
+    const effectiveGlobalDiscount = hasItemDiscount ? 0 : Math.round(Number(formData.globalDiscount) || 0);
     
     // 3. Taxable Value
     const taxableValue = Math.max(0, grossAmount - effectiveGlobalDiscount);
     
     // 4. GST Calculation
-    const tax = Math.round((taxableValue * (Number(formData.taxRate) / 100)) * 100) / 100;
+    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
     
     // Determine CGST/SGST vs IGST
     const consignorStateCode = formData.consignorGstin?.substring(0, 2);
     const consigneeStateCode = formData.consigneeGstin?.substring(0, 2);
     const isInterstate = consignorStateCode && consigneeStateCode && consignorStateCode !== consigneeStateCode;
     
-    const cgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
-    const sgst = isInterstate ? 0 : Math.round((tax / 2) * 100) / 100;
+    const cgst = isInterstate ? 0 : Math.round(tax / 2);
+    const sgst = isInterstate ? 0 : Math.round(tax / 2);
     const igst = isInterstate ? tax : 0;
     
     return { 
@@ -3817,7 +3895,7 @@ function BookingView({
       sgst, 
       igst, 
       isInterstate, 
-      total: Math.round((taxableValue + tax) * 100) / 100, 
+      total: Math.round(taxableValue + tax), 
       effectiveGlobalDiscount 
     };
   }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.consignorGstin, formData.consigneeGstin]);
@@ -5785,38 +5863,6 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
     }
   };
 
-  const handleWhatsAppSend = async () => {
-    if (!printRef.current) return;
-    try {
-      const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      const pdfDataUri = pdf.output('datauristring');
-
-      const response = await fetch('/api/whatsapp/send-bill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: payment.partyMobile || '',
-          billNumber: payment.receiptNo || 'REC',
-          pdfBase64: pdfDataUri,
-          partyName: payment.partyName || ''
-        })
-      });
-
-      const resData = await response.json();
-      if (resData.success) alert("✅ Receipt sent to WhatsApp!");
-      else alert("❌ WhatsApp failed: " + (resData.error || 'Unknown error'));
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error sending WhatsApp");
-    }
-  };
-
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -6338,37 +6384,6 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
     pdf.save(`Ledger_${party.name}.pdf`);
   };
 
-  const handleWhatsAppSend = async () => {
-    if (!printRef.current) return;
-    try {
-      const canvas = await html2canvas(printRef.current, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      const pdfDataUri = pdf.output('datauristring');
-
-      const response = await fetch('/api/whatsapp/send-bill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: party.mobile || party.partyMobile || '',
-          billNumber: 'LEDGER',
-          pdfBase64: pdfDataUri,
-          partyName: party.name
-        })
-      });
-
-      const resData = await response.json();
-      if (resData.success) alert("✅ Ledger sent to WhatsApp!");
-      else alert("❌ WhatsApp failed: " + (resData.error || 'Unknown error'));
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error sending WhatsApp");
-    }
-  };
-
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -6485,11 +6500,11 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
   );
 }
 
-function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment }: any) {
+function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment, onEditBooking, onEditPurchase, onEditCreditNote, onEditDebitNote }: any) {
+  const [selectedParty, setSelectedParty] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
   const [billFilter, setBillFilter] = useState<'ALL' | 'PAID' | 'UNPAID'>('ALL');
-  const [selectedParty, setSelectedParty] = useState<any>(null);
   const [previewBooking, setPreviewBooking] = useState<any>(null);
   const [previewPurchase, setPreviewPurchase] = useState<any>(null);
   const [previewCreditNote, setPreviewCreditNote] = useState<any>(null);
@@ -6627,40 +6642,56 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
                         }`}>
                           {t.type.replace('_', ' ')}
                         </span>
-                        {t.type === 'PAYMENT' && (
-                          <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1">
+                          {t.type === 'PAYMENT' ? (
+                            <>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditPayment(t);
+                                }}
+                                className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all font-bold text-[10px] uppercase flex items-center gap-1"
+                                title="Edit Payment"
+                              >
+                                <Edit size={14} /> Edit
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeletePayment(t);
+                                }}
+                                className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                title="Delete Payment"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
+                          ) : (
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onEditPayment(t);
+                                if (t.type === 'SALE') onEditBooking(t);
+                                if (t.type === 'PURCHASE') onEditPurchase(t);
+                                if (t.type === 'CREDIT_NOTE') onEditCreditNote(t);
+                                if (t.type === 'DEBIT_NOTE') onEditDebitNote(t);
                               }}
-                              className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all font-bold text-[10px] uppercase flex items-center gap-1"
-                              title="Edit Payment"
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all font-bold text-[10px] uppercase flex items-center gap-1"
+                              title="Edit Transaction"
                             >
-                              <Plus size={14} className="rotate-45" /> Edit
+                              <Edit size={14} /> Edit
                             </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeletePayment(t);
-                              }}
-                              className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                              title="Delete Payment"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-8 py-5 font-black text-slate-900">
                       {t.billNumber || t.invoiceNumber || t.noteNumber || t.id.slice(0, 8) || '-'}
                     </td>
                     <td className="px-8 py-5 text-right font-bold text-slate-700">
-                      {t.amount > 0 ? `₹ ${t.amount.toLocaleString()}` : '-'}
+                      {t.amount > 0 ? `₹ ${Math.round(t.amount).toLocaleString()}` : '-'}
                     </td>
                     <td className="px-8 py-5 text-right font-bold text-slate-700">
-                      {t.amount < 0 ? `₹ ${Math.abs(t.amount).toLocaleString()}` : '-'}
+                      {t.amount < 0 ? `₹ ${Math.round(Math.abs(t.amount)).toLocaleString()}` : '-'}
                     </td>
                   </tr>
                 ))}
@@ -9959,5 +9990,339 @@ function ChallanCompareView({ millChallans, partyChallans, weaverChallans = [] }
         </div>
       )}
     </motion.div>
+  );
+}
+
+function BrokersView({ brokers, parties, onSave }: any) {
+  const [editingBroker, setEditingBroker] = useState<any>(null);
+  const [formData, setFormData] = useState({ name: '', mobile: '', pan: '', mappings: [] as any[] });
+
+  const handleAddMapping = () => {
+    setFormData({ ...formData, mappings: [...formData.mappings, { partyId: '', rate: 0, type: 'percentage' }] });
+  };
+
+  const handleSave = () => {
+    if (!formData.name) return alert("Broker Name is required");
+    const newBroker = {
+      id: editingBroker?.id || Math.random().toString(36).substr(2, 9),
+      name: formData.name,
+      mobile: formData.mobile,
+      pan: formData.pan,
+      partyMappings: formData.mappings
+    };
+
+    if (editingBroker) {
+      onSave(brokers.map((b: any) => b.id === editingBroker.id ? newBroker : b));
+    } else {
+      onSave([...brokers, newBroker]);
+    }
+    setEditingBroker(null);
+    setFormData({ name: '', mobile: '', pan: '', mappings: [] });
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-8 pb-32">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">Brokers Master</h2>
+        <button 
+          onClick={() => { setEditingBroker(null); setFormData({ name: '', mobile: '', pan: '', mappings: [] }); }}
+          className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg"
+        >
+          Add New Broker
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 bg-white p-8 rounded-[40px] shadow-xl border border-slate-100">
+          <h3 className="text-xl font-black mb-6 uppercase tracking-tighter text-slate-800">
+            {editingBroker ? 'Edit Broker' : 'Create Broker'}
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Broker Name</label>
+              <input 
+                type="text" 
+                value={formData.name} 
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Mobile Number</label>
+              <input 
+                type="text" 
+                value={formData.mobile} 
+                onChange={e => setFormData({ ...formData, mobile: e.target.value })}
+                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
+              />
+            </div>
+            <div className="mt-8">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Party Commission Mapping</h4>
+                <button onClick={handleAddMapping} className="text-indigo-600 font-bold text-xs">+ Add Mapping</button>
+              </div>
+              <div className="space-y-3">
+                {formData.mappings.map((m, idx) => (
+                  <div key={idx} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                    <select 
+                      value={m.partyId}
+                      onChange={e => {
+                        const newM = [...formData.mappings];
+                        newM[idx].partyId = e.target.value;
+                        setFormData({ ...formData, mappings: newM });
+                      }}
+                      className="bg-transparent border-b border-slate-200 font-bold text-sm outline-none"
+                    >
+                      <option value="">Select Party</option>
+                      {parties.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <div className="flex gap-2">
+                      <input 
+                        type="number"
+                        placeholder="Rate"
+                        value={m.rate}
+                        onChange={e => {
+                          const newM = [...formData.mappings];
+                          newM[idx].rate = parseFloat(e.target.value);
+                          setFormData({ ...formData, mappings: newM });
+                        }}
+                        className="w-20 bg-transparent border-b border-slate-200 font-bold text-sm outline-none"
+                      />
+                      <select 
+                        value={m.type}
+                        onChange={e => {
+                          const newM = [...formData.mappings];
+                          newM[idx].type = e.target.value;
+                          setFormData({ ...formData, mappings: newM });
+                        }}
+                        className="flex-1 bg-transparent border-b border-slate-200 font-bold text-sm outline-none"
+                      >
+                        <option value="percentage">% Percentage</option>
+                        <option value="fixed">Fixed Amount</option>
+                      </select>
+                      <button 
+                        onClick={() => setFormData({ ...formData, mappings: formData.mappings.filter((_, i) => i !== idx) })}
+                        className="text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button 
+              onClick={handleSave}
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl mt-8"
+            >
+              Update Broker List
+            </button>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2 bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Broker Name</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Parties Linked</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {brokers.map((b: any) => (
+                <tr key={b.id} className="hover:bg-slate-50">
+                  <td className="px-8 py-6">
+                    <div className="font-black text-slate-800 uppercase tracking-tighter">{b.name}</div>
+                    <div className="text-[10px] font-bold text-slate-400">{b.mobile || 'No Mobile'}</div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="flex flex-wrap gap-1">
+                      {b.partyMappings?.map((m: any, idx: number) => {
+                        const party = parties.find((p: any) => p.id === m.partyId);
+                        return (
+                          <span key={idx} className="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg text-[9px] font-black uppercase">
+                            {party?.name || 'Unknown'} ({m.rate}{m.type === 'fixed' ? '₹' : '%'})
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </td>
+                  <td className="px-8 py-6 text-right">
+                    <div className="flex justify-end gap-2">
+                       <button onClick={() => { setEditingBroker(b); setFormData({ name: b.name, mobile: b.mobile || '', pan: b.pan || '', mappings: b.partyMappings || [] }); }} className="text-amber-500"><Edit size={18}/></button>
+                       <button onClick={() => { if(confirm("Delete Broker?")) onSave(brokers.filter((x: any) => x.id !== b.id)); }} className="text-rose-500"><Trash2 size={18}/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDeletePayment }: any) {
+  const [selectedBroker, setSelectedBroker] = useState<any>(null);
+  
+  const brokerCommissions = useMemo(() => {
+    if (!selectedBroker) return [];
+    return commissions.filter((c: any) => c.brokerId === selectedBroker.id);
+  }, [selectedBroker, commissions]);
+
+  const brokerPayments = useMemo(() => {
+    if (!selectedBroker) return [];
+    return payments.filter((p: any) => p.brokerId === selectedBroker.id);
+  }, [selectedBroker, payments]);
+
+  const transactions = useMemo(() => {
+    const list = [
+      ...brokerCommissions.map(c => ({ 
+        id: c.id, 
+        date: c.date || c.billDate, 
+        type: 'COMMISSION', 
+        ref: `Bill #${c.billNumber}`, 
+        party: c.partyName,
+        dr: c.commissionAmount, 
+        cr: 0 
+      })),
+      ...brokerPayments.map(p => ({ 
+        id: p.id, 
+        date: p.date, 
+        type: 'PAYMENT', 
+        ref: p.notes || 'Payment', 
+        party: '-',
+        dr: 0, 
+        cr: p.amount 
+      }))
+    ];
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [brokerCommissions, brokerPayments]);
+
+  const stats = useMemo(() => {
+    const totalEarned = brokerCommissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+    const totalPaid = brokerPayments.reduce((sum, p) => sum + p.amount, 0);
+    return { totalEarned, totalPaid, balance: totalEarned - totalPaid };
+  }, [brokerCommissions, brokerPayments]);
+
+  const [paymentForm, setPaymentForm] = useState({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
+
+  const handleAddPayment = () => {
+    if (!paymentForm.amount || paymentForm.amount <= 0) return alert("Amount must be greater than 0");
+    const p = {
+      id: Math.random().toString(36).substr(2, 9),
+      brokerId: selectedBroker.id,
+      amount: paymentForm.amount,
+      date: paymentForm.date,
+      notes: paymentForm.notes,
+      paymentMode: 'Cash'
+    };
+    onSavePayment(p);
+    setPaymentForm({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
+  };
+
+  return (
+    <div className="p-8 pb-32">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">Broker Commission Ledger</h2>
+        <div className="flex gap-4">
+          <select 
+            value={selectedBroker?.id || ''} 
+            onChange={e => setSelectedBroker(brokers.find((b: any) => b.id === e.target.value))}
+            className="bg-white border-2 border-slate-200 rounded-2xl px-6 py-3 font-black text-xs uppercase"
+          >
+            <option value="">Select Broker</option>
+            {brokers.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {!selectedBroker ? (
+        <div className="bg-white/50 backdrop-blur-md rounded-[50px] p-24 text-center border border-white shadow-xl">
+          <BookText size={64} className="mx-auto text-slate-200 mb-6" />
+          <h3 className="text-2xl font-black text-slate-400 uppercase tracking-tighter">Please Select a Broker</h3>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-indigo-600 p-8 rounded-[40px] text-white shadow-xl">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Total Commission</div>
+              <div className="text-4xl font-black tracking-tighter italic">₹ {Math.round(stats.totalEarned).toLocaleString()}</div>
+            </div>
+            <div className="bg-emerald-500 p-8 rounded-[40px] text-white shadow-xl">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Commission Paid</div>
+              <div className="text-4xl font-black tracking-tighter italic">₹ {Math.round(stats.totalPaid).toLocaleString()}</div>
+            </div>
+            <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Balance Remaining</div>
+              <div className="text-4xl font-black tracking-tighter italic">₹ {Math.round(stats.balance).toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-100">
+             <h3 className="text-xl font-black mb-6 uppercase tracking-tighter">Record Commission Payment</h3>
+             <div className="flex flex-wrap gap-4 items-end">
+               <div className="flex-1 min-w-[200px]">
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Paid Amount (₹)</label>
+                 <input type="number" value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: parseFloat(e.target.value)})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+               </div>
+               <div className="flex-1 min-w-[200px]">
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Payment Date</label>
+                 <input type="date" value={paymentForm.date} onChange={e => setPaymentForm({...paymentForm, date: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+               </div>
+               <div className="flex-[2] min-w-[300px]">
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Notes / Description</label>
+                 <input type="text" value={paymentForm.notes} onChange={e => setPaymentForm({...paymentForm, notes: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+               </div>
+               <button onClick={handleAddPayment} className="bg-emerald-600 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg">Save Payment</button>
+             </div>
+          </div>
+
+          <div className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Party / Reference</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right text-indigo-600">Earned (+)</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right text-emerald-600">Paid (-)</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {transactions.map((t: any) => (
+                  <tr key={t.id} className="hover:bg-slate-50">
+                    <td className="px-8 py-6 font-bold text-slate-500 text-sm">{new Date(t.date).toLocaleDateString()}</td>
+                    <td className="px-8 py-6">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${t.type === 'COMMISSION' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {t.type}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6">
+                      <div className="font-bold text-slate-800">{t.ref}</div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.party}</div>
+                    </td>
+                    <td className="px-8 py-6 text-right font-black text-lg tracking-tighter text-indigo-600">
+                       {t.dr > 0 ? `₹${Math.round(t.dr).toLocaleString()}` : '-'}
+                    </td>
+                    <td className="px-8 py-6 text-right font-black text-lg tracking-tighter text-emerald-600">
+                       {t.cr > 0 ? `₹${Math.round(t.cr).toLocaleString()}` : '-'}
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                       {t.type === 'PAYMENT' && (
+                         <button onClick={() => onDeletePayment(t.id)} className="text-rose-500 p-2 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18}/></button>
+                       )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -200,3 +200,39 @@ export interface Expense {
   payeeName?: string;
   paymentMode: 'Cash' | 'Bank' | 'Cheque' | 'UPI';
 }
+
+export interface Broker {
+  id: string;
+  name: string;
+  mobile?: string;
+  pan?: string;
+  partyMappings?: { partyId: string; rate: number; type: 'fixed' | 'percentage' }[];
+}
+
+export interface BrokerCommission {
+  id: string;
+  brokerId: string;
+  brokerName: string;
+  partyId: string;
+  partyName: string;
+  billId: string;
+  billNumber: number;
+  billDate: string;
+  billAmount: number;
+  commissionRate: number;
+  commissionType: 'fixed' | 'percentage';
+  commissionAmount: number;
+  status: 'UNPAID' | 'PAID' | 'PARTIAL';
+  paidAmount: number;
+  date: string;
+  notes?: string;
+}
+
+export interface BrokerPayment {
+  id: string;
+  brokerId: string;
+  amount: number;
+  date: string;
+  notes?: string;
+  paymentMode: string;
+}
