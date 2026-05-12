@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "NODE_OPTIONS=--max-old-space-size=512 tsc",
+    "build": "vite build",
     "start": "ts-node server.ts",
     "dev": "vite",
     "lint": "tsc --noEmit"
