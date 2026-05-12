@@ -2522,6 +2522,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
   }, [purchases, editingPurchase]);
 
   useEffect(() => {
+    console.log("CurrentEditingPurchase:", currentEditingPurchase);
     if (currentEditingPurchase) {
       setFormData({
         id: currentEditingPurchase.id || '',
@@ -2543,6 +2544,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
         parcels: currentEditingPurchase.parcels || '',
         notes: currentEditingPurchase.notes || ''
       });
+      console.log("FormData updated to:", currentEditingPurchase.partyBillNumber);
     }
   }, [currentEditingPurchase, settings]);
 
