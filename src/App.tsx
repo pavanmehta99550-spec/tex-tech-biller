@@ -648,6 +648,8 @@ export default function App() {
       consigneeGstin: data.consigneeGstin || '',
       consigneeName: data.consigneeName || '',
       consigneeAddress: data.consigneeAddress || '',
+      consigneeMobile: data.consigneeMobile || '',
+      consigneeMobile2: data.consigneeMobile2 || '',
       items: (data.items || []).map(item => ({
         ...item,
         hsnCode: item.hsnCode || '',
@@ -661,7 +663,8 @@ export default function App() {
       sgstAmount: split.sgst,
       igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
-      date: data.date || new Date().toISOString()
+      date: data.date || new Date().toISOString(),
+      notes: data.notes || ''
     };
 
     if (isUpdate) {
@@ -813,6 +816,9 @@ export default function App() {
       partyGstin: data.partyGstin || '',
       partyName: data.partyName || '',
       partyAddress: data.partyAddress || '',
+      partyBillNumber: data.partyBillNumber || '',
+      partyMobile: data.partyMobile || '',
+      partyMobile2: data.partyMobile2 || '',
       parcels: data.parcels || '',
       items: (data.items || []).map(item => ({
         ...item,
@@ -827,7 +833,8 @@ export default function App() {
       sgstAmount: split.sgst,
       igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
-      date: data.date || new Date().toISOString()
+      date: data.date || new Date().toISOString(),
+      notes: data.notes || ''
     };
 
     if (isUpdate) {
@@ -893,6 +900,8 @@ export default function App() {
       partyGstin: data.partyGstin || '',
       partyName: data.partyName || '',
       partyAddress: data.partyAddress || '',
+      partyMobile: data.partyMobile || '',
+      partyMobile2: data.partyMobile2 || '',
       items: (data.items || []).map(item => ({
         ...item,
         hsnCode: item.hsnCode || '',
@@ -904,7 +913,8 @@ export default function App() {
       taxAmount: data.taxAmount || 0,
       grandTotal: data.grandTotal || 0,
       date: data.date || new Date().toISOString(),
-      reason: data.reason || ''
+      reason: data.reason || '',
+      notes: data.notes || ''
     };
 
     if (isUpdate) {
@@ -955,6 +965,7 @@ export default function App() {
       partyName: data.partyName || '',
       partyAddress: data.partyAddress || '',
       partyMobile: data.partyMobile || '',
+      partyMobile2: data.partyMobile2 || '',
       items: (data.items || []).map(item => ({
         ...item,
         hsnCode: item.hsnCode || '',
@@ -966,7 +977,8 @@ export default function App() {
       taxAmount: data.taxAmount || 0,
       grandTotal: data.grandTotal || 0,
       date: data.date || new Date().toISOString(),
-      reason: data.reason || ''
+      reason: data.reason || '',
+      notes: data.notes || ''
     };
 
     if (isUpdate) {
