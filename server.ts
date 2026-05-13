@@ -6,7 +6,7 @@ import fs from 'fs';
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, getDoc } from "firebase/firestore";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,6 +40,38 @@ async function startServer() {
 
     app.get('/health', (req, res) => res.send('OK'));
     app.use(express.json({ limit: '50mb' }));
+
+    // --- REDIRECT ROUTE FOR WHATSAPP ---
+    app.get('/view/:id', async (req, res) => {
+        const { id } = req.params;
+        try {
+            // Check shortLinks collection first
+            const linkDoc = await getDoc(doc(db, "shortLinks", id));
+            if (linkDoc.exists()) {
+                const data = linkDoc.data();
+                return res.redirect(data.targetUrl);
+            }
+            
+            // Fallback: Check bookings directly
+            const bookingDoc = await getDoc(doc(db, "bookings", id));
+            if (bookingDoc.exists()) {
+                const data = bookingDoc.data();
+                if ((data as any).pdfUrl) return res.redirect((data as any).pdfUrl);
+            }
+
+            // Fallback 2: Check creditNotes
+            const cnDoc = await getDoc(doc(db, "creditNotes", id));
+            if (cnDoc.exists()) {
+                const data = cnDoc.data();
+                if ((data as any).pdfUrl) return res.redirect((data as any).pdfUrl);
+            }
+
+            res.status(404).send('Bill not found or PDF not generated yet.');
+        } catch (error) {
+            console.error('Redirect error:', error);
+            res.status(500).send('Error retrieving bill.');
+        }
+    });
 
     // --- API TO GET DATA FROM CLOUD ---
     app.get('/api/get-entries', async (req, res) => {

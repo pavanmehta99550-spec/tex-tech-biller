@@ -39,7 +39,8 @@ import {
   History
 } from 'lucide-react';
 import { storage } from './lib/storage';
-import { auth, db } from './lib/firebase';
+import { auth, db, fireStorage } from './lib/firebase';
+import { whatsappService } from './lib/whatsappService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, runTransaction } from 'firebase/firestore';
 import jsPDF from 'jspdf';
@@ -198,9 +199,51 @@ export default function App() {
   }, [bookings, purchases, creditNotes, debitNotes, payments]);
 
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
+  const [isProcessingWhatsApp, setIsProcessingWhatsApp] = useState(false);
+  const [whatsappAutomationData, setWhatsappAutomationData] = useState<any>(null);
+  const [whatsappQueue, setWhatsappQueue] = useState<any[]>([]);
   const [previewPurchase, setPreviewPurchase] = useState<Purchase | null>(null);
   const [previewDebitNote, setPreviewDebitNote] = useState<DebitNote | null>(null);
   const [previewCreditNote, setPreviewCreditNote] = useState<CreditNote | null>(null);
+
+  const processWhatsAppQueue = useCallback(async () => {
+    if (whatsappQueue.length === 0 || isProcessingWhatsApp) return;
+    
+    const item = whatsappQueue[0];
+    setIsProcessingWhatsApp(true);
+    setWhatsappAutomationData(item);
+    
+    try {
+      // Wait for DOM to render the hidden preview
+      await new Promise(r => setTimeout(r, 2000));
+      
+      const blob = await whatsappService.generatePDF('whatsapp-auto-container');
+      const fileName = `${item.billNumber || item.noteNumber || 'bill'}_${item.id}`;
+      const downloadUrl = await whatsappService.uploadPDF(blob, fileName);
+      
+      const maskedLink = `${window.location.origin}/view/${item.id}`;
+      await whatsappService.createRedirect(item.id, downloadUrl);
+      
+      whatsappService.sendWhatsApp({
+        billNo: (item.billNumber || item.noteNumber || 'N/A').toString(),
+        partyName: item.consigneeName || item.partyName || 'Customer',
+        amount: item.grandTotal?.toString() || '0',
+        phone: item.consigneeMobile || item.partyMobile || item.mobile || '',
+        id: item.id
+      }, maskedLink);
+      
+    } catch (err) {
+      console.error("WhatsApp automation error:", err);
+    } finally {
+      setIsProcessingWhatsApp(false);
+      setWhatsappAutomationData(null);
+      setWhatsappQueue(prev => prev.slice(1));
+    }
+  }, [whatsappQueue, isProcessingWhatsApp]);
+
+  useEffect(() => {
+    processWhatsAppQueue();
+  }, [whatsappQueue, processWhatsAppQueue]);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [editingDebitNote, setEditingDebitNote] = useState<DebitNote | null>(null);
@@ -887,6 +930,7 @@ export default function App() {
     }
 
     setPreviewBooking(newBooking);
+    setWhatsappQueue(prev => [...prev, newBooking]);
     alert(isUpdate ? "Sale Bill Updated Successfully!" : "Sale Bill Saved Successfully!");
   };
 
@@ -1327,6 +1371,7 @@ export default function App() {
 
       setEditingCreditNote(null);
       setPreviewCreditNote(newCreditNote);
+      setWhatsappQueue(prev => [...prev, newCreditNote]);
       alert(isUpdate ? "Credit Note Updated Successfully!" : "Credit Note Saved Successfully!");
 
     } catch (e) {
@@ -2322,10 +2367,199 @@ export default function App() {
             </motion.div>
           </div>
         )}
+
+        {isProcessingWhatsApp && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[10000] flex items-center justify-center">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-6 max-w-sm text-center">
+              <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+              <div>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">WhatsApp Automation</h3>
+                <p className="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest leading-relaxed">Uploading PDF & Generating Redirect Link. Please wait...</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {whatsappAutomationData && (
+          <div id="whatsapp-auto-container" style={{ position: 'fixed', left: '-9999px', top: 0, width: '800px', backgroundColor: 'white', zIndex: -1 }}>
+             <BillTemplate 
+                booking={whatsappAutomationData} 
+                settings={settings} 
+                payments={payments}
+                creditNotes={creditNotes}
+             />
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );
 }
+
+function BillTemplate({ booking, settings, payments = [], creditNotes = [] }: any) {
+  const totalPaid = (payments || []).reduce((sum: number, pay: any) => sum + Number(pay.amount || 0), 0);
+  const cnAmount = (creditNotes || []).filter((cn: any) => cn.salesBillNumber === booking.billNumber?.toString()).reduce((sum: number, cn: any) => sum + cn.grandTotal, 0);
+  const p = booking;
+  const isFullyPaid = (totalPaid + cnAmount) >= (p.grandTotal - 0.5);
+  const remainingBalance = Math.max(0, p.grandTotal - totalPaid - cnAmount);
+
+  const consigneeName = p.consigneeName || p.partyName || '';
+  const consigneeAddress = p.consigneeAddress || p.partyAddress || '';
+  const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
+  const consigneeMobile = p.consigneeMobile || p.partyMobile || '';
+  const consignorName = p.consignorName || settings?.companyName || "ANGAD SILK MILLS";
+
+  const myStateCode = "24";
+  const rState = (consigneeGstin || '').substring(0, 2);
+  const isInterstate = rState !== myStateCode;
+  
+  const taxableValue = p.basicAmount - (p.globalDiscount || 0);
+  const tr = p.taxRate || 5;
+  const tax = taxableValue * (tr / 100);
+  const cgst = p.cgstAmount ?? (isInterstate ? 0 : tax/2);
+  const sgst = p.sgstAmount ?? (isInterstate ? 0 : tax/2);
+  const igst = p.igstAmount ?? (isInterstate ? tax : 0);
+
+  return (
+    <div id="bill-template-root" className="bg-white p-10 text-black font-sans box-border text-[11px]" style={{ fontFamily: 'Arial, sans-serif', width: '800px' }}>
+      <div className="border border-black">
+        <div className="text-center p-2 border-b border-black">
+          <div className="font-bold text-xs" style={{ fontFamily: 'Georgia, serif' }}>||| SHREE GANESHAY NAMAH |||</div>
+          <h1 className="text-3xl font-black mt-1 uppercase tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
+          <div className="font-bold uppercase mt-1 tracking-wide">{settings?.address || "SURAT, GUJARAT"}</div>
+        </div>
+
+        <div className="flex justify-between items-center p-2 border-b border-black font-bold uppercase">
+          <div className="w-1/3 text-left">
+            <div>GSTIN: {settings?.gstin || ""}</div>
+          </div>
+          <div className="w-1/3 text-center text-xl font-black tracking-widest uppercase">
+            {p.noteNumber ? (p.type === 'DEBIT' ? 'DEBIT NOTE' : 'CREDIT NOTE') : 'TAX INVOICE'}
+          </div>
+          <div className="w-1/3 text-right">
+            <div>Mo: {settings?.mobile || ""}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-[60%_40%] border-b border-black">
+          <div className="border-r border-black p-2 space-y-1">
+            <div className="flex"><span className="w-32 font-bold">From:</span> <span className="uppercase">{consignorName}</span></div>
+            <div className="flex"><span className="w-32 font-bold">Transport:</span> <span className="uppercase">{p.transportName || '-'}</span></div>
+            <div className="flex"><span className="w-32 font-bold">LR No:</span> <span className="uppercase">{p.lrNumber || '-'}</span></div>
+          </div>
+          <div className="p-2 space-y-1">
+            <div className="flex justify-between"><span className="font-bold">{p.noteNumber ? 'Note No:' : 'Invoice No:'}</span> <span className="uppercase font-bold">{p.billNumber || p.noteNumber}</span></div>
+            <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date || Date.now()).toLocaleDateString('en-GB')}</span></div>
+            {p.ewbNumber ? (
+              <div className="flex justify-between"><span className="font-black">EWAY BILL:</span> <span className="uppercase font-black">{p.ewbNumber}</span></div>
+            ) : (
+              <div className="flex justify-between"><span className="font-bold">{p.salesBillNumber || p.purchaseBillNumber ? 'Against Bill:' : 'Challan No:'}</span> <span className="uppercase">{p.salesBillNumber || p.purchaseBillNumber || '-'}</span></div>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 border-b border-black">
+          <div className="border-r border-black p-2 h-full">
+            <div className="font-bold mb-1 underline">Details of Receiver (Billed To)</div>
+            <div className="font-black text-[13px] uppercase">{consigneeName}</div>
+            <div className="uppercase">{consigneeAddress}</div>
+            <div className="mt-2 flex gap-4 uppercase">
+              <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+            </div>
+          </div>
+          <div className="p-2 h-full">
+            <div className="font-bold mb-1 underline">Details of Consignee (Shipped To)</div>
+            <div className="font-black text-[13px] uppercase">{consigneeName}</div>
+            <div className="uppercase">{consigneeAddress}</div>
+          </div>
+        </div>
+
+        <table className="w-full text-center border-collapse">
+          <thead>
+            <tr className="border-b border-black uppercase text-[10px] font-bold h-8">
+              <th className="border-r border-black p-1.5 min-w-[30px]">No</th>
+              <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
+              <th className="border-r border-black p-1.5">HSN No</th>
+              <th className="border-r border-black p-1.5">Taka / Box</th>
+              <th className="border-r border-black p-1.5">Qty</th>
+              <th className="border-r border-black p-1.5">Rate</th>
+              <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(p.items || []).map((item: any, idx: number) => (
+              <tr key={item.id} className="border-b-0 text-[11px] align-top">
+                <td className="border-r border-black p-1">{idx + 1}</td>
+                <td className="border-r border-black p-1 text-left font-bold uppercase">
+                  {item.name} {item.color && <span className="font-normal ml-1">({item.color})</span>}
+                </td>
+                <td className="border-r border-black p-1">{item.hsnCode}</td>
+                <td className="border-r border-black p-1">{item.taka || '-'}</td>
+                <td className="border-r border-black p-1 uppercase font-bold">{item.quantity} <span className="font-normal text-[9px]">{item.unit}</span></td>
+                <td className="border-r border-black p-1">{Number(item.rate).toFixed(2)}</td>
+                <td className="p-1 text-right">{Number(item.amount).toFixed(2)}</td>
+              </tr>
+            ))}
+            {Array.from({ length: Math.max(0, 10 - (p.items?.length || 0)) }).map((_, i) => (
+              <tr key={'empty'+i} className="align-top h-6">
+                <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+              </tr>
+            ))}
+            <tr className="border-y border-black font-bold uppercase text-[11px] h-6 bg-slate-50">
+              <td className="border-r border-black p-1.5" colSpan={3}>Total</td>
+              <td className="border-r border-black p-1.5">{(p.items || []).reduce((s:number, i:any) => s + (Number(i.taka) || 0), 0) || '-'}</td>
+              <td className="border-r border-black p-1.5">{(p.items || []).reduce((s:number, i:any) => s + (Number(i.quantity) || 0), 0).toFixed(2)}</td>
+              <td className="border-r border-black p-1.5"></td>
+              <td className="p-1.5 text-right tracking-wider">{Number(p.basicAmount).toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="grid grid-cols-[60%_40%]">
+          <div className="border-r border-black p-2 flex flex-col justify-between">
+            <div>
+              <div className="font-bold underline mb-1 uppercase text-[10px]">Amount in Words:</div>
+              <div className="font-bold italic uppercase indent-2 text-[11px] font-black">{numberToWords(p.grandTotal)}</div>
+            </div>
+            <div className="mt-4 pb-2 border-b border-black border-dashed">
+              <div className="font-bold underline mb-1 uppercase text-[10px]">Bank Details</div>
+              <div className="grid grid-cols-[60px_1fr] gap-y-0.5 text-[10px] uppercase">
+                <span className="font-bold">Bank:</span> <span>{settings?.bankName || ''}</span>
+                <span className="font-bold">A/c No:</span> <span className="font-black">{settings?.accountNumber || ''}</span>
+                <span className="font-bold">IFSC:</span> <span className="font-black">{settings?.ifscCode || ''}</span>
+              </div>
+            </div>
+            <div className="mt-2 text-[9px] leading-snug">
+              <div className="font-bold underline mb-1 uppercase">Terms of Sales</div>
+              <ol className="list-decimal pl-4 space-y-0.5 m-0 uppercase font-bold text-slate-800">
+                <li>Goods once sold will not be taken back.</li>
+                <li>Subject to Surat Jurisdiction only.</li>
+              </ol>
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <div className="p-2 space-y-1 bg-white flex-1 text-[11px]">
+              <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Gross Amount</span> <span className="font-bold">{Number(p.basicAmount).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Tax Amount</span> <span className="font-bold">{Number(p.taxAmount).toFixed(2)}</span></div>
+            </div>
+            <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center bg-slate-50">
+               <span>Net Amount</span>
+               <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2})}</span>
+            </div>
+            <div className="p-2 pt-6 text-center flex-1 flex flex-col justify-end">
+              <div className="font-black uppercase text-[10px] mb-8 text-right tracking-widest leading-none">For {settings?.companyName || "ANGAD SILK MILLS"}</div>
+              <div className="text-[9px] font-bold uppercase text-right opacity-60 leading-none">Authorized Signatory</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div className="watermark" style={{ color: isFullyPaid ? '#059669' : '#dc2626' }}>
+        {isFullyPaid ? 'PAID' : 'UNPAID'}
+      </div>
+    </div>
+  );
+}
+
 
 function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale }: any) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -10451,7 +10685,9 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
       }
     }
 
-    onSave({ ...formData, type });
+    const totalMtrs = (formData.items || []).reduce((sum, item) => sum + (parseFloat(item.quantity.toString()) || 0), 0);
+    const brokerAmount = Math.round(totalMtrs * (formData.brokerRate || 0));
+    onSave({ ...formData, type, brokerAmount });
     const nextSerial = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 2; 
     setFormData({
       serialNo: nextSerial,
@@ -10772,6 +11008,11 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                   <div className="text-[10px] font-black text-[#00cec9] uppercase tracking-widest italic">#{c.challanNumber}</div>
                 </div>
                 <div className="text-xl font-black text-slate-900 uppercase tracking-tighter truncate max-w-[150px]">{c.partyName}</div>
+                {c.brokerId && (
+                  <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-1">
+                    Broker: {(brokers||[]).find(b => b.id === c.brokerId)?.name || 'Unknown'} - ₹{c.brokerAmount?.toLocaleString()}
+                  </div>
+                )}
                 <div className="text-[10px] font-bold text-slate-400">{new Date(c.date).toLocaleDateString()}</div>
               </div>
               <button 
