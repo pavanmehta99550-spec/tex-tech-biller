@@ -40,7 +40,7 @@ import {
 import { storage } from './lib/storage';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, runTransaction } from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
@@ -238,15 +238,15 @@ export default function App() {
   // Calculate current entry payment status for watermark
   const currentStatus = useMemo(() => {
     if (currentView === 'inv' && editingBooking) {
-      const info = getBillPaymentInfo(editingBooking.id, editingBooking.grandTotal, payments);
+      const info = getBillPaymentInfo(editingBooking.id, editingBooking.grandTotal, payments, creditNotes, editingBooking.billNumber?.toString());
       return info.status;
     }
     if (currentView === 'pur' && editingPurchase) {
-      const info = getBillPaymentInfo(editingPurchase.id, editingPurchase.grandTotal, purchasePayments);
+      const info = getBillPaymentInfo(editingPurchase.id, editingPurchase.grandTotal, purchasePayments, debitNotes, editingPurchase.billNumber?.toString());
       return info.status;
     }
     return null;
-  }, [currentView, editingBooking, editingPurchase, payments, purchasePayments]);
+  }, [currentView, editingBooking, editingPurchase, payments, purchasePayments, creditNotes, debitNotes]);
 
 
   useEffect(() => storage.set('purchaseParties', purchaseParties), [purchaseParties]);
@@ -1146,7 +1146,7 @@ export default function App() {
     alert(isUpdate ? "Debit Note Updated Successfully!" : "Debit Note Saved Successfully!");
   };
 
-  const handleSaveCreditNote = (data: Partial<CreditNote>) => {
+  const handleSaveCreditNote = async (data: Partial<CreditNote>) => {
     let updatedParties = [...saleParties];
     
     const maxNoteNum = creditNotes.reduce((max, b) => Math.max(max, b.noteNumber || 0), 0);
@@ -1178,36 +1178,104 @@ export default function App() {
       notes: data.notes || ''
     };
 
-    if (isUpdate) {
-      setCreditNotes(prev => prev.map(b => b.id === data.id ? newCreditNote : b));
-      
-      setSaleParties(prev => {
-        const oldNote = creditNotes.find(b => b.id === data.id);
-        if (!oldNote) return prev;
+    setIsSyncing(true);
+    try {
+      const activeId = auth.currentUser?.uid || customLoginId;
+      if (activeId) {
+        const cnPath = auth.currentUser ? `users/${auth.currentUser.uid}/appData/credit-notes` : `custom_accounts/${activeId}/appData/credit-notes`;
+        const bPath = auth.currentUser ? `users/${auth.currentUser.uid}/appData/bookings` : `custom_accounts/${activeId}/appData/bookings`;
         
-        return prev.map(p => {
-          let total = p.totalSales || 0;
-          if (p.gstin === oldNote.partyGstin) {
-            total += oldNote.grandTotal || 0;
+        await runTransaction(db, async (transaction) => {
+          const cnRef = doc(db, ...cnPath.split('/') as [string, string, string, string]);
+          const bRef = doc(db, ...bPath.split('/') as [string, string, string, string]);
+          
+          const cnSnap = await transaction.get(cnRef);
+          const bSnap = await transaction.get(bRef);
+          
+          let currentCNs = (cnSnap.exists() ? cnSnap.data().value : null) || creditNotes;
+          let currentBookings = (bSnap.exists() ? bSnap.data().value : null) || bookings;
+          
+          if (isUpdate) {
+            currentCNs = currentCNs.map((cn: any) => cn.id === data.id ? newCreditNote : cn);
+          } else {
+            currentCNs = [newCreditNote, ...currentCNs];
           }
-          if (p.gstin === data.partyGstin) {
-            total -= newCreditNote.grandTotal || 0;
+          
+          let updatedBooking = null;
+          if (newCreditNote.salesBillNumber) {
+             const bIndex = currentBookings.findIndex((b: any) => b.billNumber.toString() === newCreditNote.salesBillNumber);
+             if (bIndex >= 0) {
+               const b = currentBookings[bIndex];
+               const priorCNsSum = currentCNs
+                 .filter((cn: any) => cn.salesBillNumber === b.billNumber.toString() && cn.id !== newCreditNote.id)
+                 .reduce((sum: number, cn: any) => sum + cn.grandTotal, 0);
+               const totalCNSum = priorCNsSum + newCreditNote.grandTotal;
+               
+               const existingPaidInfo = getBillPaymentInfo(b.id, b.grandTotal, payments);
+               const newPending = b.grandTotal - existingPaidInfo.paidAmount - totalCNSum;
+               
+               let newStatus = 'UNPAID';
+               if (newPending <= 0) newStatus = 'PAID';
+               else if ((existingPaidInfo.paidAmount + totalCNSum) > 0) newStatus = 'PARTIAL';
+               
+               currentBookings[bIndex] = { ...b, pendingAmount: newPending, status: newStatus };
+               updatedBooking = currentBookings[bIndex];
+             }
           }
-          return { ...p, totalSales: total };
+          
+          transaction.set(cnRef, { value: currentCNs });
+          transaction.set(bRef, { value: currentBookings });
         });
-      });
-      setEditingCreditNote(null);
-    } else {
-      setCreditNotes(prev => [newCreditNote, ...prev]);
-      setSaleParties(prev => prev.map(p => 
-        p.gstin === data.partyGstin 
-          ? { ...p, totalSales: (p.totalSales || 0) - newCreditNote.grandTotal } 
-          : p
-      ));
-    }
+      }
 
-    setPreviewCreditNote(newCreditNote);
-    alert(isUpdate ? "Credit Note Updated Successfully!" : "Credit Note Saved Successfully!");
+      // Update Local State strictly
+      setCreditNotes(prev => {
+        if (isUpdate) return prev.map(b => b.id === data.id ? newCreditNote : b);
+        return [newCreditNote, ...prev];
+      });
+
+      if (newCreditNote.salesBillNumber) {
+        setBookings(prev => prev.map(b => {
+          if (b.billNumber.toString() === newCreditNote.salesBillNumber) {
+             const priorCNsSum = creditNotes
+               .filter((cn: any) => cn.salesBillNumber === b.billNumber.toString() && cn.id !== newCreditNote.id)
+               .reduce((sum: number, cn: any) => sum + cn.grandTotal, 0);
+             const totalCNSum = priorCNsSum + newCreditNote.grandTotal;
+             const existingPaidInfo = getBillPaymentInfo(b.id, b.grandTotal, payments);
+             const newPending = b.grandTotal - existingPaidInfo.paidAmount - totalCNSum;
+             let newStatus = 'UNPAID';
+             if (newPending <= 0) newStatus = 'PAID';
+             else if ((existingPaidInfo.paidAmount + totalCNSum) > 0) newStatus = 'PARTIAL';
+             return { ...b, pendingAmount: newPending, status: newStatus as any };
+          }
+          return b;
+        }));
+      }
+
+      setSaleParties(prev => {
+        if (isUpdate) {
+          const oldNote = creditNotes.find(b => b.id === data.id);
+          if (!oldNote) return prev;
+          return prev.map(p => {
+            let total = p.totalSales || 0;
+            if (p.gstin === oldNote.partyGstin) total += oldNote.grandTotal || 0;
+            if (p.gstin === data.partyGstin) total -= newCreditNote.grandTotal || 0;
+            return { ...p, totalSales: total };
+          });
+        }
+        return prev.map(p => p.gstin === data.partyGstin ? { ...p, totalSales: (p.totalSales || 0) - newCreditNote.grandTotal } : p);
+      });
+
+      setEditingCreditNote(null);
+      setPreviewCreditNote(newCreditNote);
+      alert(isUpdate ? "Credit Note Updated Successfully!" : "Credit Note Saved Successfully!");
+
+    } catch (e) {
+      console.error("Firestore transaction failed: ", e);
+      alert("Error saving Credit Note safely. Please try again.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleSaveChallan = (data: Partial<Challan>) => {
@@ -1687,6 +1755,7 @@ export default function App() {
               onSave={handleSaveBooking} 
               parties={saleParties} 
               settings={settings} 
+              creditNotes={creditNotes}
               bookings={bookings}
               purchases={purchases}
               itemsMaster={itemsMaster}
@@ -1824,6 +1893,7 @@ export default function App() {
                 parties={saleParties} 
                 bookings={bookings}
                 payments={payments}
+                creditNotes={creditNotes}
                 editingPayment={editingPayment}
                 onCancel={() => {
                   setEditingPayment(null);
@@ -1838,6 +1908,7 @@ export default function App() {
                 parties={purchaseParties} 
                 purchases={purchases}
                 payments={purchasePayments}
+                debitNotes={debitNotes}
                 editingPayment={editingPayment}
                 onCancel={() => {
                   setEditingPayment(null);
@@ -1977,6 +2048,8 @@ export default function App() {
               <PrintPreview 
                 booking={previewBooking} 
                 settings={settings} 
+                payments={payments}
+                creditNotes={creditNotes}
                 onClose={() => setPreviewBooking(null)} 
               />
             )}
@@ -3928,6 +4001,7 @@ function BookingView({
   itemsMaster = [], 
   transports = [], 
   brokers = [],
+  creditNotes = [],
   editingBooking, 
   onViewHistory, 
   onCancel, 
@@ -4870,6 +4944,7 @@ function BookingView({
             }} 
             settings={settings} 
             payments={payments}
+            creditNotes={creditNotes}
             onClose={() => setShowPreview(false)} 
           />
         )}
@@ -5678,7 +5753,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
     </motion.div>
   );
 }
-function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel, payments = [] }: any) {
+function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel, payments = [], debitNotes = [] }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
   const [chequeDate, setChequeDate] = useState(editingPayment?.chequeDate || '');
@@ -5704,7 +5779,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
     if (selectedParty) {
       setBillAdjustments(partyPurchases.map((p: any) => {
         const otherPayments = payments.filter((py: any) => py.id !== editingPayment?.id);
-        const info = getBillPaymentInfo(p.id, p.grandTotal, otherPayments);
+        const info = getBillPaymentInfo(p.id, p.grandTotal, otherPayments, debitNotes, p.billNumber?.toString());
         const existingAdj = editingPayment?.billAdjustments?.find((adj: any) => adj.billId === p.id);
         const paidAmount = existingAdj ? existingAdj.paid : '';
 
@@ -5946,7 +6021,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
   );
 }
 
-function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, payments = [] }: any) {
+function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, payments = [], creditNotes = [] }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [amount, setAmount] = useState(editingPayment?.amount?.toString() || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
@@ -5973,7 +6048,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
     if (selectedParty) {
       setBillAdjustments(partyBookings.map((b: any) => {
         const otherPayments = payments.filter((p: any) => p.id !== editingPayment?.id);
-        const info = getBillPaymentInfo(b.id, b.grandTotal, otherPayments);
+        const info = getBillPaymentInfo(b.id, b.grandTotal, otherPayments, creditNotes, b.billNumber?.toString());
         const existingAdj = editingPayment?.billAdjustments?.find((adj: any) => adj.billId === b.id);
         const paidAmount = existingAdj ? existingAdj.paid : '';
 
@@ -6972,7 +7047,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
       transactions = transactions.filter((t: any) => {
         if (t.type === 'SALE' || t.type === 'PURCHASE') {
           const paymentsList = activeTab === 'sales' ? payments : purchasePayments;
-          const info = getBillPaymentInfo(t.id, Math.abs(t.amount), paymentsList);
+          const info = getBillPaymentInfo(t.id, Math.abs(t.amount), paymentsList, activeTab === 'sales' ? creditNotes : [], t.billNumber?.toString());
           if (billFilter === 'PAID') return info.status === 'PAID';
           if (billFilter === 'UNPAID') return info.status === 'UNPAID' || info.status === 'PARTIAL';
         }
@@ -7132,7 +7207,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
         </div>
         </div>
 
-        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} payments={payments} onClose={() => setPreviewBooking(null)} />}
+        {previewBooking && <PrintPreview booking={previewBooking} settings={settings} payments={payments} creditNotes={creditNotes} onClose={() => setPreviewBooking(null)} />}
         {previewPurchase && <PurchasePrintPreview purchase={previewPurchase} settings={settings} payments={purchasePayments} onClose={() => setPreviewPurchase(null)} />}
         {previewPayment && <PaymentPrintPreview payment={previewPayment} settings={settings} onClose={() => setPreviewPayment(null)} />}
         {previewCreditNote && <CreditNotePrintPreview creditNote={previewCreditNote} settings={settings} onClose={() => setPreviewCreditNote(null)} />}
@@ -7194,7 +7269,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
                     partyT = partyT.filter((t: any) => {
                       if (t.type === 'SALE' || t.type === 'PURCHASE') {
                         const paymentsList = activeTab === 'sales' ? payments : purchasePayments;
-                        const info = getBillPaymentInfo(t.id, Math.abs(t.amount), paymentsList);
+                        const info = getBillPaymentInfo(t.id, Math.abs(t.amount), paymentsList, activeTab === 'sales' ? creditNotes : [], t.billNumber?.toString());
                         if (billFilter === 'PAID') return info.status === 'PAID';
                         if (billFilter === 'UNPAID') return info.status === 'UNPAID' || info.status === 'PARTIAL';
                       }
@@ -7277,19 +7352,23 @@ interface SettingsViewProps {
   onUpdateParties: (p: Party[]) => void;
 }
 
-function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Payment[]) {
+function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Payment[], allCreditNotes: CreditNote[] = [], billNumberStr: string = '') {
   const BillAdjustments = allPayments.flatMap(p => p.billAdjustments || []);
   const paidAmount = BillAdjustments
     .filter(adj => adj.billId === billId)
     .reduce((sum, adj) => sum + adj.amount, 0);
+
+  const cnAmount = allCreditNotes
+    .filter(cn => cn.salesBillNumber === billNumberStr && billNumberStr !== '')
+    .reduce((sum, cn) => sum + cn.grandTotal, 0);
   
-  const balance = grandTotal - paidAmount;
+  const balance = grandTotal - paidAmount - cnAmount;
   let status: 'PAID' | 'PARTIAL' | 'UNPAID' = 'UNPAID';
   
   if (balance <= 0) status = 'PAID';
-  else if (paidAmount > 0) status = 'PARTIAL';
+  else if ((paidAmount + cnAmount) > 0) status = 'PARTIAL';
   
-  return { paidAmount, balance, status };
+  return { paidAmount, balance, status, cnAmount };
 }
 
 
@@ -7808,11 +7887,12 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
     </motion.div>
   );
 }
-function PrintPreview({ booking, settings, payments = [], onClose }: { booking: any, settings: AppSettings | null, payments?: Payment[], onClose: () => void }) {
+function PrintPreview({ booking, settings, payments = [], creditNotes = [], onClose }: { booking: any, settings: AppSettings | null, payments?: Payment[], creditNotes?: CreditNote[], onClose: () => void }) {
   const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
+  const cnAmount = (creditNotes || []).filter(cn => cn.salesBillNumber === booking.billNumber?.toString()).reduce((sum, cn) => sum + cn.grandTotal, 0);
   const p = booking;
-  const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
-  const remainingBalance = Math.max(0, p.grandTotal - totalPaid);
+  const isFullyPaid = (totalPaid + cnAmount) >= (p.grandTotal - 0.5);
+  const remainingBalance = Math.max(0, p.grandTotal - totalPaid - cnAmount);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

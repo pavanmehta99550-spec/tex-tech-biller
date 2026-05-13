@@ -59,6 +59,9 @@ export interface Booking {
   date: string;
   billNumber: number;
   notes?: string;
+  brokerId?: string;
+  pendingAmount?: number;
+  status?: 'UNPAID' | 'PARTIAL' | 'PAID';
 }
 
 export interface Transport {
