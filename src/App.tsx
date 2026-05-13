@@ -1798,8 +1798,10 @@ export default function App() {
                 payments={brokerPayments}
                 bookings={bookings}
                 purchases={purchases}
-                onSavePayment={(p) => setBrokerPayments(prev => [p, ...prev])}
-                onDeletePayment={(id) => setBrokerPayments(prev => prev.filter(p => p.id !== id))}
+                millChallans={millChallans}
+                onSavePayment={(p: any) => setBrokerPayments(prev => [p, ...prev])}
+                onSaveCommission={(c: BrokerCommission) => setCommissions(prev => [c, ...prev])}
+                onDeletePayment={(id: string) => setBrokerPayments(prev => prev.filter(p => p.id !== id))}
               />
             )}
             {currentView === 'inv' && <BookingView 
@@ -10242,6 +10244,15 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
       alert("Please fill all required fields and add at least one item.");
       return;
     }
+
+    // Duplicate Check
+    const isDuplicate = (challans || []).some((c: any) => c.type === type && c.challanNumber === formData.challanNumber && c.id !== formData.id);
+    if (isDuplicate) {
+      if (!confirm(`A challan with number "${formData.challanNumber}" already exists in ${type} records. Do you want to "OK" to proceed or "Cancel" to stop?`)) {
+        return;
+      }
+    }
+
     onSave({ ...formData, type });
     const nextSerial = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 2; 
     setFormData({
@@ -11031,14 +11042,25 @@ function BrokersView({ brokers, saleParties, purchaseParties, millChallans, onSa
   );
 }
 
-function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDeletePayment, bookings, purchases }: any) {
+function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSaveCommission, onDeletePayment, bookings, purchases, millChallans = [] }: any) {
   const [selectedBroker, setSelectedBroker] = useState<any>(null);
+  const [showCommModal, setShowCommModal] = useState(false);
+  const [commForm, setCommForm] = useState({
+    billNumber: '',
+    date: new Date().toISOString().split('T')[0],
+    partyName: '',
+    billAmount: 0,
+    rate: 0,
+    type: 'percentage' as 'percentage' | 'fixed' | 'meter',
+    amount: 0,
+    totalMtrs: 0
+  });
   
   const brokerCommissions = useMemo(() => {
     if (!selectedBroker) return [];
     return commissions.filter((c: any) => c.brokerId === selectedBroker.id).map((c: any) => ({
       ...c,
-      transactionType: bookings.some((b: any) => b.id === c.billId) ? 'SALE' : 'PURCHASE'
+      transactionType: c.commissionType === 'meter' ? 'MILL' : (bookings.some((b: any) => b.id === c.billId) ? 'SALE' : 'PURCHASE')
     }));
   }, [selectedBroker, commissions, bookings]);
 
@@ -11052,7 +11074,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
       ...brokerCommissions.map(c => ({ 
         id: c.id, 
         date: c.date || c.billDate, 
-        type: c.transactionType, // SALE or PURCHASE
+        type: c.transactionType, // SALE or PURCHASE or MILL
         ref: c.billNumber?.toString() || '-', 
         party: c.partyName,
         billAmount: c.billAmount,
@@ -11096,6 +11118,78 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
     setPaymentForm({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
   };
 
+  const calculateCommAmount = (rate: number, type: string, billAmount: number, mtrs: number) => {
+    if (type === 'fixed') return rate;
+    if (type === 'meter') return Math.round(mtrs * rate);
+    return Math.round(billAmount * (rate / 100));
+  };
+
+  const handleFetchChallan = () => {
+    const c = millChallans.find(ch => ch.challanNumber === commForm.billNumber);
+    if (c) {
+      const totalMtrs = c.items.reduce((sum, it) => sum + (it.unit === 'MTR' ? it.quantity || 0 : 0), 0);
+      const rate = selectedBroker?.defaultCommission || 0;
+      const type = selectedBroker?.type === 'mill' ? 'meter' : 'percentage';
+      const amount = calculateCommAmount(rate, type, 0, totalMtrs);
+      
+      setCommForm({
+        ...commForm,
+        partyName: c.partyName,
+        totalMtrs,
+        rate,
+        type,
+        amount,
+        date: c.date
+      });
+    } else {
+      alert("Mill Challan not found");
+    }
+  };
+
+  const handleSaveManualComm = () => {
+    if (!commForm.billNumber) return alert("Bill/Challan Number is required");
+    
+    // Duplicate Check
+    const isDuplicate = commissions.some(c => 
+      c.brokerId === selectedBroker.id && 
+      c.billNumber === commForm.billNumber && 
+      c.partyName === commForm.partyName
+    );
+
+    if (isDuplicate) {
+      if (!confirm("Commission for this Bill/Challan Number already exists for this broker. Do you want to proceed anyway?")) {
+        return;
+      }
+    }
+
+    const c: BrokerCommission = {
+      id: Math.random().toString(36).substr(2, 9),
+      brokerId: selectedBroker.id,
+      brokerName: selectedBroker.name,
+      partyName: commForm.partyName,
+      billNumber: commForm.billNumber,
+      billDate: commForm.date,
+      billAmount: commForm.billAmount,
+      commissionRate: commForm.rate,
+      commissionType: commForm.type,
+      commissionAmount: commForm.amount,
+      status: 'UNPAID',
+      paidAmount: 0
+    };
+    onSaveCommission(c);
+    setShowCommModal(false);
+    setCommForm({
+      billNumber: '',
+      date: new Date().toISOString().split('T')[0],
+      partyName: '',
+      billAmount: 0,
+      rate: 0,
+      type: 'percentage',
+      amount: 0,
+      totalMtrs: 0
+    });
+  };
+
   return (
     <div className="p-8 pb-32">
       <div className="flex justify-between items-center mb-8">
@@ -11104,7 +11198,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
           <select 
             value={selectedBroker?.id || ''} 
             onChange={e => setSelectedBroker(brokers.find((b: any) => b.id === e.target.value))}
-            className="bg-white border-2 border-slate-200 rounded-2xl px-6 py-3 font-black text-xs uppercase"
+            className="bg-white border-2 border-slate-200 rounded-2xl px-6 py-3 font-black text-xs uppercase focus:border-indigo-500 outline-none transition-all shadow-lg"
           >
             <option value="">Select Broker</option>
             {brokers.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -11119,6 +11213,80 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
         </div>
       ) : (
         <div className="space-y-8">
+          {showCommModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+                <div className="px-10 py-8 bg-slate-900 text-white flex justify-between items-center">
+                  <h3 className="text-2xl font-black uppercase tracking-tighter">Add Manual Commission</h3>
+                  <button onClick={() => setShowCommModal(false)} className="text-white/50 hover:text-white transition-colors"><X size={24}/></button>
+                </div>
+                <div className="p-10 space-y-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Challan / Bill No</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={commForm.billNumber} 
+                          onChange={e => setCommForm({ ...commForm, billNumber: e.target.value })} 
+                          className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-indigo-500" 
+                        />
+                        <button 
+                          onClick={handleFetchChallan}
+                          className="bg-indigo-600 text-white px-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all"
+                        >Fetch</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Date</label>
+                      <input type="date" value={commForm.date} onChange={e => setCommForm({ ...commForm, date: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-indigo-500" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Party Name</label>
+                    <input type="text" value={commForm.partyName} onChange={e => setCommForm({ ...commForm, partyName: e.target.value.toUpperCase() })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-indigo-500 uppercase" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-6">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Type</label>
+                      <select 
+                        value={commForm.type} 
+                        onChange={e => {
+                          const type = e.target.value as any;
+                          const amount = calculateCommAmount(commForm.rate, type, commForm.billAmount, commForm.totalMtrs);
+                          setCommForm({ ...commForm, type, amount });
+                        }} 
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-indigo-500"
+                      >
+                        <option value="percentage">Percentage</option>
+                        <option value="meter">Rate / MTR</option>
+                        <option value="fixed">Fixed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Rate</label>
+                      <input 
+                        type="number" 
+                        value={commForm.rate} 
+                        onChange={e => {
+                          const rate = parseFloat(e.target.value) || 0;
+                          const amount = calculateCommAmount(rate, commForm.type, commForm.billAmount, commForm.totalMtrs);
+                          setCommForm({ ...commForm, rate, amount });
+                        }} 
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-indigo-500" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1 text-indigo-600">Calculated Amt</label>
+                      <div className="bg-indigo-50 border-2 border-indigo-100 rounded-2xl p-4 font-black text-indigo-600">₹ {commForm.amount}</div>
+                    </div>
+                  </div>
+                  <button onClick={handleSaveManualComm} className="w-full bg-slate-900 text-white rounded-3xl py-6 font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all">Save Manual Commission Entry</button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-[40px] text-white shadow-xl">
@@ -11135,23 +11303,36 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-100">
-             <h3 className="text-xl font-black mb-6 uppercase tracking-tighter">Record Commission Payment</h3>
-             <div className="flex flex-wrap gap-4 items-end">
-               <div className="flex-1 min-w-[200px]">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Paid Amount (₹)</label>
-                 <input type="number" value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: parseFloat(e.target.value)})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-100 flex-1">
+               <h3 className="text-xl font-black mb-6 uppercase tracking-tighter">Record Commission Payment</h3>
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="col-span-2">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Paid Amount (₹)</label>
+                   <input type="number" value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: parseFloat(e.target.value)})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+                 </div>
+                 <div>
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Payment Date</label>
+                   <input type="date" value={paymentForm.date} onChange={e => setPaymentForm({...paymentForm, date: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+                 </div>
+                 <div className="col-span-2">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Notes / Description</label>
+                   <input type="text" value={paymentForm.notes} onChange={e => setPaymentForm({...paymentForm, notes: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+                 </div>
+                 <button onClick={handleAddPayment} className="col-span-2 bg-emerald-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-emerald-700 transition-all">Save Payment</button>
                </div>
-               <div className="flex-1 min-w-[200px]">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Payment Date</label>
-                 <input type="date" value={paymentForm.date} onChange={e => setPaymentForm({...paymentForm, date: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
-               </div>
-               <div className="flex-[2] min-w-[300px]">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Notes / Description</label>
-                 <input type="text" value={paymentForm.notes} onChange={e => setPaymentForm({...paymentForm, notes: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
-               </div>
-               <button onClick={handleAddPayment} className="bg-slate-900 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg">Save Payment</button>
-             </div>
+            </div>
+
+            <div className="bg-indigo-50 p-8 rounded-[40px] shadow-xl border border-indigo-100 flex-1 flex flex-col justify-center text-center">
+              <h3 className="text-xl font-black mb-4 uppercase tracking-tighter text-indigo-900">Manual Entry</h3>
+              <p className="text-slate-500 font-bold mb-8 text-sm px-8">Need to record a commission credit that wasn't automatically generated? Use this to link manual Mill Challans.</p>
+              <button 
+                onClick={() => setShowCommModal(true)}
+                className="bg-indigo-600 text-white mx-auto px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-indigo-700 transition-all block w-full lg:w-auto"
+              >
+                Add Manual Commission Entry
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
