@@ -787,12 +787,15 @@ export default function App() {
       newBooking.brokerId = broker.id;
       const mapping = broker.partyMappings?.find(m => m.partyId === consignee?.id);
       
-      const commType = mapping?.type || 'percentage';
-      const commRate = mapping?.rate || broker.defaultCommission || 0;
+      const totalMtrs = newBooking.items.reduce((sum, it) => sum + (it.unit === 'MTR' ? it.quantity || 0 : 0), 0);
+      const commType = mapping?.type || (broker.type === 'weaver' ? 'meter' : 'percentage');
+      const commRate = data.brokerCommissionRate || mapping?.rate || broker.defaultCommission || 0;
       
       const commAmount = commType === 'fixed' 
         ? commRate 
-        : Math.round(newBooking.basicAmount * (commRate / 100));
+        : (commType === 'meter' 
+            ? Math.round(totalMtrs * commRate)
+            : Math.round(newBooking.basicAmount * (commRate / 100)));
         
       const newComm: BrokerCommission = {
         id: Math.random().toString(36).substr(2, 9),
@@ -1001,12 +1004,15 @@ export default function App() {
       newPurchase.brokerId = broker.id;
       const mapping = broker.partyMappings?.find(m => m.partyId === party?.id);
       
-      const commType = mapping?.type || 'percentage';
-      const commRate = mapping?.rate || broker.defaultCommission || 0;
+      const totalMtrs = newPurchase.items.reduce((sum, it) => sum + (it.unit === 'MTR' ? it.quantity || 0 : 0), 0);
+      const commType = mapping?.type || (broker.type === 'weaver' ? 'meter' : 'percentage');
+      const commRate = data.brokerCommissionRate || mapping?.rate || broker.defaultCommission || 0;
       
       const commAmount = commType === 'fixed' 
         ? commRate 
-        : Math.round(newPurchase.basicAmount * (commRate / 100));
+        : (commType === 'meter' 
+            ? Math.round(totalMtrs * commRate)
+            : Math.round(newPurchase.basicAmount * (commRate / 100)));
         
       const newComm: BrokerCommission = {
         id: Math.random().toString(36).substr(2, 9),
@@ -1805,7 +1811,8 @@ export default function App() {
               purchases={purchases}
               itemsMaster={itemsMaster}
               transports={transports}
-              brokers={brokers.filter((b: any) => b.type === 'sale' || !b.type)}
+              brokers={brokers.filter((b: any) => b.type === 'sale' || b.type === 'weaver' || !b.type)}
+              challans={challans}
               editingBooking={editingBooking}
               onViewHistory={() => setCurrentView('salehistory')}
               payments={payments}
@@ -1853,7 +1860,8 @@ export default function App() {
               purchases={purchases}
               itemsMaster={itemsMaster}
               transports={transports}
-              brokers={brokers.filter((b: any) => b.type === 'purchase')}
+              brokers={brokers.filter((b: any) => b.type === 'purchase' || b.type === 'weaver')}
+              challans={challans}
               editingPurchase={editingPurchase}
               onViewHistory={() => setCurrentView('purchasehistory')}
               payments={purchasePayments}
@@ -2758,7 +2766,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
   );
 }
 
-function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onViewHistory, onCancel, payments = [], brokers = [] }: any) {
+function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], editingPurchase, onViewHistory, onCancel, payments = [], brokers = [], challans = [] }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
 
@@ -2819,7 +2827,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       partyBillNumber: editingPurchase?.partyBillNumber || '',
       brokerId: editingPurchase?.brokerId || '',
       parcels: editingPurchase?.parcels || '',
-      notes: editingPurchase?.notes || ''
+      notes: editingPurchase?.notes || '',
+      brokerCommissionRate: editingPurchase?.brokerCommissionRate || 0
     };
   });
 
@@ -2849,7 +2858,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
         partyBillNumber: currentEditingPurchase.partyBillNumber || '',
         brokerId: currentEditingPurchase.brokerId || '',
         parcels: currentEditingPurchase.parcels || '',
-        notes: currentEditingPurchase.notes || ''
+        notes: currentEditingPurchase.notes || '',
+        brokerCommissionRate: currentEditingPurchase.brokerCommissionRate || 0
       });
       console.log("FormData updated to:", currentEditingPurchase.partyBillNumber);
     }
@@ -3195,22 +3205,59 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
             </div>
             <div>
               <label className="text-[11px] font-black text-indigo-600 uppercase tracking-wider mb-1 block font-black">Purchase Party Bill No.</label>
-              <input 
-                type="text" 
-                value={formData.partyBillNumber} 
-                readOnly={isLocked}
-                onChange={e => setFormData({ ...formData, partyBillNumber: e.target.value })}
-                onKeyDown={handleEnter}
-                className={`w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
-                placeholder="Party Bill No. (Required)"
-              />
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={formData.partyBillNumber} 
+                  readOnly={isLocked}
+                  onChange={e => setFormData({ ...formData, partyBillNumber: e.target.value })}
+                  onKeyDown={handleEnter}
+                  className={`flex-1 px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
+                  placeholder="Party Bill No. (Required)"
+                />
+                {!isLocked && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const c = challans.find((ch: any) => ch.challanNumber === formData.partyBillNumber);
+                      if (c) {
+                        setFormData({ 
+                          ...formData, 
+                          items: c.items.map((it: any) => ({
+                            id: Math.random().toString(36).substr(2, 9),
+                            name: it.name,
+                            color: '',
+                            hsnCode: '',
+                            unit: it.unit || 'MTR',
+                            quantity: it.quantity,
+                            taka: it.taka?.toString() || '',
+                            meters: it.meters || '',
+                            rate: 0,
+                            discount: 0,
+                            amount: 0
+                          }))
+                        });
+                      } else {
+                        alert("Challan not found");
+                      }
+                    }}
+                    className="bg-indigo-600 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                  >
+                    Fetch
+                  </button>
+                )}
+              </div>
             </div>
             <div>
               <label className="text-[11px] font-black text-indigo-600 uppercase tracking-wider mb-1 block font-black">Broker</label>
               <select
                 value={formData.brokerId || ''}
                 disabled={isLocked}
-                onChange={e => setFormData({ ...formData, brokerId: e.target.value })}
+                onChange={e => {
+                  const bId = e.target.value;
+                  const b = brokers.find((br: any) => br.id === bId);
+                  setFormData({ ...formData, brokerId: bId, brokerCommissionRate: b?.defaultCommission || 0 });
+                }}
                 className={`w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
               >
                 <option value="">Select Broker</option>
@@ -3219,6 +3266,21 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 ))}
               </select>
             </div>
+            {formData.brokerId && (
+              <div>
+                <label className="text-[11px] font-black text-indigo-600 uppercase tracking-wider mb-1 block font-black">
+                  {(brokers.find((b: any) => b.id === formData.brokerId)?.type === 'weaver') ? 'Rate / MTR' : 'Comm %'}
+                </label>
+                <input 
+                  type="number"
+                  step="any"
+                  value={formData.brokerCommissionRate || ''}
+                  onChange={e => setFormData({ ...formData, brokerCommissionRate: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md"
+                  placeholder="Rate"
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -4049,6 +4111,7 @@ function BookingView({
   transports = [], 
   brokers = [],
   creditNotes = [],
+  challans = [],
   editingBooking, 
   onViewHistory, 
   onCancel, 
@@ -4148,6 +4211,7 @@ function BookingView({
       consigneeMobile: editingBooking?.consigneeMobile || '',
       consigneeMobile2: editingBooking?.consigneeMobile2 || '',
       brokerId: editingBooking?.brokerId || '',
+      brokerCommissionRate: editingBooking?.brokerCommissionRate || 0,
       items: (editingBooking?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingBooking?.basicAmount || 0,
       globalDiscount: editingBooking?.globalDiscount || 0,
@@ -4552,19 +4616,40 @@ function BookingView({
                   />
                 </div>
               </div>
-              <div className="mt-4">
-                <label className="text-[11px] font-black text-blue-600 uppercase tracking-wider mb-1 block">Broker</label>
-                <select
-                  value={formData.brokerId || ''}
-                  disabled={isLocked}
-                  onChange={e => setFormData({ ...formData, brokerId: e.target.value })}
-                  className={`w-full px-4 py-3 border-2 border-blue-100 rounded-xl font-black bg-white outline-none focus:border-blue-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
-                >
-                  <option value="">Select Broker</option>
-                  {brokers.map((b: any) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] font-black text-blue-600 uppercase tracking-wider mb-1 block">Broker</label>
+                  <select
+                    value={formData.brokerId || ''}
+                    disabled={isLocked}
+                    onChange={e => {
+                      const bId = e.target.value;
+                      const b = brokers.find((br: any) => br.id === bId);
+                      setFormData({ ...formData, brokerId: bId, brokerCommissionRate: b?.defaultCommission || 0 });
+                    }}
+                    className={`w-full px-4 py-3 border-2 border-blue-100 rounded-xl font-black bg-white outline-none focus:border-blue-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
+                  >
+                    <option value="">Select Broker</option>
+                    {brokers.map((b: any) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {formData.brokerId && (
+                  <div>
+                    <label className="text-[11px] font-black text-blue-600 uppercase tracking-wider mb-1 block font-black">
+                      {(brokers.find((b: any) => b.id === formData.brokerId)?.type === 'weaver') ? 'Rate / MTR' : 'Comm %'}
+                    </label>
+                    <input 
+                      type="number"
+                      step="any"
+                      value={formData.brokerCommissionRate || ''}
+                      onChange={e => setFormData({ ...formData, brokerCommissionRate: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 border-2 border-blue-100 rounded-xl font-black bg-white outline-none focus:border-blue-500 transition-all shadow-md"
+                      placeholder="Rate"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -4784,15 +4869,48 @@ function BookingView({
           </div>
           <div className="space-y-1">
             <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Bill No.</label>
-            <input 
-              type="number" 
-              min="1"
-              value={formData.billNumber || ''} 
-              readOnly={isLocked}
-              onChange={handleBillNumberChange} 
-              onKeyDown={handleEnter}
-              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
-            />
+            <div className="flex gap-2">
+              <input 
+                type="number" 
+                min="1"
+                value={formData.billNumber || ''} 
+                readOnly={isLocked}
+                onChange={handleBillNumberChange} 
+                onKeyDown={handleEnter}
+                className={`flex-1 px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+              />
+              {!isLocked && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const c = challans.find((ch: any) => ch.challanNumber === formData.billNumber?.toString());
+                    if (c) {
+                      setFormData({ 
+                        ...formData, 
+                        items: c.items.map((it: any) => ({
+                          id: Math.random().toString(36).substr(2, 9),
+                          name: it.name,
+                          color: '',
+                          hsnCode: '',
+                          unit: it.unit || 'MTR',
+                          quantity: it.quantity,
+                          taka: it.taka?.toString() || '',
+                          meters: it.meters || '',
+                          rate: 0,
+                          discount: 0,
+                          amount: 0
+                        }))
+                      });
+                    } else {
+                      alert("Challan not found");
+                    }
+                  }}
+                  className="bg-indigo-600 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                >
+                  Fetch
+                </button>
+              )}
+            </div>
             {formData.billNumber <= 0 && !isLocked && (
               <p className="text-[10px] text-red-500 font-bold mt-1">⚠️ Bill Number must be {'>'} 0</p>
             )}
@@ -10693,12 +10811,12 @@ function BrokersView({ brokers, saleParties, purchaseParties, onSave }: any) {
     name: '', 
     mobile: '', 
     pan: '', 
-    type: 'sale' as 'sale' | 'purchase',
+    type: 'sale' as 'sale' | 'purchase' | 'weaver',
     defaultCommission: '',
     mappings: [] as any[] 
   });
 
-  const activeParties = formData.type === 'sale' ? saleParties : purchaseParties;
+  const activeParties = formData.type === 'sale' ? saleParties : (formData.type === 'purchase' ? purchaseParties : [...(saleParties || []), ...(purchaseParties || [])]);
   const allParties = [...(saleParties || []), ...(purchaseParties || [])];
 
   const handleAddMapping = () => {
@@ -10763,15 +10881,18 @@ function BrokersView({ brokers, saleParties, purchaseParties, onSave }: any) {
                 >
                   <option value="sale">Sale Broker</option>
                   <option value="purchase">Purchase Broker</option>
+                  <option value="weaver">Weaver Party</option>
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Commission %</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                  {formData.type === 'weaver' ? 'Default Rate / MTR' : 'Commission %'}
+                </label>
                 <input 
                   type="number" 
                   value={formData.defaultCommission} 
                   onChange={e => setFormData({ ...formData, defaultCommission: e.target.value })}
-                  placeholder="e.g. 2"
+                  placeholder={formData.type === 'weaver' ? 'e.g. 1.50' : 'e.g. 2'}
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
                 />
               </div>
@@ -10828,6 +10949,7 @@ function BrokersView({ brokers, saleParties, purchaseParties, onSave }: any) {
                       >
                         <option value="percentage">% Percentage</option>
                         <option value="fixed">Fixed Amount</option>
+                        <option value="meter">Rate / MTR</option>
                       </select>
                       <button 
                         onClick={() => setFormData({ ...formData, mappings: formData.mappings.filter((_, i) => i !== idx) })}
@@ -10867,10 +10989,10 @@ function BrokersView({ brokers, saleParties, purchaseParties, onSave }: any) {
                     <div className="text-[10px] font-bold text-slate-400">{b.mobile || 'No Mobile'}</div>
                   </td>
                   <td className="px-8 py-6 text-[10px] font-black uppercase tracking-widest">
-                    <span className={b.type === 'sale' ? 'text-blue-600' : 'text-purple-600'}>
+                    <span className={b.type === 'sale' ? 'text-blue-600' : (b.type === 'purchase' ? 'text-purple-600' : 'text-emerald-600')}>
                       {b.type || 'sale'} Broker
                     </span>
-                    {b.defaultCommission > 0 && <div className="text-slate-400">{b.defaultCommission}% Default</div>}
+                    {b.defaultCommission > 0 && <div className="text-slate-400">{b.defaultCommission}{b.type === 'weaver' ? '/mtr' : '%'} Default</div>}
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex flex-wrap gap-1">
@@ -11039,7 +11161,9 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Party Name</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Bill Amount</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Comm %</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                      {selectedBroker?.type === 'weaver' ? 'Rate/MTR' : 'Comm %'}
+                    </th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Brokerage</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Paid Amt</th>
                   </tr>
@@ -11059,7 +11183,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
                         {t.billAmount ? `₹${Math.round(t.billAmount).toLocaleString()}` : '-'}
                       </td>
                       <td className="px-8 py-6 text-right font-black text-sm text-slate-400">
-                        {t.commRate ? `${t.commRate}${t.commType === 'fixed' ? '₹' : '%'}` : '-'}
+                        {t.commRate ? `${t.commRate}${t.commType === 'percentage' ? '%' : (t.commType === 'meter' ? '/mtr' : '₹')}` : '-'}
                       </td>
                       <td className="px-8 py-6 text-right font-black text-lg tracking-tighter text-indigo-600">
                          {t.dr !== 0 ? `₹${Math.round(t.dr).toLocaleString()}` : '-'}

@@ -210,9 +210,9 @@ export interface Broker {
   name: string;
   mobile?: string;
   pan?: string;
-  type: 'sale' | 'purchase';
+  type: 'sale' | 'purchase' | 'weaver';
   defaultCommission?: number;
-  partyMappings?: { partyId: string; rate: number; type: 'fixed' | 'percentage' }[];
+  partyMappings?: { partyId: string; rate: number; type: 'fixed' | 'percentage' | 'meter' }[];
 }
 
 export interface BrokerCommission {
@@ -226,7 +226,7 @@ export interface BrokerCommission {
   billDate: string;
   billAmount: number;
   commissionRate: number;
-  commissionType: 'fixed' | 'percentage';
+  commissionType: 'fixed' | 'percentage' | 'meter';
   commissionAmount: number;
   status: 'UNPAID' | 'PAID' | 'PARTIAL';
   paidAmount: number;
