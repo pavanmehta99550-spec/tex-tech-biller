@@ -36,6 +36,8 @@ import {
   Eye,
   EyeOff,
   Mic,
+  History,
+  Edit2
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { auth, db } from './lib/firebase';
@@ -77,19 +79,19 @@ const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGs
 
 
 
-const numberToWords = (num: number) => {
+  const numberToWords = (num: number) => {
     if (!num || num === 0) return 'Zero Only';
     const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
     const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
     
-    let n = ('000000000' + Math.floor(Math.abs(num))).substr(-9).match(/^(d{2})(d{2})(d{2})(d{1})(d{2})$/);
+    let n = ('000000000' + Math.floor(Math.abs(num))).split('').slice(-9).join('').match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
     if (!n) return '';
     let str = '';
-    str += (n[1] != '00') ? (a[Number(n[1])] || b[Number(n[1][0])] + ' ' + a[Number(n[1][1])]) + 'Crore ' : '';
-    str += (n[2] != '00') ? (a[Number(n[2])] || b[Number(n[2][0])] + ' ' + a[Number(n[2][1])]) + 'Lakh ' : '';
-    str += (n[3] != '00') ? (a[Number(n[3])] || b[Number(n[3][0])] + ' ' + a[Number(n[3][1])]) + 'Thousand ' : '';
-    str += (n[4] != '00') ? (a[Number(n[4])] || b[Number(n[4][0])] + ' ' + a[Number(n[4][1])]) + 'Hundred ' : '';
-    str += (n[5] != '00') ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[Number(n[5][0])] + ' ' + a[Number(n[5][1])]) : '';
+    str += (n[1] !== '00') ? (a[Number(n[1])] || b[Number(n[1][0])] + ' ' + a[Number(n[1][1])]) + 'Crore ' : '';
+    str += (n[2] !== '00') ? (a[Number(n[2])] || b[Number(n[2][0])] + ' ' + a[Number(n[2][1])]) + 'Lakh ' : '';
+    str += (n[3] !== '00') ? (a[Number(n[3])] || b[Number(n[3][0])] + ' ' + a[Number(n[3][1])]) + 'Thousand ' : '';
+    str += (n[4] !== '00') ? (a[Number(n[4])] || b[Number(n[4][0])] + ' ' + a[Number(n[4][1])]) + 'Hundred ' : '';
+    str += (n[5] !== '00') ? ((str !== '') ? 'and ' : '') + (a[Number(n[5])] || b[Number(n[5][0])] + ' ' + a[Number(n[5][1])]) : '';
     return str + 'Only';
 };
 
@@ -110,7 +112,8 @@ function Watermark({ paymentStatus }: { paymentStatus: 'PAID' | 'PARTIAL' | 'UNP
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [customLoginId, setCustomLoginId] = useState<string | null>(() => storage.get('customLoginId', null));
+  const [paymentSaveTrigger, setPaymentSaveTrigger] = useState(0);
+  const [purchasePaymentSaveTrigger, setPurchasePaymentSaveTrigger] = useState(0);
   const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'pending' | 'error'>('synced');
@@ -154,7 +157,11 @@ export default function App() {
   const [partyChallans, setPartyChallans] = useState<Challan[]>(() => storage.get('partyChallans', []));
   const [weaverChallans, setWeaverChallans] = useState<Challan[]>(() => storage.get('weaverChallans', []));
   const [weaverParties, setWeaverParties] = useState<Party[]>(() => storage.get('weaverParties', []));
-  const challans = useMemo(() => [...(millChallans || []), ...(partyChallans || []), ...(weaverChallans || [])], [millChallans, partyChallans, weaverChallans]);
+  const challans = useMemo(() => [
+    ...(Array.isArray(millChallans) ? millChallans : []),
+    ...(Array.isArray(partyChallans) ? partyChallans : []),
+    ...(Array.isArray(weaverChallans) ? weaverChallans : [])
+  ], [millChallans, partyChallans, weaverChallans]);
 
   const [bookings, setBookings] = useState<Booking[]>(() => storage.get('bookings', []));
   const [purchases, setPurchases] = useState<Purchase[]>(() => storage.get('purchases', []));
@@ -1425,6 +1432,7 @@ export default function App() {
     } else {
       setPayments(prev => [newPayment, ...prev]);
       setSaleParties(prev => prev.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
+      setPaymentSaveTrigger(prev => prev + 1);
       alert("Payment Received Successfully!");
     }
   };
@@ -1471,6 +1479,7 @@ export default function App() {
     } else {
       setPurchasePayments(prev => [newPayment, ...prev]);
       setPurchaseParties(prev => prev.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
+      setPurchasePaymentSaveTrigger(prev => prev + 1);
       alert("Payment Sent Successfully!");
     }
   };
@@ -1498,8 +1507,8 @@ export default function App() {
   }, [settings]);
 
   const isAnyPrintOpen = useMemo(() => 
-    !!(previewBooking || previewPurchase || previewDebitNote || previewCreditNote),
-  [previewBooking, previewPurchase, previewDebitNote, previewCreditNote]);
+    !!(previewBooking || previewPurchase || previewDebitNote || previewCreditNote || previewPayment || showLedgerPrint),
+  [previewBooking, previewPurchase, previewDebitNote, previewCreditNote, previewPayment, showLedgerPrint]);
 
   if (isFirebaseLoading || ((isAuthenticated || customLoginId) && !isDataLoaded)) return (
     <div className="fixed inset-0 bg-[#1E272E] flex flex-col items-center justify-center text-white">
@@ -1943,7 +1952,7 @@ export default function App() {
             />}
             {currentView === 'pay' && (
               <PaymentView 
-                key={`pay-${editingPayment?.id || 'new'}`} 
+                key={`pay-${editingPayment?.id || 'new'}-${paymentSaveTrigger}`} 
                 onSave={handleSavePayment} 
                 parties={saleParties} 
                 bookings={bookings}
@@ -1961,7 +1970,7 @@ export default function App() {
             )}
             {currentView === 'sendpay' && (
               <SendPaymentView 
-                key={`sendpay-${editingPayment?.id || 'new'}`} 
+                key={`sendpay-${editingPayment?.id || 'new'}-${purchasePaymentSaveTrigger}`} 
                 onSave={handleSavePurchasePayment} 
                 parties={purchaseParties} 
                 purchases={purchases}
@@ -4132,22 +4141,22 @@ function BookingView({
     const stock: Record<string, number> = {};
     
     // Initial quantities from purchases
-    purchases.forEach((p: Purchase) => {
-      p.items.forEach((item: any) => {
+    (purchases || []).forEach((p: Purchase) => {
+      (p.items || []).forEach((item: any) => {
         const key = `${p.id}-${item.name}-${item.color}`;
-        stock[key] = (stock[key] || 0) + (item.quantity || 0);
+        stock[key] = (stock[key] || 0) + (parseFloat(item.quantity) || 0);
       });
     });
 
     // Deduct quantities from sales
-    bookings.forEach((b: Booking) => {
+    (bookings || []).forEach((b: Booking) => {
       // Exclude current editing bill if we are editing
       if (editingBooking && b.id === editingBooking.id) return;
 
-      b.items.forEach((item: any) => {
+      (b.items || []).forEach((item: any) => {
         if (item.purchaseId) {
           const key = `${item.purchaseId}-${item.name}-${item.color}`;
-          stock[key] = (stock[key] || 0) - (item.quantity || 0);
+          stock[key] = (stock[key] || 0) - (parseFloat(item.quantity) || 0);
         }
       });
     });
@@ -6268,7 +6277,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
                       className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
                       title="Edit Payment Detail"
                     >
-                      <Edit2 size={16} />
+                      <Edit size={16} />
                     </button>
                     <button 
                       onClick={() => {
@@ -6612,7 +6621,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
                       className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100"
                       title="Edit Payment Detail"
                     >
-                      <Edit2 size={16} />
+                      <Edit size={16} />
                     </button>
                     <button 
                       onClick={() => {
