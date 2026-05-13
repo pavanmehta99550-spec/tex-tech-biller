@@ -1779,7 +1779,8 @@ export default function App() {
             {currentView === 'brokers' && (
               <BrokersView 
                 brokers={brokers}
-                parties={saleParties}
+                saleParties={saleParties}
+                purchaseParties={purchaseParties}
                 onSave={(updated) => setBrokers(updated)}
               />
             )}
@@ -10686,7 +10687,7 @@ function ChallanCompareView({ millChallans, partyChallans, weaverChallans = [] }
   );
 }
 
-function BrokersView({ brokers, parties, onSave }: any) {
+function BrokersView({ brokers, saleParties, purchaseParties, onSave }: any) {
   const [editingBroker, setEditingBroker] = useState<any>(null);
   const [formData, setFormData] = useState({ 
     name: '', 
@@ -10696,6 +10697,9 @@ function BrokersView({ brokers, parties, onSave }: any) {
     defaultCommission: '',
     mappings: [] as any[] 
   });
+
+  const activeParties = formData.type === 'sale' ? saleParties : purchaseParties;
+  const allParties = [...(saleParties || []), ...(purchaseParties || [])];
 
   const handleAddMapping = () => {
     setFormData({ ...formData, mappings: [...formData.mappings, { partyId: '', rate: 0, type: 'percentage' }] });
@@ -10754,7 +10758,7 @@ function BrokersView({ brokers, parties, onSave }: any) {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Broker Type</label>
                 <select 
                   value={formData.type}
-                  onChange={e => setFormData({ ...formData, type: e.target.value as any })}
+                  onChange={e => setFormData({ ...formData, type: e.target.value as any, mappings: [] })}
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
                 >
                   <option value="sale">Sale Broker</option>
@@ -10799,7 +10803,7 @@ function BrokersView({ brokers, parties, onSave }: any) {
                       className="bg-transparent border-b border-slate-200 font-bold text-sm outline-none"
                     >
                       <option value="">Select Party</option>
-                      {parties.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      {activeParties.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                     <div className="flex gap-2">
                       <input 
@@ -10871,7 +10875,7 @@ function BrokersView({ brokers, parties, onSave }: any) {
                   <td className="px-8 py-6">
                     <div className="flex flex-wrap gap-1">
                       {b.partyMappings?.map((m: any, idx: number) => {
-                        const party = parties.find((p: any) => p.id === m.partyId);
+                        const party = allParties.find((p: any) => p.id === m.partyId);
                         return (
                           <span key={idx} className="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg text-[9px] font-black uppercase">
                             {party?.name || 'Unknown'} ({m.rate}{m.type === 'fixed' ? '₹' : '%'})
