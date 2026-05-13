@@ -773,40 +773,51 @@ export default function App() {
       igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
       date: data.date || new Date().toISOString(),
-      notes: data.notes || ''
+      notes: data.notes || '',
+      brokerId: data.brokerId || ''
     };
 
     // Commission Logic
-    const broker = brokers.find(b => b.partyMappings?.some(m => m.partyId === consignee?.id));
+    let broker = brokers.find(b => b.id === newBooking.brokerId);
+    if (!broker) {
+      broker = brokers.find(b => b.partyMappings?.some(m => m.partyId === consignee?.id));
+    }
+    
     if (broker) {
+      newBooking.brokerId = broker.id;
       const mapping = broker.partyMappings?.find(m => m.partyId === consignee?.id);
-      if (mapping) {
-        const commAmount = mapping.type === 'fixed' 
-          ? mapping.rate 
-          : Math.round(newBooking.grandTotal * (mapping.rate / 100));
-          
-        const newComm: BrokerCommission = {
-          id: Math.random().toString(36).substr(2, 9),
-          brokerId: broker.id,
-          brokerName: broker.name,
-          partyId: consignee!.id,
-          partyName: consignee!.name,
-          billId: newBooking.id,
-          billNumber: newBooking.billNumber,
-          billDate: newBooking.date,
-          billAmount: newBooking.grandTotal,
-          commissionRate: mapping.rate,
-          commissionType: mapping.type,
-          commissionAmount: commAmount,
-          status: 'UNPAID',
-          paidAmount: 0,
-          date: new Date().toISOString()
-        };
-        setCommissions(prev => {
-          const others = prev.filter(c => c.billId !== newBooking.id);
-          return [newComm, ...others];
-        });
-      }
+      
+      const commType = mapping?.type || 'percent';
+      const commRate = mapping?.rate || 0;
+      
+      const commAmount = commType === 'fixed' 
+        ? commRate 
+        : Math.round(newBooking.grandTotal * (commRate / 100));
+        
+      const newComm: BrokerCommission = {
+        id: Math.random().toString(36).substr(2, 9),
+        brokerId: broker.id,
+        brokerName: broker.name,
+        partyId: consignee!.id,
+        partyName: consignee!.name,
+        billId: newBooking.id,
+        billNumber: newBooking.billNumber,
+        billDate: newBooking.date,
+        billAmount: newBooking.grandTotal,
+        commissionRate: commRate,
+        commissionType: commType,
+        commissionAmount: commAmount,
+        status: 'UNPAID',
+        paidAmount: 0,
+        date: new Date().toISOString()
+      };
+      setCommissions(prev => {
+        const others = prev.filter(c => c.billId !== newBooking.id);
+        return [newComm, ...others];
+      });
+    } else {
+      newBooking.brokerId = '';
+      setCommissions(prev => prev.filter(c => c.billId !== newBooking.id));
     }
 
     if (isUpdate) {
@@ -976,40 +987,51 @@ export default function App() {
       igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
       date: data.date || new Date().toISOString(),
-      notes: data.notes || ''
+      notes: data.notes || '',
+      brokerId: data.brokerId || ''
     };
 
     // Commission Logic
-    const broker = brokers.find(b => b.id === newPurchase.brokerId);
-    if (broker && newPurchase.brokerId) {
+    let broker = brokers.find(b => b.id === newPurchase.brokerId);
+    if (!broker) {
+      broker = brokers.find(b => b.partyMappings?.some(m => m.partyId === party?.id));
+    }
+    
+    if (broker) {
+      newPurchase.brokerId = broker.id;
       const mapping = broker.partyMappings?.find(m => m.partyId === party?.id);
-      if (mapping) {
-        const commAmount = mapping.type === 'fixed' 
-          ? mapping.rate 
-          : Math.round(newPurchase.grandTotal * (mapping.rate / 100));
-          
-        const newComm: BrokerCommission = {
-          id: Math.random().toString(36).substr(2, 9),
-          brokerId: broker.id,
-          brokerName: broker.name,
-          partyId: party!.id,
-          partyName: party!.name,
-          billId: newPurchase.id,
-          billNumber: newPurchase.billNumber,
-          billDate: newPurchase.date,
-          billAmount: newPurchase.grandTotal,
-          commissionRate: mapping.rate,
-          commissionType: mapping.type,
-          commissionAmount: commAmount,
-          status: 'UNPAID',
-          paidAmount: 0,
-          date: new Date().toISOString()
-        };
-        setCommissions(prev => {
-          const others = prev.filter(c => c.billId !== newPurchase.id);
-          return [newComm, ...others];
-        });
-      }
+      
+      const commType = mapping?.type || 'percent';
+      const commRate = mapping?.rate || 0;
+      
+      const commAmount = commType === 'fixed' 
+        ? commRate 
+        : Math.round(newPurchase.grandTotal * (commRate / 100));
+        
+      const newComm: BrokerCommission = {
+        id: Math.random().toString(36).substr(2, 9),
+        brokerId: broker.id,
+        brokerName: broker.name,
+        partyId: party!.id,
+        partyName: party!.name,
+        billId: newPurchase.id,
+        billNumber: newPurchase.billNumber,
+        billDate: newPurchase.date,
+        billAmount: newPurchase.grandTotal,
+        commissionRate: commRate,
+        commissionType: commType,
+        commissionAmount: commAmount,
+        status: 'UNPAID',
+        paidAmount: 0,
+        date: new Date().toISOString()
+      };
+      setCommissions(prev => {
+        const others = prev.filter(c => c.billId !== newPurchase.id);
+        return [newComm, ...others];
+      });
+    } else {
+      newPurchase.brokerId = '';
+      setCommissions(prev => prev.filter(c => c.billId !== newPurchase.id));
     }
 
     if (isUpdate) {
@@ -1669,6 +1691,7 @@ export default function App() {
               purchases={purchases}
               itemsMaster={itemsMaster}
               transports={transports}
+              brokers={brokers}
               editingBooking={editingBooking}
               onViewHistory={() => setCurrentView('salehistory')}
               payments={payments}
@@ -3904,6 +3927,7 @@ function BookingView({
   purchases = [],
   itemsMaster = [], 
   transports = [], 
+  brokers = [],
   editingBooking, 
   onViewHistory, 
   onCancel, 
@@ -4002,6 +4026,7 @@ function BookingView({
       consigneeAddress: editingBooking?.consigneeAddress || '',
       consigneeMobile: editingBooking?.consigneeMobile || '',
       consigneeMobile2: editingBooking?.consigneeMobile2 || '',
+      brokerId: editingBooking?.brokerId || '',
       items: (editingBooking?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingBooking?.basicAmount || 0,
       globalDiscount: editingBooking?.globalDiscount || 0,
@@ -4405,6 +4430,20 @@ function BookingView({
                     placeholder="Enter Mobile 2"
                   />
                 </div>
+              </div>
+              <div className="mt-4">
+                <label className="text-[11px] font-black text-blue-600 uppercase tracking-wider mb-1 block">Broker</label>
+                <select
+                  value={formData.brokerId || ''}
+                  disabled={isLocked}
+                  onChange={e => setFormData({ ...formData, brokerId: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 border-blue-100 rounded-xl font-black bg-white outline-none focus:border-blue-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
+                >
+                  <option value="">Select Broker</option>
+                  {brokers.map((b: any) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
