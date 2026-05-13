@@ -1425,9 +1425,8 @@ export default function App() {
     } else {
       setPayments(prev => [newPayment, ...prev]);
       setSaleParties(prev => prev.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
+      alert("Payment Received Successfully!");
     }
-
-    setCurrentView('ledg');
   };
 
   const handleSavePurchasePayment = (data: any) => {
@@ -1472,9 +1471,8 @@ export default function App() {
     } else {
       setPurchasePayments(prev => [newPayment, ...prev]);
       setPurchaseParties(prev => prev.map(p => p.id === data.partyId ? { ...p, totalPaid: (p.totalPaid || 0) + data.amount } : p));
+      alert("Payment Sent Successfully!");
     }
-
-    setCurrentView('ledg');
   };
 
   const handleDeletePayment = (payment: any) => {
@@ -1952,6 +1950,8 @@ export default function App() {
                 payments={payments}
                 creditNotes={creditNotes}
                 editingPayment={editingPayment}
+                onEdit={setEditingPayment}
+                onDelete={handleDeletePayment}
                 isSyncing={isSyncing}
                 onCancel={() => {
                   setEditingPayment(null);
@@ -1968,6 +1968,8 @@ export default function App() {
                 payments={purchasePayments}
                 debitNotes={debitNotes}
                 editingPayment={editingPayment}
+                onEdit={setEditingPayment}
+                onDelete={handleDeletePayment}
                 isSyncing={isSyncing}
                 onCancel={() => {
                   setEditingPayment(null);
@@ -5964,7 +5966,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
     </motion.div>
   );
 }
-function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel, payments = [], debitNotes = [], isSyncing = false }: any) {
+function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, onDelete, onCancel, payments = [], debitNotes = [], isSyncing = false }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
   const [chequeDate, setChequeDate] = useState(editingPayment?.chequeDate || '');
@@ -5972,6 +5974,28 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
   const [billAdjustments, setBillAdjustments] = useState<any[]>(editingPayment?.billAdjustments || []);
   const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
   const [partySearch, setPartySearch] = useState('');
+
+  const resetForm = useCallback(() => {
+    setSelectedId('');
+    setChequeNumber('');
+    setChequeDate('');
+    setNotes('');
+    setBillAdjustments([]);
+    setDate(new Date().toISOString().split('T')[0]);
+    setPartySearch('');
+    if (onCancel && editingPayment) onCancel();
+  }, [onCancel, editingPayment]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        resetForm();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [resetForm]);
 
   const filteredParties = useMemo(() => {
     return (parties || []).filter((p: any) => 
@@ -6185,23 +6209,35 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
           </div>
         </div>
 
-        <div className="pt-4 flex flex-col items-center">
-          <button 
-            type="submit"
-            disabled={totalAdjusted <= 0 || isSyncing}
-            className="w-full md:w-auto md:min-w-[400px] bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white font-black py-5 px-12 rounded-2xl text-xl shadow-xl shadow-red-100 transition-all active:scale-[0.98] flex items-center justify-center gap-4"
-          >
-            {isSyncing ? (
-              <>
-                <RefreshCw size={24} className="animate-spin" /> Syncing...
-              </>
-            ) : (
-              <>
-                <Save size={24} /> {editingPayment ? 'Update Payment' : 'Send Payment'} (₹ {(totalAdjusted || 0).toLocaleString()})
-              </>
+        <div className="pt-4 flex flex-col items-center gap-4">
+          <div className="flex gap-4 w-full md:w-auto">
+            <button 
+              type="submit"
+              disabled={totalAdjusted <= 0 || isSyncing}
+              className="flex-1 md:min-w-[300px] bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white font-black py-5 px-12 rounded-2xl text-xl shadow-xl shadow-red-100 transition-all active:scale-[0.98] flex items-center justify-center gap-4"
+            >
+              {isSyncing ? (
+                <>
+                  <RefreshCw size={24} className="animate-spin" /> Syncing...
+                </>
+              ) : (
+                <>
+                  <Save size={24} /> {editingPayment ? 'Update Payment' : 'Send Payment'} (₹ {(totalAdjusted || 0).toLocaleString()})
+                </>
+              )}
+            </button>
+            {!editingPayment && (
+              <button 
+                type="button"
+                onClick={resetForm}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-5 px-8 rounded-2xl text-xl transition-all active:scale-[0.98] flex items-center gap-2"
+                title="Shortcut: Ctrl+N"
+              >
+                <Plus size={24} /> New
+              </button>
             )}
-          </button>
-          <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">
+          </div>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">
             This will update the purchase party ledger and bills
           </p>
         </div>
@@ -6213,24 +6249,53 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">Payment History for {selectedParty.name}</h3>
           <div className="space-y-4">
             {payments.filter((p: any) => p.partyId === selectedParty.id).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p: any) => (
-              <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-                <div>
-                  <p className="text-xs font-bold text-slate-500">{new Date(p.date).toLocaleDateString()}</p>
-                  <p className="text-sm font-black text-slate-900 mt-0.5">₹ {p.amount.toLocaleString()}</p>
-                  {p.chequeNumber && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Ref: {p.chequeNumber}</p>}
+              <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center group">
+                <div className="flex items-center gap-4">
+                   <div className="p-2 bg-red-50 rounded-lg text-red-600">
+                     <History size={20} />
+                   </div>
+                   <div>
+                     <p className="text-xs font-bold text-slate-500">{new Date(p.date).toLocaleDateString()}</p>
+                     <p className="text-sm font-black text-slate-900 mt-0.5">₹ {p.amount.toLocaleString()}</p>
+                     {p.chequeNumber && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Ref: {p.chequeNumber}</p>}
+                   </div>
                 </div>
-                {p.billAdjustments && p.billAdjustments.length > 0 && (
-                  <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Adjusted Bills</p>
-                    <div className="flex gap-1 justify-end flex-wrap max-w-[200px]">
-                      {p.billAdjustments.map((ba: any) => (
-                        <span key={ba.billId} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200">
-                          #{ba.billNumber}
-                        </span>
-                      ))}
-                    </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => onEdit(p)}
+                      type="button"
+                      className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                      title="Edit Payment Detail"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete this payment?")) {
+                          onDelete(p);
+                        }
+                      }}
+                      type="button"
+                      className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                      title="Delete Payment"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                )}
+                  {p.billAdjustments && p.billAdjustments.length > 0 && (
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Adjusted Bills</p>
+                      <div className="flex gap-1 justify-end flex-wrap max-w-[200px]">
+                        {p.billAdjustments.map((ba: any) => (
+                          <span key={ba.billId} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200">
+                            #{ba.billNumber}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -6240,7 +6305,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
   );
 }
 
-function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, payments = [], creditNotes = [], isSyncing = false }: any) {
+function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDelete, onCancel, payments = [], creditNotes = [], isSyncing = false }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [amount, setAmount] = useState(editingPayment?.amount?.toString() || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
@@ -6249,6 +6314,29 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
   const [billAdjustments, setBillAdjustments] = useState<any[]>(editingPayment?.billAdjustments || []);
   const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
   const [partySearch, setPartySearch] = useState('');
+
+  const resetForm = useCallback(() => {
+    setSelectedId('');
+    setAmount('');
+    setChequeNumber('');
+    setChequeDate('');
+    setNotes('');
+    setBillAdjustments([]);
+    setDate(new Date().toISOString().split('T')[0]);
+    setPartySearch('');
+    if (onCancel && editingPayment) onCancel();
+  }, [onCancel, editingPayment]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        resetForm();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [resetForm]);
 
   const filteredParties = useMemo(() => {
     return (parties || []).filter((p: any) => 
@@ -6465,23 +6553,35 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
           </div>
         </div>
 
-        <div className="pt-4 flex flex-col items-center">
-          <button 
-            type="submit"
-            disabled={totalAdjusted <= 0 || isSyncing}
-            className="w-full md:w-auto md:min-w-[400px] bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-black py-5 px-12 rounded-2xl text-xl shadow-xl shadow-blue-100 transition-all active:scale-[0.98] flex items-center justify-center gap-4"
-          >
-            {isSyncing ? (
-              <>
-                <RefreshCw size={24} className="animate-spin" /> Syncing...
-              </>
-            ) : (
-              <>
-                <Save size={24} /> {editingPayment ? 'Update Payment' : 'Confirm Payment'} (₹ {(totalAdjusted || 0).toLocaleString()})
-              </>
+        <div className="pt-4 flex flex-col items-center gap-4">
+          <div className="flex gap-4 w-full md:w-auto">
+            <button 
+              type="submit"
+              disabled={totalAdjusted <= 0 || isSyncing}
+              className="flex-1 md:min-w-[300px] bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-black py-5 px-12 rounded-2xl text-xl shadow-xl shadow-blue-100 transition-all active:scale-[0.98] flex items-center justify-center gap-4"
+            >
+              {isSyncing ? (
+                <>
+                  <RefreshCw size={24} className="animate-spin" /> Syncing...
+                </>
+              ) : (
+                <>
+                  <Save size={24} /> {editingPayment ? 'Update Payment' : 'Confirm Payment'} (₹ {(totalAdjusted || 0).toLocaleString()})
+                </>
+              )}
+            </button>
+            {!editingPayment && (
+              <button 
+                type="button"
+                onClick={resetForm}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-5 px-8 rounded-2xl text-xl transition-all active:scale-[0.98] flex items-center gap-2"
+                title="Shortcut: Ctrl+N"
+              >
+                <Plus size={24} /> New
+              </button>
             )}
-          </button>
-          <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">
+          </div>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">
             This entry will settle selected bills and update party ledger
           </p>
         </div>
@@ -6493,24 +6593,53 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">Payment History for {selectedParty.name}</h3>
           <div className="space-y-4">
             {payments.filter((p: any) => p.partyId === selectedParty.id).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p: any) => (
-              <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-                <div>
-                  <p className="text-xs font-bold text-slate-500">{new Date(p.date).toLocaleDateString()}</p>
-                  <p className="text-sm font-black text-slate-900 mt-0.5">₹ {p.amount.toLocaleString()}</p>
-                  {p.chequeNumber && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Ref: {p.chequeNumber}</p>}
+              <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center group">
+                <div className="flex items-center gap-4">
+                   <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                     <History size={20} />
+                   </div>
+                   <div>
+                     <p className="text-xs font-bold text-slate-500">{new Date(p.date).toLocaleDateString()}</p>
+                     <p className="text-sm font-black text-slate-900 mt-0.5">₹ {p.amount.toLocaleString()}</p>
+                     {p.chequeNumber && <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Ref: {p.chequeNumber}</p>}
+                   </div>
                 </div>
-                {p.billAdjustments && p.billAdjustments.length > 0 && (
-                  <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Adjusted Bills</p>
-                    <div className="flex gap-1 justify-end flex-wrap max-w-[200px]">
-                      {p.billAdjustments.map((ba: any) => (
-                        <span key={ba.billId} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200">
-                          #{ba.billNumber}
-                        </span>
-                      ))}
-                    </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => onEdit(p)}
+                      type="button"
+                      className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                      title="Edit Payment Detail"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete this payment?")) {
+                          onDelete(p);
+                        }
+                      }}
+                      type="button"
+                      className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                      title="Delete Payment"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                )}
+                  {p.billAdjustments && p.billAdjustments.length > 0 && (
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Adjusted Bills</p>
+                      <div className="flex gap-1 justify-end flex-wrap max-w-[200px]">
+                        {p.billAdjustments.map((ba: any) => (
+                          <span key={ba.billId} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200">
+                            #{ba.billNumber}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
