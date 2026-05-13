@@ -1615,12 +1615,8 @@ export default function App() {
       </p>
       {!isFirebaseLoading && (
         <div className="flex flex-col items-center gap-3 mt-12">
-          <button 
-            onClick={() => setIsDataLoaded(true)}
-            className="px-8 py-3 bg-[#00cec9] hover:bg-[#00b5b5] text-[#1E272E] rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-[#00cec9]/20 active:scale-95"
-          >
-            Skip Sync & Enter App
-          </button>
+          <div className="w-12 h-12 border-4 border-[#00cec9] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[#00cec9] text-xs font-bold uppercase tracking-widest animate-pulse">Loading Your Data...</p>
           
           <div className="flex items-center gap-4 mt-4">
             <button 
@@ -2297,7 +2293,7 @@ export default function App() {
               </div>
               <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tighter uppercase">Logout Securely?</h2>
               <p className="text-slate-500 font-bold mb-8 text-lg leading-snug">
-                Your data is stored locally. We strongly recommend taking a backup before you leave!
+                Bhai, Logout karne se pehle internet check kar lo, data sync ho raha hai.
               </p>
               <div className="flex flex-col gap-4">
                 <button 
@@ -2317,7 +2313,7 @@ export default function App() {
                 <div className="flex gap-4">
                   <button 
                     onClick={async () => {
-                      if (isSyncing) return; // Optional safety
+                      if (isSyncing) return;
                       await forceSyncData();
                       auth.signOut();
                       resetData();
@@ -2335,7 +2331,7 @@ export default function App() {
                         : "bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                     }`}
                   >
-                    {isSyncing ? 'Syncing...' : 'Logout Anyway'}
+                    {isSyncing ? 'Syncing...' : 'Logout'}
                   </button>
                   <button 
                     onClick={() => {
