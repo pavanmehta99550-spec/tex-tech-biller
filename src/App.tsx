@@ -788,7 +788,7 @@ export default function App() {
       const mapping = broker.partyMappings?.find(m => m.partyId === consignee?.id);
       
       const totalMtrs = newBooking.items.reduce((sum, it) => sum + (it.unit === 'MTR' ? it.quantity || 0 : 0), 0);
-      const commType = mapping?.type || (broker.type === 'weaver' ? 'meter' : 'percentage');
+      const commType = mapping?.type || (broker.type === 'mill' ? 'meter' : 'percentage');
       const commRate = data.brokerCommissionRate || mapping?.rate || broker.defaultCommission || 0;
       
       const commAmount = commType === 'fixed' 
@@ -1005,7 +1005,7 @@ export default function App() {
       const mapping = broker.partyMappings?.find(m => m.partyId === party?.id);
       
       const totalMtrs = newPurchase.items.reduce((sum, it) => sum + (it.unit === 'MTR' ? it.quantity || 0 : 0), 0);
-      const commType = mapping?.type || (broker.type === 'weaver' ? 'meter' : 'percentage');
+      const commType = mapping?.type || (broker.type === 'mill' ? 'meter' : 'percentage');
       const commRate = data.brokerCommissionRate || mapping?.rate || broker.defaultCommission || 0;
       
       const commAmount = commType === 'fixed' 
@@ -1787,6 +1787,7 @@ export default function App() {
                 brokers={brokers}
                 saleParties={saleParties}
                 purchaseParties={purchaseParties}
+                millChallans={millChallans}
                 onSave={(updated) => setBrokers(updated)}
               />
             )}
@@ -1811,7 +1812,7 @@ export default function App() {
               purchases={purchases}
               itemsMaster={itemsMaster}
               transports={transports}
-              brokers={brokers.filter((b: any) => b.type === 'sale' || b.type === 'weaver' || !b.type)}
+              brokers={brokers.filter((b: any) => b.type === 'sale' || b.type === 'mill' || !b.type)}
               challans={challans}
               editingBooking={editingBooking}
               onViewHistory={() => setCurrentView('salehistory')}
@@ -1860,7 +1861,7 @@ export default function App() {
               purchases={purchases}
               itemsMaster={itemsMaster}
               transports={transports}
-              brokers={brokers.filter((b: any) => b.type === 'purchase' || b.type === 'weaver')}
+              brokers={brokers.filter((b: any) => b.type === 'purchase' || b.type === 'mill')}
               challans={challans}
               editingPurchase={editingPurchase}
               onViewHistory={() => setCurrentView('purchasehistory')}
@@ -3269,7 +3270,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
             {formData.brokerId && (
               <div>
                 <label className="text-[11px] font-black text-indigo-600 uppercase tracking-wider mb-1 block font-black">
-                  {(brokers.find((b: any) => b.id === formData.brokerId)?.type === 'weaver') ? 'Rate / MTR' : 'Comm %'}
+                  {(brokers.find((b: any) => b.id === formData.brokerId)?.type === 'mill') ? 'Rate / MTR' : 'Comm %'}
                 </label>
                 <input 
                   type="number"
@@ -4638,7 +4639,7 @@ function BookingView({
                 {formData.brokerId && (
                   <div>
                     <label className="text-[11px] font-black text-blue-600 uppercase tracking-wider mb-1 block font-black">
-                      {(brokers.find((b: any) => b.id === formData.brokerId)?.type === 'weaver') ? 'Rate / MTR' : 'Comm %'}
+                      {(brokers.find((b: any) => b.id === formData.brokerId)?.type === 'mill') ? 'Rate / MTR' : 'Comm %'}
                     </label>
                     <input 
                       type="number"
@@ -10805,19 +10806,27 @@ function ChallanCompareView({ millChallans, partyChallans, weaverChallans = [] }
   );
 }
 
-function BrokersView({ brokers, saleParties, purchaseParties, onSave }: any) {
+function BrokersView({ brokers, saleParties, purchaseParties, millChallans, onSave }: any) {
   const [editingBroker, setEditingBroker] = useState<any>(null);
   const [formData, setFormData] = useState({ 
     name: '', 
     mobile: '', 
     pan: '', 
-    type: 'sale' as 'sale' | 'purchase' | 'weaver',
+    type: 'sale' as 'sale' | 'purchase' | 'mill',
     defaultCommission: '',
     mappings: [] as any[] 
   });
 
-  const activeParties = formData.type === 'sale' ? saleParties : (formData.type === 'purchase' ? purchaseParties : [...(saleParties || []), ...(purchaseParties || [])]);
-  const allParties = [...(saleParties || []), ...(purchaseParties || [])];
+  const millPartiesFromChallans = useMemo(() => {
+    const mills = (millChallans || [])
+      .map((c: any) => ({ id: c.partyName, name: c.partyName }));
+    const uniqueMills = Array.from(new Map(mills.map((m: any) => [m.id, m])).values());
+    const sorted = uniqueMills.sort((a, b) => a.name.localeCompare(b.name));
+    return sorted;
+  }, [millChallans]);
+
+  const activeParties = formData.type === 'sale' ? saleParties : (formData.type === 'purchase' ? purchaseParties : millPartiesFromChallans);
+  const allParties = [...(saleParties || []), ...(purchaseParties || []), ...millPartiesFromChallans];
 
   const handleAddMapping = () => {
     setFormData({ ...formData, mappings: [...formData.mappings, { partyId: '', rate: 0, type: 'percentage' }] });
@@ -10881,18 +10890,18 @@ function BrokersView({ brokers, saleParties, purchaseParties, onSave }: any) {
                 >
                   <option value="sale">Sale Broker</option>
                   <option value="purchase">Purchase Broker</option>
-                  <option value="weaver">Weaver Party</option>
+                  <option value="mill">Mill Broker</option>
                 </select>
               </div>
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                  {formData.type === 'weaver' ? 'Default Rate / MTR' : 'Commission %'}
+                  {formData.type === 'mill' ? 'Rate / MTR' : 'Commission %'}
                 </label>
                 <input 
                   type="number" 
                   value={formData.defaultCommission} 
                   onChange={e => setFormData({ ...formData, defaultCommission: e.target.value })}
-                  placeholder={formData.type === 'weaver' ? 'e.g. 1.50' : 'e.g. 2'}
+                  placeholder={formData.type === 'mill' ? 'e.g. 1.50' : 'e.g. 2'}
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
                 />
               </div>
@@ -10990,9 +10999,9 @@ function BrokersView({ brokers, saleParties, purchaseParties, onSave }: any) {
                   </td>
                   <td className="px-8 py-6 text-[10px] font-black uppercase tracking-widest">
                     <span className={b.type === 'sale' ? 'text-blue-600' : (b.type === 'purchase' ? 'text-purple-600' : 'text-emerald-600')}>
-                      {b.type || 'sale'} Broker
+                      {b.type === 'mill' ? 'Mill' : b.type || 'sale'} Broker
                     </span>
-                    {b.defaultCommission > 0 && <div className="text-slate-400">{b.defaultCommission}{b.type === 'weaver' ? '/mtr' : '%'} Default</div>}
+                    {b.defaultCommission > 0 && <div className="text-slate-400">{b.defaultCommission}{b.type === 'mill' ? '/mtr' : '%'} Default</div>}
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex flex-wrap gap-1">
@@ -11162,7 +11171,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Bill Amount</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
-                      {selectedBroker?.type === 'weaver' ? 'Rate/MTR' : 'Comm %'}
+                      {selectedBroker?.type === 'mill' ? 'Rate/MTR' : 'Comm %'}
                     </th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Brokerage</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Paid Amt</th>
