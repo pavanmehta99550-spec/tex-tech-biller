@@ -122,13 +122,14 @@ export default function App() {
   const loadedKeys = useRef<Set<string>>(new Set());
   const views = useMemo<View[]>(() => [
     'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
-    'dn', 'cn', 'weaverchallan', 'weaverparty', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'brokers', 'broker-ledger', 'transports', 'gstreport', 
+    'dn', 'cn', 'weaverchallan', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'brokers', 'broker-ledger', 'transports', 'gstreport', 
     'signature', 'bankdetails', 'backup', 'settings'
   ], []);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [logoutFocusedIdx, setLogoutFocusedIdx] = useState<number>(-1);
+
   const financialYear = useMemo(() => {
     const today = new Date();
     const curYear = today.getFullYear();
@@ -153,6 +154,7 @@ export default function App() {
   const [partyChallans, setPartyChallans] = useState<Challan[]>(() => storage.get('partyChallans', []));
   const [weaverChallans, setWeaverChallans] = useState<Challan[]>(() => storage.get('weaverChallans', []));
   const [weaverParties, setWeaverParties] = useState<Party[]>(() => storage.get('weaverParties', []));
+  const challans = useMemo(() => [...(millChallans || []), ...(partyChallans || []), ...(weaverChallans || [])], [millChallans, partyChallans, weaverChallans]);
 
   const [bookings, setBookings] = useState<Booking[]>(() => storage.get('bookings', []));
   const [purchases, setPurchases] = useState<Purchase[]>(() => storage.get('purchases', []));
@@ -1644,7 +1646,6 @@ export default function App() {
                 v === 'millchallan' ? "Mill Challan Entry" :
                 v === 'partychallan' ? "Party Challan Entry" :
                 v === 'weaverchallan' ? "Weaver Challan Entry" :
-                v === 'weaverparty' ? "Weaver Party Entry" :
                 v === 'challancompare' ? "Compare Challans" :
                 v === 'items' ? "Items Master" :
                 v === 'expenses' ? "Business Expenses" :
@@ -1674,7 +1675,6 @@ export default function App() {
                 v === 'millchallan' ? "Alt+8" :
                 v === 'partychallan' ? "Alt+9" :
                 v === 'weaverchallan' ? "Alt+7" :
-                v === 'weaverparty' ? "Alt+6" :
                 v === 'challancompare' ? "Alt+0" :
                 v === 'items' ? "Alt+M" :
                 v === 'pay' ? "Ctrl+R" :
@@ -1906,6 +1906,7 @@ export default function App() {
               bookings={bookings}
               itemsMaster={itemsMaster}
               editingCreditNote={editingCreditNote}
+              brokers={brokers}
               onCancel={() => {
                 setEditingCreditNote(null);
                 setCurrentView('dash');
@@ -5121,7 +5122,7 @@ function BookingView({
   );
 }
 
-function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings, creditNotes, bookings, itemsMaster = [], editingCreditNote, onCancel }: any) {
+function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings, creditNotes, bookings, itemsMaster = [], editingCreditNote, onCancel, brokers = [] }: any) {
   const [showPreview, setShowPreview] = useState(false);
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null);
 
@@ -10832,7 +10833,7 @@ function BrokersView({ brokers, saleParties, purchaseParties, millChallans, onSa
     const mills = (millChallans || [])
       .map((c: any) => ({ id: c.partyName, name: c.partyName }));
     const uniqueMills = Array.from(new Map(mills.map((m: any) => [m.id, m])).values());
-    const sorted = uniqueMills.sort((a, b) => a.name.localeCompare(b.name));
+    const sorted = uniqueMills.sort((a: any, b: any) => a.name.localeCompare(b.name));
     return sorted;
   }, [millChallans]);
 
@@ -11166,15 +11167,18 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
       id: Math.random().toString(36).substr(2, 9),
       brokerId: selectedBroker.id,
       brokerName: selectedBroker.name,
+      partyId: 'MANUAL',
       partyName: commForm.partyName,
-      billNumber: commForm.billNumber,
+      billId: `MANUAL-${commForm.billNumber}`,
+      billNumber: commForm.billNumber as any,
       billDate: commForm.date,
       billAmount: commForm.billAmount,
       commissionRate: commForm.rate,
       commissionType: commForm.type,
       commissionAmount: commForm.amount,
       status: 'UNPAID',
-      paidAmount: 0
+      paidAmount: 0,
+      date: new Date().toISOString()
     };
     onSaveCommission(c);
     setShowCommModal(false);

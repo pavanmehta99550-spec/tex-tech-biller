@@ -60,6 +60,7 @@ export interface Booking {
   billNumber: number;
   notes?: string;
   brokerId?: string;
+  brokerCommissionRate?: number;
   pendingAmount?: number;
   status?: 'UNPAID' | 'PARTIAL' | 'PAID';
 }
@@ -120,6 +121,7 @@ export interface Purchase {
   notes?: string;
   partyBillNumber?: string;
   brokerId?: string;
+  brokerCommissionRate?: number;
 }
 
 export interface DebitNote {
