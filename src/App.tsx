@@ -36,8 +36,7 @@ import {
   Eye,
   EyeOff,
   Mic,
-  History,
-  Edit2
+  History
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { auth, db } from './lib/firebase';
@@ -112,6 +111,7 @@ function Watermark({ paymentStatus }: { paymentStatus: 'PAID' | 'PARTIAL' | 'UNP
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [customLoginId, setCustomLoginId] = useState<string | null>(() => storage.get('customLoginId', null));
   const [paymentSaveTrigger, setPaymentSaveTrigger] = useState(0);
   const [purchasePaymentSaveTrigger, setPurchasePaymentSaveTrigger] = useState(0);
   const [isFirebaseLoading, setIsFirebaseLoading] = useState(true);
@@ -1507,8 +1507,8 @@ export default function App() {
   }, [settings]);
 
   const isAnyPrintOpen = useMemo(() => 
-    !!(previewBooking || previewPurchase || previewDebitNote || previewCreditNote || previewPayment || showLedgerPrint),
-  [previewBooking, previewPurchase, previewDebitNote, previewCreditNote, previewPayment, showLedgerPrint]);
+    !!(previewBooking || previewPurchase || previewDebitNote || previewCreditNote),
+  [previewBooking, previewPurchase, previewDebitNote, previewCreditNote]);
 
   if (isFirebaseLoading || ((isAuthenticated || customLoginId) && !isDataLoaded)) return (
     <div className="fixed inset-0 bg-[#1E272E] flex flex-col items-center justify-center text-white">
@@ -7355,13 +7355,17 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setPreviewBooking(null);
-        setPreviewPurchase(null);
-        setPreviewCreditNote(null);
-        setPreviewDebitNote(null);
-        setPreviewPayment(null);
-        setShowLedgerPrint(false);
-        setPrintAllTransactions(null);
+        if (isLocalPrintOpen) {
+          setPreviewBooking(null);
+          setPreviewPurchase(null);
+          setPreviewCreditNote(null);
+          setPreviewDebitNote(null);
+          setPreviewPayment(null);
+          setShowLedgerPrint(false);
+          setPrintAllTransactions(null);
+        } else {
+          setSelectedParty(null);
+        }
       }
     };
     window.addEventListener('keydown', handleEsc);
