@@ -787,12 +787,12 @@ export default function App() {
       newBooking.brokerId = broker.id;
       const mapping = broker.partyMappings?.find(m => m.partyId === consignee?.id);
       
-      const commType = mapping?.type || 'percent';
-      const commRate = mapping?.rate || 0;
+      const commType = mapping?.type || 'percentage';
+      const commRate = mapping?.rate || broker.defaultCommission || 0;
       
       const commAmount = commType === 'fixed' 
         ? commRate 
-        : Math.round(newBooking.grandTotal * (commRate / 100));
+        : Math.round(newBooking.basicAmount * (commRate / 100));
         
       const newComm: BrokerCommission = {
         id: Math.random().toString(36).substr(2, 9),
@@ -803,9 +803,9 @@ export default function App() {
         billId: newBooking.id,
         billNumber: newBooking.billNumber,
         billDate: newBooking.date,
-        billAmount: newBooking.grandTotal,
+        billAmount: newBooking.basicAmount,
         commissionRate: commRate,
-        commissionType: commType,
+        commissionType: commType as any,
         commissionAmount: commAmount,
         status: 'UNPAID',
         paidAmount: 0,
@@ -1001,12 +1001,12 @@ export default function App() {
       newPurchase.brokerId = broker.id;
       const mapping = broker.partyMappings?.find(m => m.partyId === party?.id);
       
-      const commType = mapping?.type || 'percent';
-      const commRate = mapping?.rate || 0;
+      const commType = mapping?.type || 'percentage';
+      const commRate = mapping?.rate || broker.defaultCommission || 0;
       
       const commAmount = commType === 'fixed' 
         ? commRate 
-        : Math.round(newPurchase.grandTotal * (commRate / 100));
+        : Math.round(newPurchase.basicAmount * (commRate / 100));
         
       const newComm: BrokerCommission = {
         id: Math.random().toString(36).substr(2, 9),
@@ -1017,9 +1017,9 @@ export default function App() {
         billId: newPurchase.id,
         billNumber: newPurchase.billNumber,
         billDate: newPurchase.date,
-        billAmount: newPurchase.grandTotal,
+        billAmount: newPurchase.basicAmount,
         commissionRate: commRate,
-        commissionType: commType,
+        commissionType: commType as any,
         commissionAmount: commAmount,
         status: 'UNPAID',
         paidAmount: 0,
@@ -1233,6 +1233,50 @@ export default function App() {
         if (isUpdate) return prev.map(b => b.id === data.id ? newCreditNote : b);
         return [newCreditNote, ...prev];
       });
+
+      // Reverse Brokerage logic for Credit Note
+      if (newCreditNote.salesBillNumber) {
+        const booking = bookings.find(b => b.billNumber.toString() === newCreditNote.salesBillNumber);
+        if (booking && booking.brokerId) {
+          const broker = brokers.find(b => b.id === booking.brokerId);
+          if (broker) {
+            const party = saleParties.find(p => p.gstin === newCreditNote.partyGstin);
+            if (party) {
+              const mapping = broker.partyMappings?.find(m => m.partyId === party.id);
+              const commType = mapping?.type || 'percentage';
+              const commRate = mapping?.rate || broker.defaultCommission || 0;
+              
+              if (commType === 'percentage' && commRate > 0) {
+                const reversalAmount = Math.round(newCreditNote.basicAmount * (commRate / 100));
+                if (reversalAmount > 0) {
+                  const reversalComm: BrokerCommission = {
+                    id: `CN-REV-${newCreditNote.id}`,
+                    brokerId: broker.id,
+                    brokerName: broker.name,
+                    partyId: party.id,
+                    partyName: party.name,
+                    billId: newCreditNote.id,
+                    billNumber: newCreditNote.noteNumber,
+                    billDate: newCreditNote.date,
+                    billAmount: -newCreditNote.basicAmount,
+                    commissionRate: commRate,
+                    commissionType: 'percentage',
+                    commissionAmount: -reversalAmount,
+                    status: 'UNPAID',
+                    paidAmount: 0,
+                    date: new Date().toISOString(),
+                    notes: `Reversal for Sales Return (Bill #${newCreditNote.salesBillNumber})`
+                  };
+                  setCommissions(prev => {
+                    const others = prev.filter(c => c.id !== reversalComm.id);
+                    return [reversalComm, ...others];
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
 
       if (newCreditNote.salesBillNumber) {
         setBookings(prev => prev.map(b => {
@@ -1760,7 +1804,7 @@ export default function App() {
               purchases={purchases}
               itemsMaster={itemsMaster}
               transports={transports}
-              brokers={brokers}
+              brokers={brokers.filter((b: any) => b.type === 'sale' || !b.type)}
               editingBooking={editingBooking}
               onViewHistory={() => setCurrentView('salehistory')}
               payments={payments}
@@ -1808,7 +1852,7 @@ export default function App() {
               purchases={purchases}
               itemsMaster={itemsMaster}
               transports={transports}
-              brokers={brokers}
+              brokers={brokers.filter((b: any) => b.type === 'purchase')}
               editingPurchase={editingPurchase}
               onViewHistory={() => setCurrentView('purchasehistory')}
               payments={purchasePayments}
@@ -1895,6 +1939,7 @@ export default function App() {
                 payments={payments}
                 creditNotes={creditNotes}
                 editingPayment={editingPayment}
+                isSyncing={isSyncing}
                 onCancel={() => {
                   setEditingPayment(null);
                   setCurrentView('ledg');
@@ -1910,6 +1955,7 @@ export default function App() {
                 payments={purchasePayments}
                 debitNotes={debitNotes}
                 editingPayment={editingPayment}
+                isSyncing={isSyncing}
                 onCancel={() => {
                   setEditingPayment(null);
                   setCurrentView('ledg');
@@ -5021,7 +5067,9 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
       basicAmount: editingCreditNote?.basicAmount || 0,
       globalDiscount: editingCreditNote?.globalDiscount || 0,
       taxRate: editingCreditNote?.taxRate || 5,
-      date: editingCreditNote?.date || new Date().toISOString()
+      date: editingCreditNote?.date || new Date().toISOString(),
+      brokerId: editingCreditNote?.brokerId || '',
+      brokerCommission: editingCreditNote?.brokerCommission || 0
     };
   });
 
@@ -5044,6 +5092,8 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
         partyMobile2: booking.consigneeMobile2 || '',
         taxRate: booking.taxRate || 5,
         globalDiscount: booking.globalDiscount || 0,
+        brokerId: booking.brokerId || '',
+        brokerCommission: booking.brokerCommission || 0,
         items: booking.items.map((item: any) => ({
           ...item,
           id: Math.random().toString(36).substr(2, 9)
@@ -5229,6 +5279,44 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm"
                 placeholder="e.g. Quality Issue"
               />
+            </div>
+          </div>
+          
+          <div className="pt-4 mt-4 border-t border-green-500/10">
+            <label className="text-[11px] font-black text-green-600 uppercase tracking-wider mb-2 block">Brokerage Reversal (Auto-calculated)</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Linked Broker</label>
+                <select 
+                  value={formData.brokerId || ''}
+                  onChange={e => {
+                    const bId = e.target.value;
+                    const b = (brokers || []).find((br: any) => br.id === bId);
+                    setFormData({ ...formData, brokerId: bId, brokerCommission: b?.defaultCommission || 0 });
+                  }}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm appearance-none"
+                >
+                  <option value="">No Broker</option>
+                  {(brokers || []).filter((b: any) => b.type === 'sale').map((b: any) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Commission Rate (%)</label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    step="any"
+                    value={formData.brokerCommission || ''}
+                    onChange={e => setFormData({ ...formData, brokerCommission: parseFloat(e.target.value) || 0 })}
+                    onKeyDown={handleEnter}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl font-black bg-white outline-none focus:border-green-500 transition-all shadow-sm text-right pr-10"
+                    placeholder="Rate"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">%</span>
+                </div>
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -5753,7 +5841,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
     </motion.div>
   );
 }
-function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel, payments = [], debitNotes = [] }: any) {
+function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel, payments = [], debitNotes = [], isSyncing = false }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
   const [chequeDate, setChequeDate] = useState(editingPayment?.chequeDate || '');
@@ -5763,25 +5851,25 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
   const [partySearch, setPartySearch] = useState('');
 
   const filteredParties = useMemo(() => {
-    return parties.filter((p: any) => 
-      p.name.toLowerCase().includes(partySearch.toLowerCase()) || 
-      p.gstin.toLowerCase().includes(partySearch.toLowerCase())
+    return (parties || []).filter((p: any) => 
+      p?.name?.toLowerCase().includes(partySearch.toLowerCase()) || 
+      p?.gstin?.toLowerCase().includes(partySearch.toLowerCase())
     );
   }, [parties, partySearch]);
 
-  const selectedParty = parties.find((p: any) => p.id === selectedId);
+  const selectedParty = (parties || []).find((p: any) => p?.id === selectedId);
   const partyPurchases = useMemo(() => {
     if (!selectedParty) return [];
-    return (purchases || []).filter((p: any) => p.partyGstin === selectedParty.gstin);
+    return (purchases || []).filter((p: any) => p?.partyGstin === selectedParty.gstin);
   }, [selectedParty, purchases]);
 
   useEffect(() => {
     if (selectedParty) {
       setBillAdjustments(partyPurchases.map((p: any) => {
-        const otherPayments = payments.filter((py: any) => py.id !== editingPayment?.id);
+        const otherPayments = (payments || []).filter((py: any) => py?.id !== editingPayment?.id);
         const info = getBillPaymentInfo(p.id, p.grandTotal, otherPayments, debitNotes, p.billNumber?.toString());
         const existingAdj = editingPayment?.billAdjustments?.find((adj: any) => adj.billId === p.id);
-        const paidAmount = existingAdj ? existingAdj.paid : '';
+        const paidAmount = existingAdj ? existingAdj.amount : '';
 
         if (info.status === 'PAID' && !existingAdj) return null;
         return {
@@ -5808,7 +5896,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black text-red-100 uppercase tracking-widest">Total Sending</p>
-          <p className="text-2xl font-black text-white">₹ {totalAdjusted.toLocaleString()}</p>
+          <p className="text-2xl font-black text-white">₹ {(totalAdjusted || 0).toLocaleString()}</p>
         </div>
       </div>
       
@@ -5830,10 +5918,10 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
           chequeNumber,
           chequeDate,
           notes,
-          billAdjustments: billAdjustments.filter(b => b.paid > 0).map(b => ({
+          billAdjustments: billAdjustments.filter(b => (parseFloat(b.paid) || 0) > 0).map(b => ({
             billId: b.billId,
-            billNumber: b.billNumber,
-            amount: b.paid
+            billNumber: b.billNumber as string,
+            amount: parseFloat(b.paid)
           }))
         });
       }} className="p-10 space-y-10">
@@ -5860,7 +5948,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
                   className={`w-40 px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-red-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
                 >
                   <option value="">Quick Select</option>
-                  {filteredParties.map((p: any) => (
+                  {(filteredParties || []).map((p: any) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
@@ -5883,12 +5971,12 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
               <div>
                 <div className="text-[10px] font-black text-red-700 uppercase tracking-widest">To Be Paid</div>
                 <div className="text-xl font-black text-red-600">
-                  ₹ {(selectedParty.totalPurchases - selectedParty.totalPaid).toLocaleString()}
+                  ₹ {((selectedParty.totalPurchases || 0) - (selectedParty.totalPaid || 0)).toLocaleString()}
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] font-black text-red-700 uppercase tracking-widest">Total Purchases</div>
-                <div className="text-sm font-bold text-slate-600">₹ {selectedParty.totalPurchases.toLocaleString()}</div>
+                <div className="text-sm font-bold text-slate-600">₹ {(selectedParty.totalPurchases || 0).toLocaleString()}</div>
               </div>
             </div>
           )}
@@ -5911,8 +5999,8 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
                   {billAdjustments.map((b, idx) => (
                     <tr key={b.billId} className="bg-white">
                       <td className="px-6 py-4 font-black text-slate-900"># {b.billNumber}</td>
-                      <td className="px-6 py-4 font-bold text-slate-500 text-sm">₹ {b.grandTotal.toLocaleString()}</td>
-                      <td className="px-6 py-4 font-bold text-red-500 text-sm">₹ {(b.balance || b.grandTotal).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-bold text-slate-500 text-sm">₹ {(b.grandTotal || 0).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-bold text-red-500 text-sm">₹ {(b.balance || b.grandTotal || 0).toLocaleString()}</td>
                       <td className="px-6 py-4">
                         <input 
                           type="number"
@@ -5931,7 +6019,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
                   ))}
                   {billAdjustments.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="px-6 py-10 text-center text-slate-400 font-bold italic text-xs">No pending purchase bills found</td>
+                      <td colSpan={4} className="px-6 py-10 text-center text-slate-400 font-bold italic text-xs">No pending purchase bills found</td>
                     </tr>
                   )}
                 </tbody>
@@ -5946,7 +6034,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cheque / Ref Number</label>
                 <input 
                   type="text" 
-                  value={chequeNumber}
+                  value={chequeNumber || ''}
                   onChange={e => setChequeNumber(e.target.value)}
                   className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-red-500"
                   placeholder="e.g. 123456"
@@ -5956,7 +6044,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cheque Pass Date</label>
                 <input 
                   type="date" 
-                  value={chequeDate}
+                  value={chequeDate || ''}
                   onChange={e => setChequeDate(e.target.value)}
                   className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-red-500"
                 />
@@ -5966,7 +6054,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Internal Notes</label>
             <textarea 
               rows={4}
-              value={notes}
+              value={notes || ''}
               onChange={e => setNotes(e.target.value)}
               className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-red-500 resize-none"
               placeholder="Enter payment details..."
@@ -5977,10 +6065,18 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
         <div className="pt-4 flex flex-col items-center">
           <button 
             type="submit"
-            disabled={totalAdjusted <= 0}
+            disabled={totalAdjusted <= 0 || isSyncing}
             className="w-full md:w-auto md:min-w-[400px] bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white font-black py-5 px-12 rounded-2xl text-xl shadow-xl shadow-red-100 transition-all active:scale-[0.98] flex items-center justify-center gap-4"
           >
-            <Save size={24} /> Send Payment (₹ {totalAdjusted.toLocaleString()})
+            {isSyncing ? (
+              <>
+                <RefreshCw size={24} className="animate-spin" /> Syncing...
+              </>
+            ) : (
+              <>
+                <Save size={24} /> {editingPayment ? 'Update Payment' : 'Send Payment'} (₹ {(totalAdjusted || 0).toLocaleString()})
+              </>
+            )}
           </button>
           <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">
             This will update the purchase party ledger and bills
@@ -6021,7 +6117,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onCancel,
   );
 }
 
-function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, payments = [], creditNotes = [] }: any) {
+function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, payments = [], creditNotes = [], isSyncing = false }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [amount, setAmount] = useState(editingPayment?.amount?.toString() || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
@@ -6032,25 +6128,25 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
   const [partySearch, setPartySearch] = useState('');
 
   const filteredParties = useMemo(() => {
-    return parties.filter((p: any) => 
-      p.name.toLowerCase().includes(partySearch.toLowerCase()) || 
-      p.gstin.toLowerCase().includes(partySearch.toLowerCase())
+    return (parties || []).filter((p: any) => 
+      p?.name?.toLowerCase().includes(partySearch.toLowerCase()) || 
+      p?.gstin?.toLowerCase().includes(partySearch.toLowerCase())
     );
   }, [parties, partySearch]);
 
-  const selectedParty = parties.find((p: any) => p.id === selectedId);
+  const selectedParty = (parties || []).find((p: any) => p?.id === selectedId);
   const partyBookings = useMemo(() => {
     if (!selectedParty) return [];
-    return (bookings || []).filter((b: any) => b.consigneeGstin === selectedParty.gstin);
+    return (bookings || []).filter((b: any) => b?.consigneeGstin === selectedParty.gstin);
   }, [selectedParty, bookings]);
 
   useEffect(() => {
     if (selectedParty) {
       setBillAdjustments(partyBookings.map((b: any) => {
-        const otherPayments = payments.filter((p: any) => p.id !== editingPayment?.id);
+        const otherPayments = (payments || []).filter((p: any) => p?.id !== editingPayment?.id);
         const info = getBillPaymentInfo(b.id, b.grandTotal, otherPayments, creditNotes, b.billNumber?.toString());
         const existingAdj = editingPayment?.billAdjustments?.find((adj: any) => adj.billId === b.id);
-        const paidAmount = existingAdj ? existingAdj.paid : '';
+        const paidAmount = existingAdj ? existingAdj.amount : '';
 
         if (info.status === 'PAID' && !existingAdj) return null;
         return {
@@ -6077,7 +6173,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black text-blue-100 uppercase tracking-widest">Total Adjustment</p>
-          <p className="text-2xl font-black text-white">₹ {totalAdjusted.toLocaleString()}</p>
+          <p className="text-2xl font-black text-white">₹ {(totalAdjusted || 0).toLocaleString()}</p>
         </div>
       </div>
       
@@ -6099,10 +6195,10 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
           chequeNumber,
           chequeDate,
           notes,
-          billAdjustments: billAdjustments.filter(b => b.paid > 0).map(b => ({
+          billAdjustments: billAdjustments.filter(b => (parseFloat(b.paid) || 0) > 0).map(b => ({
             billId: b.billId,
-            billNumber: b.billNumber,
-            amount: b.paid
+            billNumber: b.billNumber as string,
+            amount: parseFloat(b.paid)
           }))
         });
       }} className="p-10 space-y-10">
@@ -6130,7 +6226,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
                   className={`w-40 px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
                 >
                   <option value="">Quick Select</option>
-                  {filteredParties.map((p: any) => (
+                  {(filteredParties || []).map((p: any) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
@@ -6152,13 +6248,13 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
             <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex justify-between items-center">
               <div>
                 <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Pending Ledger Balance</div>
-                <div className={`text-xl font-black ${selectedParty.totalSales - selectedParty.totalPaid > 0 ? 'text-red-500' : 'text-green-600'}`}>
-                  ₹ {(selectedParty.totalSales - selectedParty.totalPaid).toLocaleString()}
+                <div className={`text-xl font-black ${((selectedParty.totalSales || 0) - (selectedParty.totalPaid || 0)) > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                  ₹ {((selectedParty.totalSales || 0) - (selectedParty.totalPaid || 0)).toLocaleString()}
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Total Sales</div>
-                <div className="text-sm font-bold text-slate-600">₹ {selectedParty.totalSales.toLocaleString()}</div>
+                <div className="text-sm font-bold text-slate-600">₹ {(selectedParty.totalSales || 0).toLocaleString()}</div>
               </div>
             </div>
           )}
@@ -6182,8 +6278,8 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
                   {billAdjustments.map((b, idx) => (
                     <tr key={b.billId} className="bg-white">
                       <td className="px-6 py-4 font-black text-slate-900"># {b.billNumber}</td>
-                      <td className="px-6 py-4 font-bold text-slate-500 text-sm">₹ {b.grandTotal.toLocaleString()}</td>
-                      <td className="px-6 py-4 font-bold text-red-500 text-sm">₹ {(b.balance || b.grandTotal).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-bold text-slate-500 text-sm">₹ {(b.grandTotal || 0).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-bold text-red-500 text-sm">₹ {(b.balance || b.grandTotal || 0).toLocaleString()}</td>
                       <td className="px-6 py-4">
                         <input 
                           type="number"
@@ -6202,7 +6298,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
                   ))}
                   {billAdjustments.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="px-6 py-10 text-center text-slate-400 font-bold italic text-xs">No pending bills found for this party</td>
+                      <td colSpan={4} className="px-6 py-10 text-center text-slate-400 font-bold italic text-xs">No pending bills found for this party</td>
                     </tr>
                   )}
                 </tbody>
@@ -6218,7 +6314,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cheque / Ref Number</label>
                 <input 
                   type="text" 
-                  value={chequeNumber}
+                  value={chequeNumber || ''}
                   onChange={e => setChequeNumber(e.target.value)}
                   className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-blue-500"
                   placeholder="e.g. 123456"
@@ -6228,7 +6324,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cheque Pass Date</label>
                 <input 
                   type="date" 
-                  value={chequeDate}
+                  value={chequeDate || ''}
                   onChange={e => setChequeDate(e.target.value)}
                   className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-blue-500"
                 />
@@ -6238,7 +6334,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Internal Notes</label>
             <textarea 
               rows={4}
-              value={notes}
+              value={notes || ''}
               onChange={e => setNotes(e.target.value)}
               className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-blue-500 resize-none"
               placeholder="Enter any additional details here..."
@@ -6249,10 +6345,18 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onCancel, paym
         <div className="pt-4 flex flex-col items-center">
           <button 
             type="submit"
-            disabled={totalAdjusted <= 0}
+            disabled={totalAdjusted <= 0 || isSyncing}
             className="w-full md:w-auto md:min-w-[400px] bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-black py-5 px-12 rounded-2xl text-xl shadow-xl shadow-blue-100 transition-all active:scale-[0.98] flex items-center justify-center gap-4"
           >
-            <Save size={24} /> Confirm Payment (₹ {totalAdjusted.toLocaleString()})
+            {isSyncing ? (
+              <>
+                <RefreshCw size={24} className="animate-spin" /> Syncing...
+              </>
+            ) : (
+              <>
+                <Save size={24} /> {editingPayment ? 'Update Payment' : 'Confirm Payment'} (₹ {(totalAdjusted || 0).toLocaleString()})
+              </>
+            )}
           </button>
           <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">
             This entry will settle selected bills and update party ledger
@@ -7353,20 +7457,20 @@ interface SettingsViewProps {
 }
 
 function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Payment[], allCreditNotes: CreditNote[] = [], billNumberStr: string = '') {
-  const BillAdjustments = allPayments.flatMap(p => p.billAdjustments || []);
+  const BillAdjustments = (allPayments || []).flatMap(p => p?.billAdjustments || []);
   const paidAmount = BillAdjustments
-    .filter(adj => adj.billId === billId)
-    .reduce((sum, adj) => sum + adj.amount, 0);
+    .filter(adj => adj?.billId === billId)
+    .reduce((sum, adj) => sum + (adj?.amount || 0), 0);
 
-  const cnAmount = allCreditNotes
-    .filter(cn => cn.salesBillNumber === billNumberStr && billNumberStr !== '')
-    .reduce((sum, cn) => sum + cn.grandTotal, 0);
+  const cnAmount = (allCreditNotes || [])
+    .filter(cn => cn?.salesBillNumber === billNumberStr && billNumberStr !== '')
+    .reduce((sum, cn) => sum + (cn?.grandTotal || 0), 0);
   
-  const balance = grandTotal - paidAmount - cnAmount;
+  const balance = (grandTotal || 0) - paidAmount - cnAmount;
   let status: 'PAID' | 'PARTIAL' | 'UNPAID' = 'UNPAID';
   
-  if (balance <= 0) status = 'PAID';
-  else if ((paidAmount + cnAmount) > 0) status = 'PARTIAL';
+  if (balance <= 0.5) status = 'PAID';
+  else if ((paidAmount + cnAmount) > 0.5) status = 'PARTIAL';
   
   return { paidAmount, balance, status, cnAmount };
 }
@@ -10584,7 +10688,14 @@ function ChallanCompareView({ millChallans, partyChallans, weaverChallans = [] }
 
 function BrokersView({ brokers, parties, onSave }: any) {
   const [editingBroker, setEditingBroker] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', mobile: '', pan: '', mappings: [] as any[] });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    mobile: '', 
+    pan: '', 
+    type: 'sale' as 'sale' | 'purchase',
+    defaultCommission: '',
+    mappings: [] as any[] 
+  });
 
   const handleAddMapping = () => {
     setFormData({ ...formData, mappings: [...formData.mappings, { partyId: '', rate: 0, type: 'percentage' }] });
@@ -10597,6 +10708,8 @@ function BrokersView({ brokers, parties, onSave }: any) {
       name: formData.name,
       mobile: formData.mobile,
       pan: formData.pan,
+      type: formData.type,
+      defaultCommission: parseFloat(formData.defaultCommission as string) || 0,
       partyMappings: formData.mappings
     };
 
@@ -10606,7 +10719,7 @@ function BrokersView({ brokers, parties, onSave }: any) {
       onSave([...brokers, newBroker]);
     }
     setEditingBroker(null);
-    setFormData({ name: '', mobile: '', pan: '', mappings: [] });
+    setFormData({ name: '', mobile: '', pan: '', type: 'sale', defaultCommission: '', mappings: [] });
   };
 
   return (
@@ -10614,7 +10727,7 @@ function BrokersView({ brokers, parties, onSave }: any) {
       <div className="flex justify-between items-center mb-8">
         <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">Brokers Master</h2>
         <button 
-          onClick={() => { setEditingBroker(null); setFormData({ name: '', mobile: '', pan: '', mappings: [] }); }}
+          onClick={() => { setEditingBroker(null); setFormData({ name: '', mobile: '', pan: '', type: 'sale', defaultCommission: '', mappings: [] }); }}
           className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg"
         >
           Add New Broker
@@ -10635,6 +10748,29 @@ function BrokersView({ brokers, parties, onSave }: any) {
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Broker Type</label>
+                <select 
+                  value={formData.type}
+                  onChange={e => setFormData({ ...formData, type: e.target.value as any })}
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
+                >
+                  <option value="sale">Sale Broker</option>
+                  <option value="purchase">Purchase Broker</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Commission %</label>
+                <input 
+                  type="number" 
+                  value={formData.defaultCommission} 
+                  onChange={e => setFormData({ ...formData, defaultCommission: e.target.value })}
+                  placeholder="e.g. 2"
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
+                />
+              </div>
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Mobile Number</label>
@@ -10714,6 +10850,7 @@ function BrokersView({ brokers, parties, onSave }: any) {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Broker Name</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Parties Linked</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
@@ -10724,6 +10861,12 @@ function BrokersView({ brokers, parties, onSave }: any) {
                   <td className="px-8 py-6">
                     <div className="font-black text-slate-800 uppercase tracking-tighter">{b.name}</div>
                     <div className="text-[10px] font-bold text-slate-400">{b.mobile || 'No Mobile'}</div>
+                  </td>
+                  <td className="px-8 py-6 text-[10px] font-black uppercase tracking-widest">
+                    <span className={b.type === 'sale' ? 'text-blue-600' : 'text-purple-600'}>
+                      {b.type || 'sale'} Broker
+                    </span>
+                    {b.defaultCommission > 0 && <div className="text-slate-400">{b.defaultCommission}% Default</div>}
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex flex-wrap gap-1">
@@ -10739,7 +10882,7 @@ function BrokersView({ brokers, parties, onSave }: any) {
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex justify-end gap-2">
-                       <button onClick={() => { setEditingBroker(b); setFormData({ name: b.name, mobile: b.mobile || '', pan: b.pan || '', mappings: b.partyMappings || [] }); }} className="text-amber-500"><Edit size={18}/></button>
+                       <button onClick={() => { setEditingBroker(b); setFormData({ name: b.name, mobile: b.mobile || '', pan: b.pan || '', type: b.type || 'sale', defaultCommission: b.defaultCommission?.toString() || '', mappings: b.partyMappings || [] }); }} className="text-amber-500"><Edit size={18}/></button>
                        <button onClick={() => { if(confirm("Delete Broker?")) onSave(brokers.filter((x: any) => x.id !== b.id)); }} className="text-rose-500"><Trash2 size={18}/></button>
                     </div>
                   </td>
@@ -10774,9 +10917,12 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
       ...brokerCommissions.map(c => ({ 
         id: c.id, 
         date: c.date || c.billDate, 
-        type: 'COMMISSION - ' + c.transactionType, 
-        ref: `Bill #${c.billNumber}`, 
+        type: c.transactionType, // SALE or PURCHASE
+        ref: c.billNumber?.toString() || '-', 
         party: c.partyName,
+        billAmount: c.billAmount,
+        commRate: c.commissionRate,
+        commType: c.commissionType,
         dr: c.commissionAmount, 
         cr: 0 
       })),
@@ -10784,7 +10930,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
         id: p.id, 
         date: p.date, 
         type: 'PAYMENT', 
-        ref: p.notes || 'Payment', 
+        ref: '-', 
         party: '-',
         dr: 0, 
         cr: p.amount 
@@ -10794,11 +10940,9 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
   }, [brokerCommissions, brokerPayments]);
 
   const stats = useMemo(() => {
-    const totalSaleComm = brokerCommissions.filter(c => c.transactionType === 'SALE').reduce((sum, c) => sum + c.commissionAmount, 0);
-    const totalPurchaseComm = brokerCommissions.filter(c => c.transactionType === 'PURCHASE').reduce((sum, c) => sum + c.commissionAmount, 0);
-    const totalEarned = totalSaleComm + totalPurchaseComm;
+    const totalEarned = brokerCommissions.reduce((sum, c) => sum + c.commissionAmount, 0);
     const totalPaid = brokerPayments.reduce((sum, p) => sum + p.amount, 0);
-    return { totalSaleComm, totalPurchaseComm, totalEarned, totalPaid, balance: totalEarned - totalPaid };
+    return { totalEarned, totalPaid, balance: totalEarned - totalPaid };
   }, [brokerCommissions, brokerPayments]);
 
   const [paymentForm, setPaymentForm] = useState({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
@@ -10840,22 +10984,19 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-indigo-600 p-8 rounded-[40px] text-white shadow-xl">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Sale Commission</div>
-              <div className="text-3xl font-black tracking-tighter italic">₹ {Math.round(stats.totalSaleComm).toLocaleString()}</div>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-[40px] text-white shadow-xl">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Total Earned</div>
+              <div className="text-4xl font-black tracking-tighter">₹ {Math.round(stats.totalEarned).toLocaleString()}</div>
             </div>
-            <div className="bg-blue-600 p-8 rounded-[40px] text-white shadow-xl">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Purchase Commission</div>
-              <div className="text-3xl font-black tracking-tighter italic">₹ {Math.round(stats.totalPurchaseComm).toLocaleString()}</div>
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-8 rounded-[40px] text-white shadow-xl">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Total Paid</div>
+              <div className="text-4xl font-black tracking-tighter">₹ {Math.round(stats.totalPaid).toLocaleString()}</div>
             </div>
-            <div className="bg-emerald-500 p-8 rounded-[40px] text-white shadow-xl">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Commission Paid</div>
-              <div className="text-3xl font-black tracking-tighter italic">₹ {Math.round(stats.totalPaid).toLocaleString()}</div>
-            </div>
-            <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Balance Remaining</div>
-              <div className="text-3xl font-black tracking-tighter italic">₹ {Math.round(stats.balance).toLocaleString()}</div>
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-[40px] text-white shadow-xl">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Net Payable Balance</div>
+              <div className="text-4xl font-black tracking-tighter text-amber-400">₹ {Math.round(stats.balance).toLocaleString()}</div>
             </div>
           </div>
 
@@ -10874,50 +11015,59 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onDel
                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Notes / Description</label>
                  <input type="text" value={paymentForm.notes} onChange={e => setPaymentForm({...paymentForm, notes: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
                </div>
-               <button onClick={handleAddPayment} className="bg-emerald-600 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg">Save Payment</button>
+               <button onClick={handleAddPayment} className="bg-slate-900 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg">Save Payment</button>
              </div>
           </div>
 
           <div className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Party / Reference</th>
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right text-indigo-600">Earned (+)</th>
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right text-emerald-600">Paid (-)</th>
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {transactions.map((t: any) => (
-                  <tr key={t.id} className="hover:bg-slate-50">
-                    <td className="px-8 py-6 font-bold text-slate-500 text-sm">{new Date(t.date).toLocaleDateString()}</td>
-                    <td className="px-8 py-6">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${t.type === 'COMMISSION' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                        {t.type}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="font-bold text-slate-800">{t.ref}</div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.party}</div>
-                    </td>
-                    <td className="px-8 py-6 text-right font-black text-lg tracking-tighter text-indigo-600">
-                       {t.dr > 0 ? `₹${Math.round(t.dr).toLocaleString()}` : '-'}
-                    </td>
-                    <td className="px-8 py-6 text-right font-black text-lg tracking-tighter text-emerald-600">
-                       {t.cr > 0 ? `₹${Math.round(t.cr).toLocaleString()}` : '-'}
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                       {t.type === 'PAYMENT' && (
-                         <button onClick={() => onDeletePayment(t.id)} className="text-rose-500 p-2 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18}/></button>
-                       )}
-                    </td>
+            <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Transaction History</h3>
+              <div className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">
+                {selectedBroker.name} ({selectedBroker.type || 'sale'} Broker)
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Bill No</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Party Name</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Bill Amount</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Comm %</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Brokerage</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Paid Amt</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {transactions.map((t: any) => (
+                    <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-8 py-6 font-bold text-slate-500 text-xs">{new Date(t.date).toLocaleDateString()}</td>
+                      <td className="px-8 py-6 font-bold text-slate-800 text-xs">{t.ref}</td>
+                      <td className="px-8 py-6 font-bold text-slate-800 text-xs uppercase">{t.party}</td>
+                      <td className="px-8 py-6">
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${t.type === 'SALE' ? 'bg-blue-50 text-blue-600' : t.type === 'PURCHASE' ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                          {t.type}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-right font-black text-sm text-slate-400">
+                        {t.billAmount ? `₹${Math.round(t.billAmount).toLocaleString()}` : '-'}
+                      </td>
+                      <td className="px-8 py-6 text-right font-black text-sm text-slate-400">
+                        {t.commRate ? `${t.commRate}${t.commType === 'fixed' ? '₹' : '%'}` : '-'}
+                      </td>
+                      <td className="px-8 py-6 text-right font-black text-lg tracking-tighter text-indigo-600">
+                         {t.dr !== 0 ? `₹${Math.round(t.dr).toLocaleString()}` : '-'}
+                      </td>
+                      <td className="px-8 py-6 text-right font-black text-lg tracking-tighter text-emerald-600">
+                         {t.cr !== 0 ? `₹${Math.round(t.cr).toLocaleString()}` : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

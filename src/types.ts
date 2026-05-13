@@ -210,6 +210,8 @@ export interface Broker {
   name: string;
   mobile?: string;
   pan?: string;
+  type: 'sale' | 'purchase';
+  defaultCommission?: number;
   partyMappings?: { partyId: string; rate: number; type: 'fixed' | 'percentage' }[];
 }
 
