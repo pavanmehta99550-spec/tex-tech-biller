@@ -1343,6 +1343,13 @@ export default function App() {
     const partyMaxSerial = partyChallans.length > 0 ? Math.max(...partyChallans.map(c => c.serialNo || 0)) : 0;
     const weaverMaxSerial = weaverChallans.length > 0 ? Math.max(...weaverChallans.map(c => c.serialNo || 0)) : 0;
 
+    // Calculate broker amount if mill challan
+    let brokerAmount = 0;
+    if (data.type === 'MILL' && data.brokerId && data.brokerRate) {
+      const totalMtrs = (data.items || []).reduce((sum, it) => sum + (it.unit === 'MTR' ? it.quantity || 0 : 0), 0);
+      brokerAmount = Math.round(totalMtrs * data.brokerRate);
+    }
+
     const newChallan: Challan = {
       id: data.id || Math.random().toString(36).substr(2, 9),
       serialNo: data.serialNo || (data.type === 'MILL' ? millMaxSerial + 1 : data.type === 'PARTY' ? partyMaxSerial + 1 : weaverMaxSerial + 1),
@@ -1353,7 +1360,10 @@ export default function App() {
       partyGstin: data.partyGstin || '',
       items: data.items || [],
       notes: data.notes || '',
-      weaverChallanNumber: data.weaverChallanNumber || ''
+      weaverChallanNumber: data.weaverChallanNumber || '',
+      brokerId: data.brokerId,
+      brokerRate: data.brokerRate,
+      brokerAmount: brokerAmount
     };
 
     if (data.type === 'MILL') {
@@ -1361,6 +1371,44 @@ export default function App() {
         setMillChallans(prev => prev.map(c => c.id === data.id ? newChallan : c));
       } else {
         setMillChallans(prev => [newChallan, ...prev]);
+      }
+
+      // Handle broker commission for Mill Challan
+      if (newChallan.brokerId) {
+        const broker = brokers.find(b => b.id === newChallan.brokerId);
+        if (broker) {
+          const totalMtrs = newChallan.items.reduce((sum, it) => sum + (it.unit === 'MTR' ? it.quantity || 0 : 0), 0);
+          const commission: BrokerCommission = {
+            id: `comm-mill-${newChallan.id}`,
+            brokerId: newChallan.brokerId,
+            brokerName: broker.name,
+            partyId: 'MILL',
+            partyName: newChallan.partyName,
+            billId: newChallan.id,
+            billNumber: newChallan.challanNumber as any,
+            billDate: newChallan.date,
+            billAmount: 0, // Not applicable for mill meter rate
+            commissionRate: newChallan.brokerRate || 0,
+            commissionType: 'meter',
+            commissionAmount: newChallan.brokerAmount || 0,
+            status: 'UNPAID',
+            paidAmount: 0,
+            date: newChallan.date
+          };
+          
+          setCommissions(prev => {
+            const existingIdx = prev.findIndex(c => c.id === commission.id);
+            if (existingIdx >= 0) {
+              const updated = [...prev];
+              updated[existingIdx] = commission;
+              return updated;
+            }
+            return [commission, ...prev];
+          });
+        }
+      } else {
+        // If broker removed during update
+        setCommissions(prev => prev.filter(c => c.id !== `comm-mill-${newChallan.id}`));
       }
     } else if (data.type === 'PARTY') {
       if (isUpdate) {
@@ -1382,6 +1430,7 @@ export default function App() {
     if (confirm("Are you sure you want to delete this challan?")) {
       if (type === 'MILL') {
         setMillChallans(prev => prev.filter(c => c.id !== id));
+        setCommissions(prev => prev.filter(c => c.id !== `comm-mill-${id}`));
       } else if (type === 'PARTY') {
         setPartyChallans(prev => prev.filter(c => c.id !== id));
       } else if (type === 'WEAVER') {
@@ -2062,6 +2111,7 @@ export default function App() {
               itemsMaster={itemsMaster}
               weaverChallans={weaverChallans}
               settings={settings}
+              brokers={brokers}
             />}
             {currentView === 'partychallan' && <ChallanEntryView 
               key="partychallan"
@@ -2073,6 +2123,7 @@ export default function App() {
               itemsMaster={itemsMaster}
               settings={settings}
               millChallans={millChallans}
+              brokers={brokers}
             />}
             {currentView === 'weaverchallan' && <ChallanEntryView 
               key="weaverchallan"
@@ -2083,6 +2134,7 @@ export default function App() {
               parties={weaverParties}
               itemsMaster={itemsMaster}
               settings={settings}
+              brokers={brokers}
             />}
             {currentView === 'weaverparty' && (
               <PartyMasterView 
@@ -10167,7 +10219,7 @@ function MeterEntryModal({ isOpen, onClose, onSave, initialValue, unit }: any) {
   );
 }
 
-function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMaster = [], weaverChallans = [], settings, millChallans = [] }: any) {
+function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMaster = [], weaverChallans = [], settings, millChallans = [], brokers = [] }: any) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isMeterModalOpen, setIsMeterModalOpen] = useState(false);
@@ -10251,7 +10303,10 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
     type: type,
     items: [],
     notes: '',
-    weaverChallanNumber: ''
+    weaverChallanNumber: '',
+    brokerId: '',
+    brokerRate: 0,
+    brokerAmount: 0
   });
 
   const autoComparison = useMemo(() => {
@@ -10406,7 +10461,10 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
       type: type,
       items: [],
       notes: '',
-      weaverChallanNumber: ''
+      weaverChallanNumber: '',
+      brokerId: '',
+      brokerRate: 0,
+      brokerAmount: 0
     });
     setShowAdd(false);
     setEditingId(null);
@@ -10549,7 +10607,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
               )}
 
               {type === 'MILL' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Weaver Challan Number (For Comparison)</label>
                     <input 
@@ -10565,6 +10623,34 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                         <option key={c.id} value={c.challanNumber}>{c.partyName} ({new Date(c.date).toLocaleDateString()})</option>
                       ))}
                     </datalist>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Broker</label>
+                    <select 
+                      value={formData.brokerId || ''}
+                      onChange={e => {
+                        const bId = e.target.value;
+                        const broker = (brokers || []).find((b: any) => b.id === bId);
+                        setFormData({ ...formData, brokerId: bId, brokerRate: broker?.defaultCommission || 0 });
+                      }}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all shadow-sm"
+                    >
+                      <option value="">No Broker</option>
+                      {(brokers || []).filter((b: any) => b.type === 'mill').map((b: any) => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Broker Rate (Per MTR)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={formData.brokerRate || ''}
+                      onChange={e => setFormData({ ...formData, brokerRate: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all font-mono"
+                      placeholder="Rate e.g. 1.25"
+                    />
                   </div>
                 </div>
               )}

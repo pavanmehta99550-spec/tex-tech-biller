@@ -192,6 +192,9 @@ export interface Challan {
   items: ChallanItem[];
   notes?: string;
   weaverChallanNumber?: string;
+  brokerId?: string;
+  brokerRate?: number;
+  brokerAmount?: number;
 }
 
 export interface Expense {
