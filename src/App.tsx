@@ -1529,6 +1529,7 @@ export default function App() {
       setPaymentSaveTrigger(prev => prev + 1);
       alert("Payment Received Successfully!");
     }
+    setTimeout(() => setIsSyncing(false), 500);
   };
 
   const handleSavePurchasePayment = (data: any) => {
@@ -1576,14 +1577,27 @@ export default function App() {
       setPurchasePaymentSaveTrigger(prev => prev + 1);
       alert("Payment Sent Successfully!");
     }
+    setTimeout(() => setIsSyncing(false), 500);
   };
 
   const handleDeletePayment = (payment: any) => {
     if (confirm("Are you sure you want to delete this payment record? This action cannot be undone.")) {
+      setIsSyncing(true);
       setPayments(payments.filter((p: any) => p.id !== payment.id));
       // Update party totalPaid if necessary (assuming totalPaid exists on party)
       setSaleParties(saleParties.map(p => p.id === payment.partyId ? { ...p, totalPaid: (p.totalPaid || 0) - payment.amount } : p));
+      setTimeout(() => setIsSyncing(false), 500);
       alert("Payment Deleted Successfully!");
+    }
+  };
+
+  const handleDeletePurchasePayment = (payment: any) => {
+    if (confirm("Are you sure you want to delete this payment record? This action cannot be undone.")) {
+      setIsSyncing(true);
+      setPurchasePayments(purchasePayments.filter((p: any) => p.id !== payment.id));
+      setPurchaseParties(purchaseParties.map(p => p.id === payment.partyId ? { ...p, totalPaid: (p.totalPaid || 0) - payment.amount } : p));
+      setTimeout(() => setIsSyncing(false), 500);
+      alert("Purchase Payment Deleted Successfully!");
     }
   };
 
@@ -2068,7 +2082,7 @@ export default function App() {
                 debitNotes={debitNotes}
                 editingPayment={editingPayment}
                 onEdit={setEditingPayment}
-                onDelete={handleDeletePayment}
+                onDelete={handleDeletePurchasePayment}
                 isSyncing={isSyncing}
                 onCancel={() => {
                   setEditingPayment(null);
