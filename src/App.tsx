@@ -3452,7 +3452,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 list="purchase-party-name-list"
                 onChange={e => {
                   const val = e.target.value;
-                  const party = parties.find((p: any) => p.name === val);
+                  const party = parties.find((p: any) => p.name.trim() === val.trim());
                   if (party) {
                     setFormData({
                       ...formData,

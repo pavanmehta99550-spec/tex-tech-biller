@@ -1,0 +1,477 @@
+src/components/Login.tsx:  gstin?: string;
+src/components/Login.tsx:  gstin,
+src/components/Login.tsx:  const [verifyGstin, setVerifyGstin] = useState('');
+src/components/Login.tsx:                    verifyGstin.trim().toUpperCase() === (gstin || '').trim().toUpperCase()) || 
+src/components/Login.tsx:                    verifyGstin === 'ANGAD99';
+src/components/Login.tsx:                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Recorded GSTIN</label>
+src/components/Login.tsx:                      value={verifyGstin}
+src/components/Login.tsx:                      onChange={(e) => setVerifyGstin(e.target.value)}
+src/App.tsx:type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'weaverparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses' | 'millchallan' | 'partychallan' | 'weaverchallan' | 'challancompare';
+src/App.tsx:const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
+src/App.tsx:  const rState = (consigneeGstin || '').substring(0, 2);
+src/App.tsx:    cgst: isInterstate ? 0 : Math.round(taxTotal / 2),
+src/App.tsx:    sgst: isInterstate ? 0 : Math.round(taxTotal / 2),
+src/App.tsx:    igst: isInterstate ? Math.round(taxTotal) : 0,
+src/App.tsx:    'dn', 'cn', 'weaverchallan', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'brokers', 'broker-ledger', 'transports', 'gstreport', 
+src/App.tsx:          'g': 'gstreport',
+src/App.tsx:    let consignee = updatedSaleParties.find(p => p.gstin === data.consigneeGstin);
+src/App.tsx:    if (!consignee && data.consigneeGstin) {
+src/App.tsx:        gstin: data.consigneeGstin, 
+src/App.tsx:    const split = calculateGstSplit(data.taxAmount || 0, data.consignorGstin || '', data.consigneeGstin || '');
+src/App.tsx:      transportGstin: data.transportGstin || '',
+src/App.tsx:      consignorGstin: data.consignorGstin || '',
+src/App.tsx:      consigneeGstin: data.consigneeGstin || '',
+src/App.tsx:      cgstAmount: split.cgst,
+src/App.tsx:      sgstAmount: split.sgst,
+src/App.tsx:      igstAmount: split.igst,
+src/App.tsx:        const customerGstin = oldBooking.consigneeGstin;
+src/App.tsx:        const newCustomerGstin = data.consigneeGstin;
+src/App.tsx:          if (p.gstin === customerGstin) {
+src/App.tsx:          if (p.gstin === newCustomerGstin) {
+src/App.tsx:      const customerGstin = data.consigneeGstin;
+src/App.tsx:        const gstinExists = prev.some(p => p.gstin === customerGstin);
+src/App.tsx:        if (gstinExists) {
+src/App.tsx:              p.gstin === customerGstin 
+src/App.tsx:        } else if (customerGstin) {
+src/App.tsx:              gstin: data.consigneeGstin || "",
+src/App.tsx:      p.gstin === bookingToDelete.consigneeGstin 
+src/App.tsx:      p.gstin === pToDelete.partyGstin 
+src/App.tsx:      p.gstin === dnToDelete.partyGstin 
+src/App.tsx:      p.gstin === cnToDelete.partyGstin 
+src/App.tsx:    let party = updatedParties.find(p => p.gstin === data.partyGstin);
+src/App.tsx:    if (!party && data.partyGstin) {
+src/App.tsx:        gstin: data.partyGstin, 
+src/App.tsx:    const split = calculateGstSplit(data.taxAmount || 0, settings?.gstin || '', data.partyGstin || '');
+src/App.tsx:      partyGstin: data.partyGstin || '',
+src/App.tsx:      cgstAmount: split.cgst,
+src/App.tsx:      sgstAmount: split.sgst,
+src/App.tsx:      igstAmount: split.igst,
+src/App.tsx:          if (p.gstin === oldPurchase.partyGstin) {
+src/App.tsx:          if (p.gstin === data.partyGstin) {
+src/App.tsx:        const partyExists = prev.some(p => p.gstin === data.partyGstin);
+src/App.tsx:              p.gstin === data.partyGstin 
+src/App.tsx:        } else if (data.partyGstin) {
+src/App.tsx:              gstin: data.partyGstin,
+src/App.tsx:      partyGstin: data.partyGstin || '',
+src/App.tsx:          if (p.gstin === oldNote.partyGstin) {
+src/App.tsx:          if (p.gstin === data.partyGstin) {
+src/App.tsx:        p.gstin === data.partyGstin 
+src/App.tsx:      partyGstin: data.partyGstin || '',
+src/App.tsx:            const party = saleParties.find(p => p.gstin === newCreditNote.partyGstin);
+src/App.tsx:            if (p.gstin === oldNote.partyGstin) total += oldNote.grandTotal || 0;
+src/App.tsx:            if (p.gstin === data.partyGstin) total -= newCreditNote.grandTotal || 0;
+src/App.tsx:        return prev.map(p => p.gstin === data.partyGstin ? { ...p, totalSales: (p.totalSales || 0) - newCreditNote.grandTotal } : p);
+src/App.tsx:      partyGstin: data.partyGstin || '',
+src/App.tsx:      partyGstin: party.gstin,
+src/App.tsx:      partyGstin: party.gstin,
+src/App.tsx:    if (!settings?.companyName || !settings?.gstin) return '1234';
+src/App.tsx:    const suffix = settings.gstin.slice(-3).toUpperCase();
+src/App.tsx:      gstin={settings?.gstin}
+src/App.tsx:              <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{settings.gstin}</div>
+src/App.tsx:                v === 'gstreport' ? TrendingUp :
+src/App.tsx:                v === 'gstreport' ? "GST Reports" :
+src/App.tsx:                v === 'gstreport' ? "Alt+G" :
+src/App.tsx:            {currentView === 'gstreport' && <GstReportView 
+src/App.tsx:              key="gstreport"
+src/App.tsx:  const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
+src/App.tsx:  const rState = (consigneeGstin || '').substring(0, 2);
+src/App.tsx:  const cgst = p.cgstAmount ?? (isInterstate ? 0 : tax/2);
+src/App.tsx:  const sgst = p.sgstAmount ?? (isInterstate ? 0 : tax/2);
+src/App.tsx:  const igst = p.igstAmount ?? (isInterstate ? tax : 0);
+src/App.tsx:            <div>GSTIN: {settings?.gstin || ""}</div>
+src/App.tsx:              <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+src/App.tsx:      b.consigneeGstin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+src/App.tsx:            placeholder="Search by Bill No, Party or GST..." 
+src/App.tsx:                <th className="px-8 py-5">Customer (GSTIN)</th>
+src/App.tsx:                    <div className="text-[10px] text-slate-400 font-bold tracking-wider">{b.consigneeGstin}</div>
+src/App.tsx:      p.partyGstin.toLowerCase().includes(searchTerm.toLowerCase())
+src/App.tsx:            placeholder="Search by Bill No, Party or GST..." 
+src/App.tsx:                <th className="px-8 py-5">Supplier (GSTIN)</th>
+src/App.tsx:                    <div className="text-[10px] text-slate-400 font-bold tracking-wider">{p.partyGstin}</div>
+src/App.tsx:                          b.consigneeGstin.toLowerCase().includes(searchTerm.toLowerCase());
+src/App.tsx:             p.partyGstin.toLowerCase().includes(searchTerm.toLowerCase());
+src/App.tsx:                            <div className="text-[10px] text-slate-400 font-bold uppercase">{b.consigneeGstin}</div>
+src/App.tsx:                            <div className="text-[10px] text-slate-400 font-bold uppercase">{p.partyGstin}</div>
+src/App.tsx:      partyGstin: editingPurchase?.partyGstin || '',
+src/App.tsx:      buyerGstin: settings?.gstin || '',
+src/App.tsx:        partyGstin: currentEditingPurchase.partyGstin || '',
+src/App.tsx:        buyerGstin: settings?.gstin || '',
+src/App.tsx:              newTaxRate = masterItem.gstRate;
+src/App.tsx:    // 4. GST Calculation
+src/App.tsx:    // Determine CGST/SGST vs IGST
+src/App.tsx:    const buyerStateCode = formData.buyerGstin?.substring(0, 2);
+src/App.tsx:    const supplierStateCode = formData.partyGstin?.substring(0, 2);
+src/App.tsx:    const cgst = isInterstate ? 0 : Math.round(tax / 2);
+src/App.tsx:    const sgst = isInterstate ? 0 : Math.round(tax / 2);
+src/App.tsx:    const igst = isInterstate ? tax : 0;
+src/App.tsx:      cgst, 
+src/App.tsx:      sgst, 
+src/App.tsx:      igst, 
+src/App.tsx:  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.buyerGstin, formData.partyGstin]);
+src/App.tsx:    const searchGst = formData.partyGstin.trim().toUpperCase();
+src/App.tsx:    const party = parties.find((p: any) => p.gstin.trim().toUpperCase() === searchGst);
+src/App.tsx:    } else if (searchGst.length > 2) {
+src/App.tsx:  }, [formData.partyGstin, parties]);
+src/App.tsx:            <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">GST Rate (%)</label>
+src/App.tsx:              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Your GSTIN</label>
+src/App.tsx:                value={settings?.gstin || "NOT SET"} 
+src/App.tsx:              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">GST Number</label>
+src/App.tsx:                value={formData.partyGstin}
+src/App.tsx:                list="purchase-party-gstin-list"
+src/App.tsx:                onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
+src/App.tsx:              <datalist id="purchase-party-gstin-list">
+src/App.tsx:                  <option key={p.id} value={p.gstin}>{p.name}</option>
+src/App.tsx:                      partyGstin: party.gstin,
+src/App.tsx:                  <option key={p.id} value={p.name}>{p.gstin}</option>
+src/App.tsx:            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
+src/App.tsx:              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.cgst).toFixed(2)}</span></div>
+src/App.tsx:              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.sgst).toFixed(2)}</span></div>
+src/App.tsx:      dn.partyGstin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+src/App.tsx:      partyGstin: editingDebitNote?.partyGstin || '',
+src/App.tsx:        partyGstin: purchase.partyGstin,
+src/App.tsx:              newTaxRate = masterItem.gstRate;
+src/App.tsx:    const searchGst = formData.partyGstin.trim().toUpperCase();
+src/App.tsx:    const party = parties.find((p: any) => p.gstin.trim().toUpperCase() === searchGst);
+src/App.tsx:  }, [formData.partyGstin, parties]);
+src/App.tsx:            <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">GST Rate (%)</label>
+src/App.tsx:              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Party GSTIN</label>
+src/App.tsx:                value={formData.partyGstin}
+src/App.tsx:                onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
+src/App.tsx:          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.tax).toFixed(2)}</span></div>
+src/App.tsx:              placeholder="Search Party, GST or Note No..." 
+src/App.tsx:                    <div className="text-[9px] text-slate-400 font-bold">{dn.partyGstin}</div>
+src/App.tsx:      transportGstin: editingBooking?.transportGstin || '',
+src/App.tsx:      consignorGstin: editingBooking?.consignorGstin || settings?.gstin || '',
+src/App.tsx:      consigneeGstin: editingBooking?.consigneeGstin || '',
+src/App.tsx:  const isConsignorLocked = !!settings?.gstin && !editingBooking;
+src/App.tsx:              newTaxRate = masterItem.gstRate;
+src/App.tsx:    // 4. GST Calculation
+src/App.tsx:    // Determine CGST/SGST vs IGST
+src/App.tsx:    const consignorStateCode = formData.consignorGstin?.substring(0, 2);
+src/App.tsx:    const consigneeStateCode = formData.consigneeGstin?.substring(0, 2);
+src/App.tsx:    const cgst = isInterstate ? 0 : Math.round(tax / 2);
+src/App.tsx:    const sgst = isInterstate ? 0 : Math.round(tax / 2);
+src/App.tsx:    const igst = isInterstate ? tax : 0;
+src/App.tsx:      cgst, 
+src/App.tsx:      sgst, 
+src/App.tsx:      igst, 
+src/App.tsx:  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.consignorGstin, formData.consigneeGstin]);
+src/App.tsx:        consignorGstin: settings.gstin,
+src/App.tsx:        consigneeGstin: party.gstin,
+src/App.tsx:      setFormData(prev => ({ ...prev, transportName: name, transportGstin: transport.gstin }));
+src/App.tsx:  const handleConsigneeGstinChange = (val: string) => {
+src/App.tsx:    const party = parties.find((p: any) => p.gstin.toUpperCase() === upperVal);
+src/App.tsx:        consigneeGstin: party.gstin,
+src/App.tsx:      setFormData(prev => ({ ...prev, consigneeGstin: upperVal }));
+src/App.tsx:              <option value="5">GST 5%</option>
+src/App.tsx:              <option value="12">GST 12%</option>
+src/App.tsx:              <option value="18">GST 18%</option>
+src/App.tsx:              <option value="28">GST 28%</option>
+src/App.tsx:            <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">GST Rate (%)</label>
+src/App.tsx:                <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">GST Number</label>
+src/App.tsx:                  value={formData.consignorGstin}
+src/App.tsx:                  onChange={e => setFormData({ ...formData, consignorGstin: e.target.value.toUpperCase() })}
+src/App.tsx:                <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">GST Number</label>
+src/App.tsx:                    list="party-gstins"
+src/App.tsx:                    value={formData.consigneeGstin}
+src/App.tsx:                    onChange={e => handleConsigneeGstinChange(e.target.value)}
+src/App.tsx:                  <datalist id="party-gstins">
+src/App.tsx:                      <option key={`gstin-${p.id || p.gstin}`} value={p.gstin}>{p.name}</option>
+src/App.tsx:                      <option key={`name-${p.id || p.name}`} value={p.name}>{p.gstin}</option>
+src/App.tsx:                <option key={t.id} value={t.name}>{t.gstin}</option>
+src/App.tsx:            <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Transport GST</label>
+src/App.tsx:              value={formData.transportGstin} 
+src/App.tsx:              onChange={e => setFormData({ ...formData, transportGstin: e.target.value.toUpperCase() })} 
+src/App.tsx:              placeholder="GSTIN" 
+src/App.tsx:            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
+src/App.tsx:              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.cgst).toFixed(2)}</span></div>
+src/App.tsx:              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.sgst).toFixed(2)}</span></div>
+src/App.tsx:      cn.partyGstin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+src/App.tsx:      partyGstin: editingCreditNote?.partyGstin || '',
+src/App.tsx:        partyGstin: booking.consigneeGstin,
+src/App.tsx:              newTaxRate = masterItem.gstRate;
+src/App.tsx:    const searchGst = formData.partyGstin.trim().toUpperCase();
+src/App.tsx:    const party = parties.find((p: any) => p.gstin.trim().toUpperCase() === searchGst);
+src/App.tsx:  }, [formData.partyGstin, parties]);
+src/App.tsx:            <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">GST Rate (%)</label>
+src/App.tsx:              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Party GSTIN</label>
+src/App.tsx:                value={formData.partyGstin}
+src/App.tsx:                onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
+src/App.tsx:          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.tax).toFixed(2)}</span></div>
+src/App.tsx:              placeholder="Search Party, GST or Note No..." 
+src/App.tsx:                    <div className="text-[9px] text-slate-400 font-bold">{cn.partyGstin}</div>
+src/App.tsx:  const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
+src/App.tsx:  // Safely fallback cgst, sgst, igst values
+src/App.tsx:  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
+src/App.tsx:  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
+src/App.tsx:  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
+src/App.tsx:                <div>GSTIN: {settings?.gstin || ""}</div>
+src/App.tsx:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+src/App.tsx:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+src/App.tsx:      p?.gstin?.toLowerCase().includes(partySearch.toLowerCase())
+src/App.tsx:    return (purchases || []).filter((p: any) => p?.partyGstin === selectedParty.gstin);
+src/App.tsx:                    placeholder="Type name or GSTIN..."
+src/App.tsx:      p?.gstin?.toLowerCase().includes(partySearch.toLowerCase())
+src/App.tsx:    return (bookings || []).filter((b: any) => b?.consigneeGstin === selectedParty.gstin);
+src/App.tsx:                    placeholder="Type name or GSTIN..."
+src/App.tsx:              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{payment.partyGstin}</p>
+src/App.tsx:    gstRate: 18
+src/App.tsx:        gstRate: formData.gstRate || 0
+src/App.tsx:    setFormData({ name: '', hsnCode: '', unit: 'PCS', gstRate: 18 });
+src/App.tsx:            setFormData({ name: '', hsnCode: '', unit: 'PCS', gstRate: 18 });
+src/App.tsx:              <th className="px-8 py-4">GST Rate</th>
+src/App.tsx:                  <span className="font-bold text-indigo-600">{item.gstRate}%</span>
+src/App.tsx:                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">GST Tax Rate (%)</label>
+src/App.tsx:                      value={formData.gstRate}
+src/App.tsx:                      onChange={e => setFormData({ ...formData, gstRate: Number(e.target.value) })}
+src/App.tsx:    link.download = `smart_gst_backup_${new Date().toISOString().split('T')[0]}.json`;
+src/App.tsx:      `Hello,\n\nPlease find the data backup attached from the Smart GST Biller Application. \n\nIMPORTANT: Copy this data and save it in a safe place.\n\nEXPORT DATE: ${new Date().toLocaleString()}\n\n---\nDATA CONTENT START\n\n${JSON.stringify(data, null, 2)}\n\nDATA CONTENT END`
+src/App.tsx:              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">GSTIN: {settings?.gstin}</p>
+src/App.tsx:    p.gstin.toLowerCase().includes(searchQuery.toLowerCase())
+src/App.tsx:      const partyBookings = (bookings || []).filter((b: any) => b.consigneeGstin === party.gstin);
+src/App.tsx:      const partyPayments = (payments || []).filter((p: any) => p.partyGstin === party.gstin || p.partyId === party.id);
+src/App.tsx:      const partyCNs = (creditNotes || []).filter((cn: any) => cn.partyGstin === party.gstin);
+src/App.tsx:      const partyPurchases = (purchases || []).filter((p: any) => p.partyGstin === party.gstin);
+src/App.tsx:      const partyPayments = (purchasePayments || []).filter((pp: any) => pp.partyGstin === party.gstin || pp.partyId === party.id);
+src/App.tsx:      const partyDNs = (debitNotes || []).filter((dn: any) => dn.partyGstin === party.gstin);
+src/App.tsx:              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{selectedParty.gstin}</p>
+src/App.tsx:                  .filter((note: any) => note.partyGstin === p.gstin)
+src/App.tsx:                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{p.gstin}</div>
+src/App.tsx:          party={{ name: "ALL PARTIES", gstin: "Multiple" }} 
+src/App.tsx:  const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
+src/App.tsx:  // Safely fallback cgst, sgst, igst values
+src/App.tsx:  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
+src/App.tsx:  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
+src/App.tsx:  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
+src/App.tsx:                <div>GSTIN: {settings?.gstin || ""}</div>
+src/App.tsx:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+src/App.tsx:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+src/App.tsx:  const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
+src/App.tsx:  // Safely fallback cgst, sgst, igst values
+src/App.tsx:  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
+src/App.tsx:  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
+src/App.tsx:  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
+src/App.tsx:                <div>GSTIN: {settings?.gstin || ""}</div>
+src/App.tsx:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+src/App.tsx:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+src/App.tsx:  const consigneeGstin = p.consigneeGstin || '';
+src/App.tsx:  const rState = (consigneeGstin || '').substring(0, 2);
+src/App.tsx:  // Safely fallback cgst, sgst, igst values
+src/App.tsx:  const cgst = p.cgstAmount ?? (isInterstate ? 0 : tax/2);
+src/App.tsx:  const sgst = p.sgstAmount ?? (isInterstate ? 0 : tax/2);
+src/App.tsx:  const igst = p.igstAmount ?? (isInterstate ? tax : 0);
+src/App.tsx:                <div>GSTIN: {settings?.gstin || ""}</div>
+src/App.tsx:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+src/App.tsx:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
+src/App.tsx:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+src/App.tsx:function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses, settings }: any) {
+src/App.tsx:  const gstr1Data = useMemo(() => {
+src/App.tsx:        gstin: b.consigneeGstin,
+src/App.tsx:        cgst: b.cgstAmount || 0,
+src/App.tsx:        sgst: b.sgstAmount || 0,
+src/App.tsx:        igst: b.igstAmount || 0,
+src/App.tsx:  const gstr2Data = useMemo(() => {
+src/App.tsx:        gstin: p.partyGstin,
+src/App.tsx:        cgst: p.cgstAmount || 0,
+src/App.tsx:        sgst: p.sgstAmount || 0,
+src/App.tsx:        igst: p.igstAmount || 0,
+src/App.tsx:      acc.cgst += (b.cgstAmount || 0);
+src/App.tsx:      acc.sgst += (b.sgstAmount || 0);
+src/App.tsx:      acc.igst += (b.igstAmount || 0);
+src/App.tsx:    }, { cgst: 0, sgst: 0, igst: 0, total: 0, taxable: 0 });
+src/App.tsx:      acc.cgst += (p.cgstAmount || 0);
+src/App.tsx:      acc.sgst += (p.sgstAmount || 0);
+src/App.tsx:      acc.igst += (p.igstAmount || 0);
+src/App.tsx:    }, { cgst: 0, sgst: 0, igst: 0, total: 0, taxable: 0 });
+src/App.tsx:      if (e.gstIncluded) {
+src/App.tsx:        acc.total += e.gstAmount;
+src/App.tsx:        acc.cgst += e.gstAmount / 2;
+src/App.tsx:        acc.sgst += e.gstAmount / 2;
+src/App.tsx:    }, { cgst: 0, sgst: 0, igst: 0, total: 0, amount: 0 });
+src/App.tsx:        cgst: purchaseTax.cgst + expenseTax.cgst,
+src/App.tsx:        sgst: purchaseTax.sgst + expenseTax.sgst,
+src/App.tsx:        cgst: salesTax.cgst - (purchaseTax.cgst + expenseTax.cgst),
+src/App.tsx:        sgst: salesTax.sgst - (purchaseTax.sgst + expenseTax.sgst),
+src/App.tsx:        igst: salesTax.igst - purchaseTax.igst,
+src/App.tsx:    const ws1 = XLSX.utils.json_to_sheet(gstr1Data);
+src/App.tsx:    XLSX.utils.book_append_sheet(wb, ws1, "GSTR-1 Details");
+src/App.tsx:      ["CGST", summary.output.cgst, summary.input.cgst, summary.net.cgst],
+src/App.tsx:      ["SGST", summary.output.sgst, summary.input.sgst, summary.net.sgst],
+src/App.tsx:      ["IGST", summary.output.igst, summary.input.igst, summary.net.igst],
+src/App.tsx:      ["Total GST", summary.output.total, summary.input.total, summary.net.total]
+src/App.tsx:    XLSX.utils.book_append_sheet(wb, ws2, "GSTR-3B Summary");
+src/App.tsx:        GST_Included: e.gstIncluded ? 'Yes' : 'No',
+src/App.tsx:        GST_Rate: e.gstIncluded ? `${e.gstRate}%` : '-',
+src/App.tsx:        GST_Amount: e.gstIncluded ? e.gstAmount : 0
+src/App.tsx:    XLSX.writeFile(wb, `GST_Report_${startDate}_to_${endDate}.xlsx`);
+src/App.tsx:    doc.text("GST Report", 14, 22);
+src/App.tsx:    doc.text(`GSTIN: ${settings?.gstin || 'N/A'}`, 14, 44);
+src/App.tsx:    doc.text("GSTR-3B Summary", 14, 55);
+src/App.tsx:        ["CGST", Number(summary.output.cgst).toFixed(2), Number(summary.input.cgst).toFixed(2), Number(summary.net.cgst).toFixed(2)],
+src/App.tsx:        ["SGST", Number(summary.output.sgst).toFixed(2), Number(summary.input.sgst).toFixed(2), Number(summary.net.sgst).toFixed(2)],
+src/App.tsx:        ["IGST", Number(summary.output.igst).toFixed(2), Number(summary.input.igst).toFixed(2), Number(summary.net.igst).toFixed(2)],
+src/App.tsx:        ["Total GST", Number(summary.output.total).toFixed(2), Number(summary.input.total).toFixed(2), Number(summary.net.total).toFixed(2)],
+src/App.tsx:    doc.text("GSTR-1 Sales Details", 14, 22);
+src/App.tsx:      head: [["Inv No", "Date", "Customer", "GSTIN", "Taxable", "GST %", "Total Tax", "Total Bill"]],
+src/App.tsx:      body: gstr1Data.map(d => [
+src/App.tsx:        d.invoiceNo, d.date, d.customer, d.gstin,
+src/App.tsx:        head: [["Date", "Category", "Description", "Payee", "Amount", "GST Amt"]],
+src/App.tsx:          e.gstIncluded ? Number(e.gstAmount).toFixed(2) : '0.00'
+src/App.tsx:    doc.save(`GST_Report_${startDate}_to_${endDate}.pdf`);
+src/App.tsx:          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight">GST Reports</h2>
+src/App.tsx:          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-1">Taxation & GSTR Analysis</p>
+src/App.tsx:                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">GST Paid (ITC)</div>
+src/App.tsx:                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Net Balance (GST)</div>
+src/App.tsx:              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Receipt size={16} className="text-[#00cec9]" /> GSTR-1 (Sales Details)</h3>
+src/App.tsx:                    <th className="px-6 py-4 text-right">GST %</th>
+src/App.tsx:                    <th className="px-6 py-4 text-right">CGST</th>
+src/App.tsx:                    <th className="px-6 py-4 text-right">SGST</th>
+src/App.tsx:                    <th className="px-6 py-4 text-right">IGST</th>
+src/App.tsx:                  {gstr1Data.map((d) => (
+src/App.tsx:                        <div className="text-[9px] font-black text-slate-400 uppercase">{d.gstin || 'NO GSTIN'}</div>
+src/App.tsx:                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.cgst.toFixed(2)}</td>
+src/App.tsx:                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.sgst.toFixed(2)}</td>
+src/App.tsx:                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.igst.toFixed(2)}</td>
+src/App.tsx:                  {gstr1Data.length === 0 && (
+src/App.tsx:              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Receipt size={16} className="text-[#00cec9]" /> GSTR-2 (Purchase Details)</h3>
+src/App.tsx:                    <th className="px-6 py-4 text-right">GST %</th>
+src/App.tsx:                    <th className="px-6 py-4 text-right">Total GST</th>
+src/App.tsx:                  {gstr2Data.map((d) => (
+src/App.tsx:                        <div className="text-[9px] font-black text-slate-400 uppercase">{d.gstin || 'NO GSTIN'}</div>
+src/App.tsx:                  {gstr2Data.length === 0 && (
+src/App.tsx:              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><TrendingUp size={16} className="text-indigo-400" /> GSTR-3B Summary</h3>
+src/App.tsx:                    <span className="text-[8px] font-black text-slate-400 uppercase block">CGST</span>
+src/App.tsx:                    <span className="text-xs font-bold font-mono">₹{summary.output.cgst.toFixed(0)}</span>
+src/App.tsx:                    <span className="text-[8px] font-black text-slate-400 uppercase block">SGST</span>
+src/App.tsx:                    <span className="text-xs font-bold font-mono">₹{summary.output.sgst.toFixed(0)}</span>
+src/App.tsx:                    <span className="text-[8px] font-black text-slate-400 uppercase block">IGST</span>
+src/App.tsx:                    <span className="text-xs font-bold font-mono">₹{summary.output.igst.toFixed(0)}</span>
+src/App.tsx:                    <span className="text-[8px] font-black text-slate-400 uppercase block">CGST</span>
+src/App.tsx:                    <span className="text-xs font-bold font-mono text-indigo-600">₹{summary.input.cgst.toFixed(0)}</span>
+src/App.tsx:                    <span className="text-[8px] font-black text-slate-400 uppercase block">SGST</span>
+src/App.tsx:                    <span className="text-xs font-bold font-mono text-indigo-600">₹{summary.input.sgst.toFixed(0)}</span>
+src/App.tsx:                    <span className="text-[8px] font-black text-slate-400 uppercase block">IGST</span>
+src/App.tsx:                    <span className="text-xs font-bold font-mono text-indigo-600">₹{summary.input.igst.toFixed(0)}</span>
+src/App.tsx:                  <h4 className="text-xs font-black text-slate-900 uppercase">Net GST Payable</h4>
+src/App.tsx:    const derivedSuffix = (settings?.gstin || '').slice(-3).toUpperCase();
+src/App.tsx:    gstin: settings?.gstin || '',
+src/App.tsx:    const derivedSuffix = (settings?.gstin || '').slice(-3).toUpperCase();
+src/App.tsx:              Hint: First 5 of Name + Last 3 of GST
+src/App.tsx:                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Your GST Number</label>
+src/App.tsx:                  value={formData.gstin}
+src/App.tsx:                  onChange={e => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+src/App.tsx:      setPartyForm({ name: '', gstin: '', address: '', mobile: '', mobile2: '' });
+src/App.tsx:    gstin: '',
+src/App.tsx:        gstin: suggestion.gstin,
+src/App.tsx:          ? { ...p, name: partyForm.name, gstin: partyForm.gstin.toUpperCase(), address: partyForm.address, mobile: partyForm.mobile, mobile2: partyForm.mobile2 }
+src/App.tsx:      setPartyForm({ name: '', gstin: '', address: '', mobile: '', mobile2: '' });
+src/App.tsx:      const existing = parties.find((p: any) => p.gstin === partyForm.gstin.toUpperCase());
+src/App.tsx:        alert("Party with this GST already exists!");
+src/App.tsx:        gstin: partyForm.gstin.toUpperCase(),
+src/App.tsx:      setPartyForm({ name: '', gstin: '', address: '', mobile: '', mobile2: '' });
+src/App.tsx:      gstin: party.gstin,
+src/App.tsx:    const hasBookings = bookings.some((b: any) => b.consigneeGstin === party.gstin);
+src/App.tsx:    const hasPurchases = purchases.some((p: any) => p.partyGstin === party.gstin);
+src/App.tsx:    const hasCreditNotes = creditNotes.some((cn: any) => cn.partyGstin === party.gstin);
+src/App.tsx:    const hasDebitNotes = debitNotes.some((dn: any) => dn.partyGstin === party.gstin);
+src/App.tsx:    const hasPayments = payments.some((pay: any) => pay.partyGstin === party.gstin || pay.partyId === party.id);
+src/App.tsx:                  setPartyForm({ name: '', gstin: '', address: '', mobile: '' });
+src/App.tsx:                  <option key={p.id} value={p.name}>{p.gstin}</option>
+src/App.tsx:              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">GST Number</label>
+src/App.tsx:                value={partyForm.gstin}
+src/App.tsx:                onChange={e => setPartyForm({ ...partyForm, gstin: e.target.value.toUpperCase() })}
+src/App.tsx:                  <div className="text-[10px] font-bold text-[#00cec9] mb-1">{p.gstin}</div>
+src/App.tsx:  const [formData, setFormData] = useState<Partial<Transport>>({ name: '', gstin: '' });
+src/App.tsx:        gstin: formData.gstin?.toUpperCase() || ''
+src/App.tsx:    setFormData({ name: '', gstin: '' });
+src/App.tsx:          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-1">Manage Transporters & GST Details</p>
+src/App.tsx:          onClick={() => { setShowAdd(true); setEditingId(null); setFormData({ name: '', gstin: '' }); }}
+src/App.tsx:                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">GST Number</label>
+src/App.tsx:                    value={formData.gstin}
+src/App.tsx:                    onChange={e => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+src/App.tsx:              GST: {t.gstin || 'NOT PROVIDED'}
+src/App.tsx:    gstIncluded: false,
+src/App.tsx:    gstRate: 5,
+src/App.tsx:    gstAmount: 0,
+src/App.tsx:  const calculateGst = (amount: number, rate: number, included: boolean) => {
+src/App.tsx:    const gstAmt = formData.gstIncluded ? calculateGst(formData.amount || 0, formData.gstRate || 0, true) : calculateGst(formData.amount || 0, formData.gstRate || 0, false);
+src/App.tsx:      gstIncluded: formData.gstIncluded || false,
+src/App.tsx:      gstRate: formData.gstRate || 0,
+src/App.tsx:      gstAmount: gstAmt,
+src/App.tsx:      gstIncluded: false,
+src/App.tsx:      gstRate: 5,
+src/App.tsx:      gstAmount: 0,
+src/App.tsx:                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">GST Details</label>
+src/App.tsx:                        checked={formData.gstIncluded}
+src/App.tsx:                        onChange={e => setFormData({ ...formData, gstIncluded: e.target.checked })}
+src/App.tsx:                      <span className="text-xs font-bold text-slate-600">GST Included?</span>
+src/App.tsx:                    {formData.gstIncluded && (
+src/App.tsx:                        value={formData.gstRate}
+src/App.tsx:                        onChange={e => setFormData({ ...formData, gstRate: parseFloat(e.target.value) })}
+src/App.tsx:              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">GST</th>
+src/App.tsx:                  {exp.gstIncluded ? `₹${exp.gstAmount.toFixed(2)} (${exp.gstRate}%)` : '-'}
+src/App.tsx:    doc.text(`GSTIN: ${settings?.gstin || ""}`, pageWidth / 2, 34, { align: 'center' });
+src/App.tsx:    if (challan.partyGstin) {
+src/App.tsx:        doc.text(`GSTIN: ${challan.partyGstin}`, pageWidth - 10, 66, { align: 'right' });
+src/types.ts:  gstin: string;
+src/types.ts:  transportGstin: string;
+src/types.ts:  consignorGstin: string;
+src/types.ts:  consigneeGstin: string;
+src/types.ts:  cgstAmount?: number;
+src/types.ts:  sgstAmount?: number;
+src/types.ts:  igstAmount?: number;
+src/types.ts:  gstin: string;
+src/types.ts:  gstin: string;
+src/types.ts:  partyGstin?: string;
+src/types.ts:  partyGstin: string;
+src/types.ts:  cgstAmount?: number;
+src/types.ts:  sgstAmount?: number;
+src/types.ts:  igstAmount?: number;
+src/types.ts:  partyGstin: string;
+src/types.ts:  partyGstin: string;
+src/types.ts:  gstRate: number;
+src/types.ts:  partyGstin?: string;
+src/types.ts:  gstIncluded: boolean;
+src/types.ts:  gstRate: number;
+src/types.ts:  gstAmount: number;
+replace_all_prints.js:  const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
+replace_all_prints.js:  // Safely fallback cgst, sgst, igst values
+replace_all_prints.js:  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
+replace_all_prints.js:  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
+replace_all_prints.js:  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
+replace_all_prints.js:                <div>GSTIN: {settings?.gstin || ""}</div>
+replace_all_prints.js:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+replace_all_prints.js:                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+replace_all_prints.js:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
+replace_all_prints.js:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
+replace_all_prints.js:                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+index.html:    <title>Vyapaar Pro GST - Billing & Accounting</title>
+metadata.json:  "description": "Professional Textile GST Billing & Ledger System by Pavan Mehta. Features: Party wise Broker Commissions, 100% Math.round() Financial Integrity, Purchase Bill No. Tracking, and Multi-Device Firebase Sync.",
+firebase-blueprint.json:        "gstin": { "type": "string" },
+firebase-blueprint.json:      "required": ["id", "name", "gstin", "address"]
+firebase-blueprint.json:        "transportGstin": { "type": "string" },
+firebase-blueprint.json:        "consignorGstin": { "type": "string" },
+firebase-blueprint.json:        "consigneeGstin": { "type": "string" },
+firebase-blueprint.json:        "gstin": { "type": "string" },
+public/manifest.json:  "name": "Vyapaar Pro GST",
+public/manifest.json:  "description": "Professional GST Billing & Accounting App",
+replace_print.js:                    <span>GST TOTAL:</span>
+replace_print.js:                    <span>GST TOTAL:</span>
+replace_print_2.js:                  <div className="flex justify-between"><span>GST TOTAL:</span><span>₹{Number(creditNote.taxAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+replace_print_2.js:                  <div className="flex justify-between"><span>GST TOTAL:</span><span>₹{Number(debitNote.taxAmount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+README.md:# Vyapaar Pro GST
+README.md:**Vyapaar Pro GST** is a professional, lightweight GST billing and accounting solution designed for small businesses and shopkeepers. It provides a robust set of tools to manage sales, purchases, returns, and ledgers—all with the convenience of local data storage and automated backup reminders.
+README.md:- **GST Billing:** Create professional Sale and Purchase bills with automatic GST calculations (CGST/SGST/IGST).
+README.md:- **Party Master:** Manage customer and supplier profiles with GSTIN tracking.
+README.md:   cd vyapaar-pro-gst
