@@ -1586,6 +1586,7 @@ export default function App() {
       setPayments(payments.filter((p: any) => p.id !== payment.id));
       // Update party totalPaid if necessary (assuming totalPaid exists on party)
       setSaleParties(saleParties.map(p => p.id === payment.partyId ? { ...p, totalPaid: (p.totalPaid || 0) - payment.amount } : p));
+      setPaymentSaveTrigger(prev => prev + 1);
       setTimeout(() => setIsSyncing(false), 500);
       alert("Payment Deleted Successfully!");
     }
@@ -1596,6 +1597,7 @@ export default function App() {
       setIsSyncing(true);
       setPurchasePayments(purchasePayments.filter((p: any) => p.id !== payment.id));
       setPurchaseParties(purchaseParties.map(p => p.id === payment.partyId ? { ...p, totalPaid: (p.totalPaid || 0) - payment.amount } : p));
+      setPurchasePaymentSaveTrigger(prev => prev + 1);
       setTimeout(() => setIsSyncing(false), 500);
       alert("Purchase Payment Deleted Successfully!");
     }
