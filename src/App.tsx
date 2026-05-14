@@ -3432,7 +3432,22 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 value={formData.partyGstin}
                 readOnly={isLocked}
                 list="purchase-party-gstin-list"
-                onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
+                onChange={e => {
+                  const val = e.target.value.toUpperCase();
+                  const party = parties.find((p: any) => p.gstin.trim().toUpperCase() === val.trim());
+                  if (party) {
+                    setFormData({
+                      ...formData,
+                      partyGstin: val,
+                      partyName: party.name,
+                      partyAddress: party.address,
+                      partyMobile: party.mobile || '',
+                      partyMobile2: party.mobile2 || ''
+                    });
+                  } else {
+                    setFormData({ ...formData, partyGstin: val });
+                  }
+                }}
                 onKeyDown={handleEnter}
                 className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
                 placeholder="24AAAA..."
@@ -3452,11 +3467,11 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 list="purchase-party-name-list"
                 onChange={e => {
                   const val = e.target.value;
-                  const party = parties.find((p: any) => p.name.trim() === val.trim());
+                  const party = parties.find((p: any) => p.name.toLowerCase().trim() === val.toLowerCase().trim());
                   if (party) {
                     setFormData({
                       ...formData,
-                      partyName: party.name,
+                      partyName: val,
                       partyGstin: party.gstin,
                       partyAddress: party.address,
                       partyMobile: party.mobile || '',
@@ -8041,10 +8056,11 @@ function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Pay
 
 
 function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: any) {
-  const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
   const p = purchase;
-  const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
-  const remainingBalance = Math.max(0, p.grandTotal - totalPaid);
+  const paymentInfo = getBillPaymentInfo(p.id, p.grandTotal, payments, [], p.billNumber?.toString());
+  const totalPaid = paymentInfo.paidAmount;
+  const isFullyPaid = paymentInfo.status === 'PAID';
+  const remainingBalance = paymentInfo.balance;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -8553,11 +8569,12 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
   );
 }
 function PrintPreview({ booking, settings, payments = [], creditNotes = [], onClose }: { booking: any, settings: AppSettings | null, payments?: Payment[], creditNotes?: CreditNote[], onClose: () => void }) {
-  const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
-  const cnAmount = (creditNotes || []).filter(cn => cn.salesBillNumber === booking.billNumber?.toString()).reduce((sum, cn) => sum + cn.grandTotal, 0);
   const p = booking;
-  const isFullyPaid = (totalPaid + cnAmount) >= (p.grandTotal - 0.5);
-  const remainingBalance = Math.max(0, p.grandTotal - totalPaid - cnAmount);
+  const paymentInfo = getBillPaymentInfo(p.id, p.grandTotal, payments, creditNotes, p.billNumber?.toString());
+  const totalPaid = paymentInfo.paidAmount;
+  const cnAmount = paymentInfo.cnAmount;
+  const isFullyPaid = paymentInfo.status === 'PAID';
+  const remainingBalance = paymentInfo.balance;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
