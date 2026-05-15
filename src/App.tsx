@@ -42,7 +42,18 @@ import { storage } from './lib/storage';
 import { auth, db, fireStorage } from './lib/firebase';
 import { whatsappService } from './lib/whatsappService';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot, runTransaction } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  onSnapshot, 
+  runTransaction, 
+  collectionGroup, 
+  query, 
+  where, 
+  getDocs, 
+  updateDoc 
+} from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
@@ -59,7 +70,7 @@ const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
   "24BBBB1234A1Z1": { name: "J.D. Enterprise (Ahmedabad)", address: "Naroda GIDC, Ahmedabad" }
 };
 
-type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'weaverparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses' | 'millchallan' | 'partychallan' | 'weaverchallan' | 'challancompare';
+type View = 'dash' | 'inv' | 'pay' | 'sendpay' | 'ledg' | 'settings' | 'pur' | 'dn' | 'cn' | 'purchaseparty' | 'saleparty' | 'weaverparty' | 'items' | 'backup' | 'salehistory' | 'purchasehistory' | 'gstreport' | 'transports' | 'signature' | 'bankdetails' | 'expenses' | 'millchallan' | 'partychallan' | 'weaverchallan' | 'challancompare' | 'admin' | 'brokers' | 'broker-ledger';
 
 const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
   const myStateCode = "24";
@@ -119,16 +130,21 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'pending' | 'error'>('synced');
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [currentView, setCurrentView] = useState<View>('dash');
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
   const lastWriteTime = useRef<Record<string, number>>({});
   const lastSyncedData = useRef<Record<string, string>>({});
   const loadedKeys = useRef<Set<string>>(new Set());
-  const views = useMemo<View[]>(() => [
-    'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
-    'dn', 'cn', 'weaverchallan', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'brokers', 'broker-ledger', 'transports', 'gstreport', 
-    'signature', 'bankdetails', 'backup', 'settings'
-  ], []);
+  const views = useMemo<View[]>(() => {
+    const baseViews: View[] = [
+      'dash', 'inv', 'salehistory', 'saleparty', 'pur', 'purchasehistory', 'purchaseparty', 
+      'dn', 'cn', 'weaverchallan', 'millchallan', 'partychallan', 'challancompare', 'items', 'expenses', 'pay', 'sendpay', 'ledg', 'brokers', 'broker-ledger', 'transports', 'gstreport', 
+      'signature', 'bankdetails', 'backup', 'settings'
+    ];
+    if (isAdmin) baseViews.push('admin');
+    return baseViews;
+  }, [isAdmin]);
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -556,6 +572,15 @@ export default function App() {
       setUser(u);
       if (u) {
         setIsAuthenticated(true);
+        // Check for admin role
+        getDoc(doc(db, 'admins', u.uid)).then(docSnap => {
+          setIsAdmin(docSnap.exists());
+        }).catch(err => {
+          console.error("Admin check failed", err);
+          setIsAdmin(false);
+        });
+      } else {
+        setIsAdmin(false);
       }
       setIsFirebaseLoading(false);
     });
@@ -1743,7 +1768,7 @@ export default function App() {
                 v === 'broker-ledger' ? BookText :
                 v === 'signature' ? PenTool :
                 v === 'bankdetails' ? Landmark :
-                v === 'backup' ? Download :
+                v === 'admin' ? Lock :
                 Settings
               } 
               label={
@@ -1772,6 +1797,7 @@ export default function App() {
                 v === 'signature' ? "Upload Signature" :
                 v === 'bankdetails' ? "Bank Details" :
                 v === 'backup' ? "Data Backup" :
+                v === 'admin' ? "Admin Panel" :
                 "Settings"
               }
               shortcut={
@@ -2223,6 +2249,29 @@ export default function App() {
               onUpdateSettings={setSettings}
             />}
             {currentView === 'settings' && <SettingsView key="settings" settings={settings} onSave={setSettings} />}
+            
+            {currentView === 'admin' && (
+              isAdmin ? (
+                <AdminDashboardView 
+                  key="admin"
+                  settings={settings}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-3xl border-2 border-red-100 shadow-2xl">
+                  <div className="bg-red-100 p-6 rounded-full mb-6">
+                    <Lock size={48} className="text-red-500" />
+                  </div>
+                  <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tighter uppercase">Access Denied</h2>
+                  <p className="text-slate-500 max-w-md mx-auto font-medium">Sorry, you don't have administrative privileges to access this secure area. Please contact the system administrator for permissions.</p>
+                  <button 
+                    onClick={() => setCurrentView('dash')}
+                    className="mt-8 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
+                  >
+                    Go Back to Safety
+                  </button>
+                </div>
+              )
+            )}
           </AnimatePresence>
           </div>
 
@@ -11166,6 +11215,508 @@ function BrokersView({ brokers, saleParties, purchaseParties, millChallans, onSa
         </div>
       </div>
     </motion.div>
+  );
+}
+
+function AdminDashboardView({ settings }: any) {
+  const [activeTab, setActiveTab] = useState<'sales' | 'purchases'>('sales');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [editingBill, setEditingBill] = useState<any>(null);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    setResults([]);
+    try {
+      const colId = activeTab === 'sales' ? 'bookings' : 'purchases';
+      const q = query(collectionGroup(db, colId), where('billNumber', '==', parseInt(searchQuery)));
+      const querySnapshot = await getDocs(q);
+      const docs = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id,
+        path: doc.ref.path,
+        type: activeTab
+      }));
+      setResults(docs);
+      
+      if (docs.length === 0) {
+        // Fallback search by bill number as string or other fields
+        const q2 = query(collectionGroup(db, colId), where('billNumber', '==', searchQuery));
+        const qs2 = await getDocs(q2);
+        const docs2 = qs2.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.id,
+          path: doc.ref.path,
+          type: activeTab
+        }));
+        setResults(docs2);
+      }
+    } catch (error) {
+      console.error("Admin search failed", error);
+      alert("Search failed. Check console for details.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+      <div className="bg-slate-900 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-indigo-500/20 rounded-2xl">
+              <Lock className="text-indigo-400" size={32} />
+            </div>
+            <h2 className="text-4xl font-black tracking-tighter uppercase">Admin Control Center</h2>
+          </div>
+          <p className="text-indigo-200/60 font-bold uppercase tracking-widest text-[10px]">Secure multi-user bill management and global data corrections</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8">
+        {/* Sidebar Tabs */}
+        <div className="space-y-4">
+          <button 
+            onClick={() => setActiveTab('sales')}
+            className={`w-full p-6 rounded-3xl text-left transition-all flex items-center justify-between group ${activeTab === 'sales' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-white text-slate-400 hover:bg-slate-50 border border-slate-200'}`}
+          >
+            <div className="flex items-center gap-4">
+              <Receipt size={24} />
+              <span className="font-black uppercase tracking-tight">Sales Bills</span>
+            </div>
+            <div className={`w-2 h-2 rounded-full ${activeTab === 'sales' ? 'bg-white animate-pulse' : 'bg-slate-100'}`}></div>
+          </button>
+          <button 
+            onClick={() => setActiveTab('purchases')}
+            className={`w-full p-6 rounded-3xl text-left transition-all flex items-center justify-between group ${activeTab === 'purchases' ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-200' : 'bg-white text-slate-400 hover:bg-slate-50 border border-slate-200'}`}
+          >
+            <div className="flex items-center gap-4">
+              <ShoppingBag size={24} />
+              <span className="font-black uppercase tracking-tight">Purchase Bills</span>
+            </div>
+            <div className={`w-2 h-2 rounded-full ${activeTab === 'purchases' ? 'bg-white animate-pulse' : 'bg-slate-100'}`}></div>
+          </button>
+        </div>
+
+        {/* Search & Results */}
+        <div className="space-y-6">
+          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              <input 
+                type="text" 
+                placeholder={`Search ${activeTab} by Bill Number...`}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-bold outline-none transition-all"
+              />
+            </div>
+            <button 
+              onClick={handleSearch}
+              className="px-8 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all flex items-center gap-2"
+            >
+              {isSearching ? <RefreshCw className="animate-spin" size={16} /> : <Search size={16} />}
+              Search
+            </button>
+          </div>
+
+          <div className="bg-white rounded-[40px] border border-slate-200 shadow-xl overflow-hidden">
+            <div className="px-8 py-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center text-black font-black uppercase tracking-widest text-[10px]">
+              <span>Results for: {activeTab}</span>
+              <span>Found: {results.length} bills</span>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Bill #</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Party Name</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Net Amount</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {results.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-8 py-20 text-center">
+                        <div className="flex flex-col items-center gap-4 text-slate-300">
+                          <Search size={48} />
+                          <p className="font-black uppercase tracking-tighter text-xl">No records found. Try a different Bill #</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    results.map(bill => (
+                      <tr key={bill.id} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-8 py-6">
+                          <div className="flex flex-col">
+                            <span className="font-black text-slate-900"># {bill.billNumber}</span>
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mt-1">{bill.financialYear || '-'}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 font-bold text-slate-500 text-xs">
+                          {new Date(bill.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-8 py-6">
+                           <div className="flex flex-col">
+                              <span className="font-black text-slate-800 uppercase tracking-tight">{bill.consigneeName || bill.partyName}</span>
+                              <span className="text-[9px] font-bold text-slate-400 truncate max-w-[200px] uppercase">{bill.consigneeAddress || bill.partyAddress}</span>
+                           </div>
+                        </td>
+                        <td className="px-8 py-6 text-right font-black text-xl tracking-tighter text-indigo-600">
+                          ₹ {bill.grandTotal.toLocaleString()}
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => setEditingBill(bill)}
+                              className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                              title="Edit Bill"
+                            >
+                              <Edit size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {editingBill && (
+        <AdminEditModal 
+          bill={editingBill} 
+          onClose={() => setEditingBill(null)} 
+          onSave={async (updated) => {
+            try {
+              await updateDoc(doc(db, updated.path), updated);
+              setResults(prev => prev.map(b => b.path === updated.path ? updated : b));
+              setEditingBill(null);
+              alert("Bill Updated Successfully!");
+            } catch (err) {
+              console.error(err);
+              alert("Update Failed!");
+            }
+          }}
+          settings={settings}
+        />
+      )}
+    </div>
+  );
+}
+
+function AdminEditModal({ bill, onClose, onSave, settings }: any) {
+  const [formData, setFormData] = useState({ ...bill });
+  
+  // Recalculation logic
+  useEffect(() => {
+    const basicAmount = (formData.items || []).reduce((sum: number, item: any) => sum + (Number(item.quantity) * Number(item.rate)), 0);
+    const discountAmount = Number(formData.globalDiscount) || 0;
+    const taxableValue = basicAmount - discountAmount;
+    const taxRate = Number(formData.taxRate) || 5; // Default 5% if missing
+    const taxAmount = Math.round(taxableValue * (taxRate / 100));
+    const grandTotal = Math.round(taxableValue + taxAmount);
+    
+    setFormData(prev => ({
+      ...prev,
+      basicAmount,
+      taxableValue,
+      taxAmount,
+      grandTotal,
+      numberToWords: numberToWords(grandTotal)
+    }));
+  }, [formData.items, formData.globalDiscount, formData.taxRate]);
+
+  const handleItemChange = (idx: number, field: string, value: any) => {
+    const newItems = [...formData.items];
+    newItems[idx] = { ...newItems[idx], [field]: value };
+    // Also update item total
+    if (field === 'rate' || field === 'quantity') {
+       newItems[idx].amount = Number(newItems[idx].quantity || 0) * Number(newItems[idx].rate || 0);
+    }
+    setFormData({ ...formData, items: newItems });
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    // We can't easily use React components in a new window, so we generate HTML
+    const html = document.getElementById('admin-print-area')?.innerHTML;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>A4 Bill Print</title>
+          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+          <style>
+            @media print {
+              body { margin: 0; padding: 0; }
+              #print-box { width: 210mm; height: 297mm; padding: 10mm; position: relative; border: 2px solid black; }
+              #footer { position: absolute; bottom: 10mm; left: 10mm; right: 10mm; border-top: 2px solid black; pt-4; }
+            }
+          </style>
+        </head>
+        <body onload="window.print()">
+          ${html}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const numberToWords = (num: number) => {
+    if (!num || num === 0) return 'Zero Only';
+    const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+    const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
+    
+    let n = ('000000000' + Math.floor(Math.abs(num))).split('').slice(-9).join('').match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!n) return '';
+    let str = '';
+    str += (n[1] !== '00') ? (a[Number(n[1])] || b[Number(n[1][0])] + ' ' + a[Number(n[1][1])]) + 'Crore ' : '';
+    str += (n[2] !== '00') ? (a[Number(n[2])] || b[Number(n[2][0])] + ' ' + a[Number(n[2][1])]) + 'Lakh ' : '';
+    str += (n[3] !== '00') ? (a[Number(n[3])] || b[Number(n[3][0])] + ' ' + a[Number(n[3][1])]) + 'Thousand ' : '';
+    str += (n[4] !== '00') ? (a[Number(n[4])] || b[Number(n[4][0])] + ' ' + a[Number(n[4][1])]) + 'Hundred ' : '';
+    str += (n[5] !== '00') ? ((str !== '') ? 'and ' : '') + (a[Number(n[5])] || b[Number(n[5][0])] + ' ' + a[Number(n[5][1])]) : '';
+    return (str + 'Only').toUpperCase();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-white rounded-[50px] shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden"
+      >
+        <div className="px-10 py-8 bg-slate-900 text-white flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/10 rounded-2xl"><Edit size={24} /></div>
+            <div>
+              <h3 className="text-2xl font-black uppercase tracking-tighter">Admin Bill Correction</h3>
+              <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest opacity-60">Bill # {formData.billNumber} | Original Total: ₹ {bill.grandTotal}</p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+             <button 
+              onClick={() => {
+                const content = document.getElementById('admin-print-area');
+                if (content) {
+                  const printWindow = window.open('', '_blank');
+                  printWindow?.document.write(`
+                    <html>
+                      <head>
+                        <title>A4 Print</title>
+                        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+                        <style>
+                          @page { size: A4; margin: 0; }
+                          body { margin: 0; -webkit-print-color-adjust: exact; }
+                          .print-page { width: 210mm; min-height: 297mm; height: 297mm; padding: 15mm; position: relative; border: 1px solid black; margin: 0 auto; box-sizing: border-box; }
+                          .footer { position: absolute; bottom: 15mm; left: 15mm; right: 15mm; }
+                        </style>
+                      </head>
+                      <body onload="window.print(); window.close();">
+                        <div class="print-page">
+                          ${content.innerHTML}
+                        </div>
+                      </body>
+                    </html>
+                  `);
+                  printWindow?.document.close();
+                }
+              }}
+              className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all"
+            >
+              <Printer size={18} />
+              Fix Print
+            </button>
+            <button onClick={onClose} className="bg-white/10 hover:bg-white/20 p-3 rounded-2xl transition-all"><X size={24}/></button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-10 bg-slate-50/50">
+          <div className="grid grid-cols-3 gap-10">
+            {/* Left: Metadata */}
+            <div className="space-y-6">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b pb-2">Primary Info</h4>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Party Name</label>
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl font-black text-slate-800 shadow-sm">{formData.consigneeName || formData.partyName}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                 <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Global Discount</label>
+                  <input 
+                    type="number" 
+                    value={formData.globalDiscount} 
+                    onChange={e => setFormData({...formData, globalDiscount: parseFloat(e.target.value) || 0})}
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-black focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm" 
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">Tax Rate (%)</label>
+                  <input 
+                    type="number" 
+                    value={formData.taxRate} 
+                    onChange={e => setFormData({...formData, taxRate: parseFloat(e.target.value) || 0})}
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-black focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm" 
+                  />
+                </div>
+              </div>
+              
+              <div className="p-8 bg-indigo-600 rounded-[35px] text-white space-y-4 shadow-xl">
+                <div className="flex justify-between items-center opacity-60 text-[10px] font-black uppercase tracking-widest">
+                  <span>Net Calculation</span>
+                  <RefreshCw size={14}/>
+                </div>
+                <div className="text-4xl font-black tracking-tighter">₹ {formData.grandTotal.toLocaleString()}</div>
+                <div className="text-[10px] font-black uppercase tracking-tight leading-tight opacity-80 italic">{formData.numberToWords}</div>
+              </div>
+            </div>
+
+            {/* Right: Items Edit */}
+            <div className="col-span-2 space-y-6">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b pb-2">Item Breakdown Correction</h4>
+              <div className="space-y-4">
+                {(formData.items || []).map((item: any, idx: number) => (
+                  <div key={idx} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm grid grid-cols-12 gap-4 items-center group">
+                    <div className="col-span-1">
+                      <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center font-black text-[10px] text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">{idx + 1}</div>
+                    </div>
+                    <div className="col-span-5">
+                      <div className="font-black text-xs text-slate-800 uppercase">{item.name}</div>
+                      <div className="text-[9px] font-bold text-slate-400 uppercase">{item.color}</div>
+                    </div>
+                    <div className="col-span-2">
+                       <input 
+                        type="number" 
+                        value={item.quantity} 
+                        onChange={e => handleItemChange(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                        className="w-full p-2 bg-slate-50 border border-slate-100 rounded-xl font-black text-center text-sm outline-none focus:bg-white focus:border-indigo-500" 
+                      />
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 block text-center mt-1">Qty</span>
+                    </div>
+                    <div className="col-span-2">
+                       <input 
+                        type="number" 
+                        value={item.rate} 
+                        onChange={e => handleItemChange(idx, 'rate', parseFloat(e.target.value) || 0)}
+                        className="w-full p-2 bg-slate-50 border border-slate-100 rounded-xl font-black text-center text-sm outline-none focus:bg-white focus:border-indigo-500" 
+                      />
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 block text-center mt-1">Rate</span>
+                    </div>
+                    <div className="col-span-2 text-right">
+                      <div className="font-black text-sm text-slate-900 leading-none">₹ {Math.round(item.amount || 0).toLocaleString()}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-10 py-8 bg-white border-t border-slate-100 flex justify-end gap-4">
+           <button onClick={onClose} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-200 transition-all">Discard Changes</button>
+           <button 
+            onClick={() => onSave(formData)} 
+            className="px-12 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2"
+          >
+            <Check size={18} />
+            Commit Global Changes
+          </button>
+        </div>
+
+        {/* Hidden Print Area */}
+        <div id="admin-print-area" className="hidden">
+           <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold uppercase">{settings?.companyName || "ANGAD SILK MILLS"}</h1>
+              <p className="text-sm font-medium">{settings?.address}</p>
+              <p className="text-xs font-bold uppercase mt-1">GSTIN: {settings?.gstin}</p>
+           </div>
+           
+           <div className="flex justify-between border-y-2 border-black py-2 mb-6 uppercase text-xs font-bold">
+              <div>Bill No: {formData.billNumber}</div>
+              <div className="text-center font-black text-lg">PROFORMA INVOICE (ADMIN)</div>
+              <div>Date: {new Date(formData.date).toLocaleDateString()}</div>
+           </div>
+
+           <div className="grid grid-cols-2 gap-8 mb-8">
+              <div className="border border-black p-4">
+                 <div className="font-black text-[10px] uppercase underline mb-2">Billed To:</div>
+                 <div className="font-bold text-sm uppercase">{formData.consigneeName || formData.partyName}</div>
+                 <div className="text-xs uppercase">{formData.consigneeAddress || formData.partyAddress}</div>
+                 <div className="font-bold text-xs mt-2 uppercase">GSTIN: {formData.consigneeGstin || formData.partyGstin}</div>
+              </div>
+              <div className="space-y-1 text-right text-xs">
+                 <div>LR No: {formData.lrNumber || '-'}</div>
+                 <div>Transport: {formData.transportName || '-'}</div>
+              </div>
+           </div>
+
+           <table className="w-full border-collapse mb-8">
+              <thead>
+                 <tr className="border-y-2 border-black">
+                    <th className="p-2 text-left text-xs uppercase">Description</th>
+                    <th className="p-2 text-center text-xs uppercase">HSN</th>
+                    <th className="p-2 text-right text-xs uppercase">Qty</th>
+                    <th className="p-2 text-right text-xs uppercase">Rate</th>
+                    <th className="p-2 text-right text-xs uppercase">Amount</th>
+                 </tr>
+              </thead>
+              <tbody>
+                 {(formData.items || []).map((item: any, i: number) => (
+                    <tr key={i} className="border-b border-slate-200">
+                       <td className="p-2 text-sm uppercase font-bold">{item.name} {item.color}</td>
+                       <td className="p-2 text-center text-sm">{item.hsnCode}</td>
+                       <td className="p-2 text-right text-sm">{item.quantity} {item.unit}</td>
+                       <td className="p-2 text-right text-sm font-bold">{item.rate}</td>
+                       <td className="p-2 text-right text-sm font-bold">{item.amount.toFixed(2)}</td>
+                    </tr>
+                 ))}
+              </tbody>
+           </table>
+
+           <div className="footer">
+              <div className="grid grid-cols-2 gap-4">
+                 <div>
+                    <div className="font-black text-[10px] uppercase underline mb-1">Amount in Words:</div>
+                    <div className="font-bold italic text-xs uppercase">{formData.numberToWords}</div>
+                    
+                    <div className="mt-4 border-t border-black pt-2">
+                       <div className="font-black text-[10px] uppercase mb-1">Bank Details:</div>
+                       <div className="text-[10px] font-bold">
+                          <div>BANK: {settings?.bankName}</div>
+                          <div>A/C: {settings?.accountNumber}</div>
+                          <div>IFSC: {settings?.ifscCode}</div>
+                       </div>
+                    </div>
+                 </div>
+                 <div className="text-right space-y-1">
+                    <div className="flex justify-between font-bold text-sm"><span>Taxable Value:</span> <span>{formData.taxableValue.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-sm"><span>Tax ({formData.taxRate}%):</span> <span>{formData.taxAmount.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-black text-xl border-t-2 border-black pt-2 mt-2"><span>GRAND TOTAL:</span> <span>₹ {formData.grandTotal.toFixed(2)}</span></div>
+                    
+                    <div className="mt-12 text-center">
+                       <div className="font-black uppercase text-[8px] mb-8">For {settings?.companyName}</div>
+                       <div className="text-[9px] font-black uppercase inline-block border-t border-black pt-1 min-w-[150px]">Authorized Signatory</div>
+                    </div>
+                 </div>
+              </div>
+              <div className="mt-6 text-[8px] italic font-bold text-slate-500 uppercase border-t border-slate-200 pt-2 text-center">
+                 Term: Subjects to Surat Jurisdiction Only. Payment within 30 days. No responsibility for transit damages.
+              </div>
+           </div>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
