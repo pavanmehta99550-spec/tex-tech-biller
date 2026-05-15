@@ -6138,8 +6138,8 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
           </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight">
-          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight text-black">
+          <div className="border-2 border-black flex flex-col w-full relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
               <div className="flex items-center gap-6 justify-center w-full mb-1">
@@ -6196,16 +6196,11 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
                       <td className="p-1 text-right px-3 font-black text-xs">{Number(item.amount).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {Array.from({ length: Math.max(0, 8 - p.items.length) }).map((_, i) => (
-                    <tr key={'empty'+i} className="h-8">
-                      <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[180px]">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[180px]">
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full">
                 <div>
                   <div className="font-black underline mb-1 uppercase text-[10px]">Amount in Words:</div>
@@ -8065,7 +8060,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
         </div>
 
         <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
-          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+          <div className="border-2 border-black flex flex-col w-full relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
             
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
@@ -8124,16 +8119,11 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
                       <td className="p-1 text-right px-3 font-black text-xs">{Number(item.amount).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {Array.from({ length: Math.max(0, 10 - p.items.length) }).map((_, i) => (
-                    <tr key={'empty'+i} className="h-8">
-                      <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[180px]">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[180px]">
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full text-black">
                 <div>
                   <div className="font-black underline mb-1 uppercase text-[10px]">Amount in Words:</div>
@@ -8208,7 +8198,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
         </div>
 
         <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight">
-          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+          <div className="border-2 border-black flex flex-col w-full relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
               <div className="flex items-center gap-6 justify-center w-full mb-1">
@@ -8263,16 +8253,11 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                       <td className="p-1 text-right px-3 font-black text-xs">{Number(item.amount).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {Array.from({ length: Math.max(0, 8 - p.items.length) }).map((_, i) => (
-                    <tr key={'empty'+i} className="h-8">
-                      <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[220px]">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[220px]">
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full">
                 <div>
                   <div className="font-black underline mb-1 uppercase text-[10px] tracking-widest">Amount in Words:</div>

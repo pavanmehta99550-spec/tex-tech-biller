@@ -53,7 +53,6 @@
   #print-area, #admin-print-area, .print-container {
     display: block !important;
     width: 210mm !important;
-    min-height: 297mm !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
