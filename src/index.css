@@ -34,27 +34,32 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  /* Hide UI elements */
+  button, nav, aside, .no-print {
+    display: none !important;
+  }
+  /* Ensure the bill container fits */
+  #bill-container, main {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
   .watermark {
     display: none !important;
   }
-}
-
-@media print {
-  @page {
-    margin: 5mm;
-    size: A4 portrait;
-  }
   body {
     background: white !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  /* Global scaling for print to help fit on one page */
-  main, #root {
-    width: 100% !important;
-  }
-  /* Remove scrollbars in print */
-  .print-container {
-    overflow: visible !important;
   }
 }
