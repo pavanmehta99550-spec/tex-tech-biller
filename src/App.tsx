@@ -7645,7 +7645,8 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (isLocalPrintOpen) {
+        const isPrintOpen = !!(previewBooking || previewPurchase || previewCreditNote || previewDebitNote || previewPayment || showLedgerPrint || printAllTransactions);
+        if (isPrintOpen) {
           setPreviewBooking(null);
           setPreviewPurchase(null);
           setPreviewCreditNote(null);
@@ -7653,14 +7654,14 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
           setPreviewPayment(null);
           setShowLedgerPrint(false);
           setPrintAllTransactions(null);
-        } else {
+        } else if (selectedParty) {
           setSelectedParty(null);
         }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, []);
+  }, [selectedParty, previewBooking, previewPurchase, previewCreditNote, previewDebitNote, previewPayment, showLedgerPrint, printAllTransactions]);
 
   const filteredParties = (activeTab === 'sales' ? (parties || []) : (purchaseParties || [])).filter((p: any) => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -7723,8 +7724,8 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
         <div className={isLocalPrintOpen ? 'print:hidden' : ''}>
           <header className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm print:hidden">
           <div className="flex items-center gap-4">
-            <button onClick={() => setSelectedParty(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-all">
-              <ChevronLeft size={24} />
+            <button onClick={() => setSelectedParty(null)} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm">
+              <ChevronLeft size={20} />
             </button>
             <div>
               <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{selectedParty.name}</h2>
@@ -11524,6 +11525,24 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
   const [previewBooking, setPreviewBooking] = useState<any>(null);
   const [previewPurchase, setPreviewPurchase] = useState<any>(null);
   const [previewPayment, setPreviewPayment] = useState<any>(null);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (previewBooking || previewPurchase || previewPayment) {
+          setPreviewBooking(null);
+          setPreviewPurchase(null);
+          setPreviewPayment(null);
+        } else if (showCommModal) {
+          setShowCommModal(false);
+        } else if (selectedBroker) {
+          setSelectedBroker(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [selectedBroker, showCommModal, previewBooking, previewPurchase, previewPayment]);
   const [commForm, setCommForm] = useState({
     billNumber: '',
     date: new Date().toISOString().split('T')[0],
@@ -11703,7 +11722,16 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
   return (
     <div className="p-8 pb-32">
       <div className="flex justify-between items-center mb-8">
-        <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">Broker Commission Ledger</h2>
+        <div className="flex items-center gap-4">
+          {selectedBroker && (
+            <button onClick={() => setSelectedBroker(null)} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm">
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">
+            {selectedBroker ? selectedBroker.name : 'Broker Commission Ledger'}
+          </h2>
+        </div>
         <div className="flex gap-4">
           <select 
             value={selectedBroker?.id || ''} 
