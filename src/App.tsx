@@ -8408,7 +8408,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
               width: '210mm'
             }}
           >
-            <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] bg-white shadow-sm print:shadow-none print:flex print:h-full print:min-h-0 print:border-0">
+            <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-auto bg-white shadow-sm print:shadow-none print:flex print:h-auto print:min-h-0 print:border-0">
             
             {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
