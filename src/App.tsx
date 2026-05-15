@@ -4839,25 +4839,17 @@ function BookingView({
       </div>
 
       <form 
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSave({ 
-            ...formData, 
-            taxAmount: calc.tax, 
-            grandTotal: calc.total,
-            taxableValue: calc.taxableValue,
-            cgstAmount: calc.cgst,
-            sgstAmount: calc.sgst,
-            igstAmount: calc.igst,
-            isInterstate: calc.isInterstate
-          });
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+          }
         }}
         className="p-8 lg:p-12 space-y-10"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Select Product Category</label>
-            <select 
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">GST Rate (%)</label>
+            <select
               disabled={isLocked}
               value={formData.taxRate}
               onChange={(e) => setFormData({ ...formData, taxRate: Math.max(0, parseFloat(e.target.value) || 0) })}
@@ -5475,7 +5467,24 @@ function BookingView({
             </button>
           )}
           <button 
-            type="submit"
+            type="button"
+            onClick={() => {
+              const isEmpty = formData.items.length === 0 || formData.items.every((item: any) => Number(item.quantity || 0) === 0 && Number(item.rate || 0) === 0);
+              if (isEmpty) {
+                alert("Bhai, pehle entry dalo, khali bill save nahi hoga");
+                return;
+              }
+              onSave({ 
+                ...formData, 
+                taxAmount: calc.tax, 
+                grandTotal: calc.total,
+                taxableValue: calc.taxableValue,
+                cgstAmount: calc.cgst,
+                sgstAmount: calc.sgst,
+                igstAmount: calc.igst,
+                isInterstate: calc.isInterstate
+              });
+            }}
             className="flex-[2] bg-[#2d3436] hover:bg-[#1E272E] text-white font-black py-5 rounded-2xl text-xl shadow-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-3"
           >
             <Save size={24} />
