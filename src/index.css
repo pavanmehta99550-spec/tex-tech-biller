@@ -35,7 +35,7 @@
 
 @media print {
   @page {
-    size: A4 portrait;
+    size: A4;
     margin: 0 !important;
   }
   html, body {
@@ -50,11 +50,13 @@
   }
   #print-area, #admin-print-area, .print-container {
     display: block !important;
-    width: 100% !important;
-    margin: 0 !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     border: none !important;
     position: static !important;
+    transform: none !important;
   }
   .watermark {
     display: none !important;

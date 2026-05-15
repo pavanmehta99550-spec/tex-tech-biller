@@ -4679,23 +4679,23 @@ function BookingView({
   const calc = useMemo(() => {
     // 1. Calculate Gross sum (Sum of Qty * Rate for all items)
     const grossTotal = formData.items.reduce((sum, item) => {
-      const g = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
+      const g = (parseFloat(item.quantity.toString()) || 0) * (parseFloat(item.rate.toString()) || 0);
       return sum + g;
     }, 0);
     
     // 2. Item-level discount total
     const itemDiscountTotal = formData.items.reduce((sum, item) => {
-      const g = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
-      const d = g * ((Number(item.discount) || 0) / 100);
+      const g = (parseFloat(item.quantity.toString()) || 0) * (parseFloat(item.rate.toString()) || 0);
+      const d = g * ((parseFloat(item.discount.toString()) || 0) / 100);
       return sum + d;
     }, 0);
 
     const afterItemDiscount = grossTotal - itemDiscountTotal;
-    const globalDiscount = Number(formData.globalDiscount) || 0;
+    const globalDiscount = parseFloat(formData.globalDiscount.toString()) || 0;
     const taxableValue = Math.max(0, afterItemDiscount - globalDiscount);
     
     // 3. GST Calculation
-    const taxRate = parseFloat(formData.taxRate) || 5;
+    const taxRate = parseFloat(formData.taxRate.toString()) || 5;
     const tax = taxableValue * (taxRate / 100);
     
     // Determine CGST/SGST vs IGST
@@ -8311,10 +8311,10 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
 function PrintPreview({ booking, settings, onClose }: { booking: any, settings: AppSettings | null, onClose: () => void }) {
   const p = booking;
   const consignorName = settings?.companyName || "ANGAD SILK MILLS";
-  const tr = Number(p.taxRate || 5);
-  const igst = Number(p.igstAmount || (p.isInterstate ? (p.taxAmount || 0) : 0));
-  const cgst = Number(p.cgstAmount || (!p.isInterstate ? (p.taxAmount || 0) / 2 : 0));
-  const sgst = Number(p.sgstAmount || (!p.isInterstate ? (p.taxAmount || 0) / 2 : 0));
+  const tr = parseFloat(p.taxRate?.toString()) || 5;
+  const igst = parseFloat(p.igstAmount?.toString() || (p.isInterstate ? (p.taxAmount || 0).toString() : "0"));
+  const cgst = parseFloat(p.cgstAmount?.toString() || (!p.isInterstate ? ((p.taxAmount || 0) / 2).toString() : "0"));
+  const sgst = parseFloat(p.sgstAmount?.toString() || (!p.isInterstate ? ((p.taxAmount || 0) / 2).toString() : "0"));
 
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -8322,18 +8322,18 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
   useEffect(() => {
     const updateScale = () => {
       if (containerRef.current) {
-         const availableWidth = window.innerWidth * 0.95;
-         const availableHeight = window.innerHeight * 0.85; // Leave space for buttons
-         const billWidth = 210 * 3.78; // 210mm in pixels approx (96dpi)
-         const billHeight = 297 * 3.78; // 297mm in pixels approx
+         const availableWidth = window.innerWidth * 0.98;
+         const availableHeight = (window.innerHeight - 150); // Leave space for controls and absolute footer
+         const billWidth = 210 * 3.78; 
+         const billHeight = 297 * 3.78;
 
          const scaleW = availableWidth / billWidth;
          const scaleH = availableHeight / billHeight;
-         const newScale = Math.min(1, scaleW, scaleH);
+         const newScale = Math.min(1.2, scaleW, scaleH); // Allowing slight upscale on larger screens
          setScale(newScale);
       }
     };
-    updateScale();
+    setTimeout(updateScale, 100);
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
   }, []);
@@ -8376,7 +8376,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md flex items-center justify-center p-0 sm:p-2 overflow-hidden print:bg-white print:p-0 print:block">
       <div 
-        className="bg-white w-full max-w-[95vw] h-full sm:h-auto sm:max-h-[98vh] sm:rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] relative print:shadow-none print:rounded-none overflow-hidden flex flex-col items-center"
+        className="bg-white w-full max-w-[98vw] h-full sm:h-auto sm:max-h-[98vh] sm:rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] relative print:shadow-none print:rounded-none overflow-hidden flex flex-col items-center"
         style={{ margin: '0 auto' }}
       >
         
@@ -8431,7 +8431,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             
             {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
-              <div className="font-bold text-[10pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
+              <div className="font-extrabold text-[11pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
               <div className="flex flex-col items-center w-full">
                 <h1 className="text-5xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{consignorName}</h1>
                 <div className="flex justify-between w-full px-4 mt-2 font-bold text-[9pt] uppercase tracking-tight">
@@ -8556,15 +8556,15 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
               <div className="flex flex-col h-full bg-white">
                 <div className="p-3 space-y-1 flex-1 font-bold text-[10pt] uppercase text-slate-700">
                    <div className="font-black text-[9pt] text-slate-500 mb-1 border-b border-black border-dashed italic">Amount in Words: {numberToWords(p.grandTotal)}</div>
-                  <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{Number(p.taxableValue).toFixed(2)}</span></div>
-                  {Number(cgst) > 0 && <div className="flex justify-between"><span>CGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(tr === 5 ? 1 : 1)}%</span> <span className="font-black text-slate-900">{cgst.toFixed(2)}</span></div>}
-                  {Number(sgst) > 0 && <div className="flex justify-between"><span>SGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(tr === 5 ? 1 : 1)}%</span> <span className="font-black text-slate-900">{sgst.toFixed(2)}</span></div>}
-                  {Number(igst) > 0 && <div className="flex justify-between"><span>IGST @ {tr.toFixed(1)}%</span> <span className="font-black text-slate-900">{igst.toFixed(2)}</span></div>}
+                  <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{(parseFloat(p.taxableValue?.toString()) || 0).toFixed(2)}</span></div>
+                  {Number(cgst) > 0 && <div className="flex justify-between"><span>CGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(cgst.toString()) || 0).toFixed(2)}</span></div>}
+                  {Number(sgst) > 0 && <div className="flex justify-between"><span>SGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(sgst.toString()) || 0).toFixed(2)}</span></div>}
+                  {Number(igst) > 0 && <div className="flex justify-between"><span>IGST @ {tr.toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(igst.toString()) || 0).toFixed(2)}</span></div>}
                 </div>
 
                 <div className="border-y-2 border-black p-3 flex justify-between items-center font-black text-2xl uppercase bg-black text-white">
                   <span className="text-sm">NET AMOUNT</span>
-                  <span>₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2})}</span>
+                  <span>₹ {(parseFloat(p.grandTotal?.toString()) || 0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
 
                 <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-[100px]">
@@ -11520,10 +11520,18 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
   
   // Recalculation logic
   useEffect(() => {
-    const basicAmount = (formData.items || []).reduce((sum: number, item: any) => sum + (Number(item.quantity || 0) * Number(item.rate || 0)), 0);
-    const discountAmount = Number(formData.globalDiscount || 0);
-    const taxableValue = Math.max(0, basicAmount - discountAmount);
-    const taxRate = Number(formData.taxRate) || 5;
+    const grossTotal = (formData.items || []).reduce((sum: number, item: any) => sum + (parseFloat(item.quantity?.toString() || "0") * parseFloat(item.rate?.toString() || "0")), 0);
+    
+    const itemDiscountTotal = (formData.items || []).reduce((sum: number, item: any) => {
+      const g = (parseFloat(item.quantity?.toString() || "0") * parseFloat(item.rate?.toString() || "0"));
+      const d = g * ((parseFloat(item.discount?.toString() || "0")) / 100);
+      return sum + d;
+    }, 0);
+
+    const afterItemDiscount = grossTotal - itemDiscountTotal;
+    const discountAmount = parseFloat(formData.globalDiscount?.toString() || "0");
+    const taxableValue = Math.max(0, afterItemDiscount - discountAmount);
+    const taxRate = parseFloat(formData.taxRate?.toString() || "5");
     const taxAmount = Math.round(taxableValue * (taxRate / 100));
     const grandTotal = Math.round(taxableValue + taxAmount);
     
@@ -11534,7 +11542,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
 
     setFormData(prev => ({
       ...prev,
-      basicAmount,
+      basicAmount: afterItemDiscount,
       taxableValue,
       taxAmount,
       grandTotal,
@@ -11683,7 +11691,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
            <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white">
             {/* Professional Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
-              <div className="font-bold text-[10pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
+              <div className="font-extrabold text-[11pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
               <div className="flex flex-col items-center w-full">
                 <h1 className="text-5xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
                 <div className="flex justify-between w-full px-4 mt-2 font-bold text-[9pt] uppercase tracking-tight">
@@ -11801,15 +11809,15 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
               <div className="flex flex-col h-full bg-white">
                 <div className="p-3 space-y-1 flex-1 font-bold text-[10pt] uppercase text-slate-700">
                    <div className="font-black text-[9pt] text-slate-500 mb-1 border-b border-black border-dashed italic">Amount in Words: {formData.numberToWords}</div>
-                  <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{formData.taxableValue.toFixed(2)}</span></div>
-                  {Number(formData.cgstAmount) > 0 && <div className="flex justify-between"><span>CGST @ {(Number(formData.taxRate) === 5 ? 2.5 : Number(formData.taxRate)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{formData.cgstAmount.toFixed(2)}</span></div>}
-                  {Number(formData.sgstAmount) > 0 && <div className="flex justify-between"><span>SGST @ {(Number(formData.taxRate) === 5 ? 2.5 : Number(formData.taxRate)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{formData.sgstAmount.toFixed(2)}</span></div>}
-                  {Number(formData.igstAmount) > 0 && <div className="flex justify-between"><span>IGST @ {formData.taxRate}%</span> <span className="font-black text-slate-900">{formData.igstAmount.toFixed(2)}</span></div>}
+                  <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{(parseFloat(formData.taxableValue?.toString()) || 0).toFixed(2)}</span></div>
+                  {Number(formData.cgstAmount) > 0 && <div className="flex justify-between"><span>CGST @ {(parseFloat(formData.taxRate?.toString()) === 5 ? 2.5 : (parseFloat(formData.taxRate?.toString()) || 5)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(formData.cgstAmount?.toString()) || 0).toFixed(2)}</span></div>}
+                  {Number(formData.sgstAmount) > 0 && <div className="flex justify-between"><span>SGST @ {(parseFloat(formData.taxRate?.toString()) === 5 ? 2.5 : (parseFloat(formData.taxRate?.toString()) || 5)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(formData.sgstAmount?.toString()) || 0).toFixed(2)}</span></div>}
+                  {Number(formData.igstAmount) > 0 && <div className="flex justify-between"><span>IGST @ {formData.taxRate}%</span> <span className="font-black text-slate-900">{(parseFloat(formData.igstAmount?.toString()) || 0).toFixed(2)}</span></div>}
                 </div>
 
                 <div className="border-y-2 border-black p-3 flex justify-between items-center font-black text-2xl uppercase bg-black text-white">
                   <span className="text-sm">NET AMOUNT</span>
-                  <span>₹ {formData.grandTotal.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>
+                  <span>₹ {(parseFloat(formData.grandTotal?.toString()) || 0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
 
                 <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-[100px]">
