@@ -8434,19 +8434,19 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             
             {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
-              <div className="font-extrabold text-[11pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
+              <div className="font-extrabold text-[10pt] uppercase mb-1 underline w-full text-center">|| HAR HAR MAHADEV ||</div>
               <div className="flex flex-col items-center w-full">
-                <h1 className="text-5xl font-black uppercase tracking-tighter text-black mb-1" style={{ fontFamily: 'Georgia, serif' }}>{consignorName}</h1>
-                <div className="grid grid-cols-[1fr_auto_1fr] w-full px-4 font-bold text-[9pt] uppercase tracking-tight items-start border-t border-black/10 pt-1">
-                  <div className="text-left leading-tight">
-                    <span className="text-[7pt] text-slate-500 block mb-0.5 underline font-black">Office Address:</span>
+                <h1 className="text-3xl font-black uppercase tracking-tighter text-black mb-1" style={{ fontFamily: 'Georgia, serif' }}>{consignorName}</h1>
+                <div className="grid grid-cols-[140px_1fr_140px] w-full px-2 font-bold text-[8.5pt] uppercase tracking-tight items-start border-t border-black/10 pt-1 leading-[1.2]">
+                  <div className="text-left">
+                    <span className="text-[6.5pt] text-slate-500 block underline font-black">Office:</span>
                     {settings?.address || "SURAT, GUJARAT"}
                   </div>
-                  <div className="px-6 self-stretch flex items-center">
-                    <div className="w-[1px] h-full bg-black/20"></div>
+                  <div className="px-2 text-center text-[7pt] text-slate-400 self-center font-black">
+                    ESTD. 1995
                   </div>
-                  <div className="text-right leading-tight">
-                    <span className="text-[7pt] text-slate-500 block mb-0.5 underline font-black">Factory Address:</span>
+                  <div className="text-right">
+                    <span className="text-[6.5pt] text-slate-500 block underline font-black">Factory:</span>
                     {settings?.factoryAddress || "GIDC, SURAT"}<br/>
                     <span className="text-black font-black">MO: {settings?.mobile || "9988776655"}</span>
                   </div>
@@ -8454,37 +8454,37 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
               </div>
             </div>
 
-            <div className="flex justify-between items-center px-4 py-1 border-b-2 border-black font-bold uppercase text-[10pt]">
+            <div className="flex justify-between items-center px-4 py-1 border-b-2 border-black font-bold uppercase text-[9pt]">
               <div className="w-1/3">GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}</div>
-              <div className="w-1/3 text-center text-3xl font-black tracking-[0.1em] bg-black text-white px-6 py-1">TAX INVOICE</div>
+              <div className="w-1/3 text-center text-2xl font-black tracking-[0.1em] bg-black text-white px-6 py-0.5">TAX INVOICE</div>
               <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
             </div>
 
             {/* Three Column Info Box (Agam Style) */}
-            <div className="grid grid-cols-[33%_33%_34%] border-b-2 border-black min-h-[160px]">
+            <div className="grid grid-cols-[33%_33%_34%] border-b-2 border-black min-h-[140px]">
               {/* Buyer Box */}
-              <div className="border-r-2 border-black p-3 flex flex-col">
-                <div className="font-black text-[8pt] uppercase underline mb-1">Details of Receiver (Buyer):</div>
-                <div className="font-black text-[12pt] uppercase leading-none mb-1 text-slate-900">{p.consigneeName || p.partyName || "-"}</div>
-                <div className="font-bold text-[9pt] uppercase flex-1 leading-tight text-slate-700">{p.consigneeAddress || p.partyAddress || "-"}</div>
-                <div className="font-black text-[10pt] mt-2 border-t border-black pt-1">GSTIN: {p.consigneeGstin || p.partyGstin || "-"}</div>
+              <div className="border-r-2 border-black p-2 flex flex-col">
+                <div className="font-black text-[7pt] uppercase underline mb-1 italic">Details of Receiver (Buyer):</div>
+                <div className="font-black text-[10pt] uppercase leading-none mb-1 text-slate-900">{p.consigneeName || p.partyName || "-"}</div>
+                <div className="font-bold text-[8pt] uppercase flex-1 leading-[1.2] text-slate-700">{p.consigneeAddress || p.partyAddress || "-"}</div>
+                <div className="font-black text-[9pt] mt-1 border-t border-black border-dashed pt-1">GSTIN: {p.consigneeGstin || p.partyGstin || "-"}</div>
               </div>
               
               {/* Consignee Box */}
-              <div className="border-r-2 border-black p-3 flex flex-col border-r-2">
-                <div className="font-black text-[8pt] uppercase underline mb-1">Details of Consignee (Shipped To):</div>
-                <div className="font-black text-[12pt] uppercase leading-none mb-1 text-slate-900">{p.consigneeName || p.partyName || "-"}</div>
-                <div className="font-bold text-[9pt] uppercase flex-1 leading-tight text-slate-700">{p.consigneeAddress || p.partyAddress || "-"}</div>
-                <div className="font-black text-[10pt] mt-2 border-t border-black pt-1">GSTIN: {p.consigneeGstin || p.partyGstin || "-"}</div>
+              <div className="border-r-2 border-black p-2 flex flex-col border-r-2">
+                <div className="font-black text-[7pt] uppercase underline mb-1 italic">Details of Consignee (Shipped To):</div>
+                <div className="font-black text-[10pt] uppercase leading-none mb-1 text-slate-900">{p.consigneeName || p.partyName || "-"}</div>
+                <div className="font-bold text-[8pt] uppercase flex-1 leading-[1.2] text-slate-700">{p.consigneeAddress || p.partyAddress || "-"}</div>
+                <div className="font-black text-[9pt] mt-1 border-t border-black border-dashed pt-1">GSTIN: {p.consigneeGstin || p.partyGstin || "-"}</div>
               </div>
 
               {/* Invoice Meta Box */}
-              <div className="p-3 grid grid-cols-[100px_1fr] gap-y-1 font-bold text-[9.5pt] uppercase items-start">
-                <span className="text-slate-500">Invoice No:</span> <span className="font-black text-[12pt]"># {p.billNumber}</span>
+              <div className="p-2 grid grid-cols-[85px_1fr] gap-y-0.5 font-bold text-[8.5pt] uppercase items-start">
+                <span className="text-slate-500">Invoice No:</span> <span className="font-black text-[10pt]"># {p.billNumber}</span>
                 <span className="text-slate-500">Date:</span> <span className="font-black">{new Date(p.date).toLocaleDateString('en-GB')}</span>
                 <span className="text-slate-500">Transport:</span> <span className="font-black truncate">{p.transportName || "-"}</span>
                 <span className="text-slate-500">LR No:</span> <span className="font-black">{p.lrNumber || "-"}</span>
-                <span className="text-slate-500">E-Way Bill:</span> <span className="font-black">{p.ewayBill || p.ewbNumber || "-"}</span>
+                <span className="text-slate-500">E-Way Bill:</span> <span className="font-black truncate block w-[110px]">{p.ewayBill || p.ewbNumber || "-"}</span>
                 <span className="text-slate-500">State:</span> <span className="font-black">{p.consigneeState || "GUJARAT (24)"}</span>
               </div>
             </div>
@@ -8504,17 +8504,17 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                     <th className="w-[110px] py-2 text-right px-4">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="font-bold text-[10pt] uppercase text-slate-800">
+                <tbody className="font-bold text-[8.5pt] uppercase text-slate-800">
                   {(p.items || []).map((item: any, i: number) => (
                     <tr key={i} className="border-b border-black">
-                      <td className="border-r-2 border-black py-1.5 text-center">{i + 1}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 truncate">{item.name} {item.color}</td>
-                      <td className="border-r-2 border-black py-1.5 text-center">{item.hsnCode}</td>
-                      <td className="border-r-2 border-black py-1.5 text-center">{item.unit || "MTR"}</td>
-                      <td className="border-r-2 border-black py-1.5 text-center">{item.grade || "-"}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 text-right">{(parseFloat(item.quantity?.toString()) || 0).toFixed(2)}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 text-right">{(parseFloat(item.rate?.toString()) || 0).toFixed(2)}</td>
-                      <td className="py-1.5 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
+                      <td className="border-r-2 border-black py-1 text-center">{i + 1}</td>
+                      <td className="border-r-2 border-black py-1 px-3 truncate">{item.name} {item.color}</td>
+                      <td className="border-r-2 border-black py-1 text-center">{item.hsnCode}</td>
+                      <td className="border-r-2 border-black py-1 text-center">{item.unit || "MTR"}</td>
+                      <td className="border-r-2 border-black py-1 text-center">{item.grade || "-"}</td>
+                      <td className="border-r-2 border-black py-1 px-3 text-right">{(parseFloat(item.quantity?.toString()) || 0).toFixed(2)}</td>
+                      <td className="border-r-2 border-black py-1 px-3 text-right">{(parseFloat(item.rate?.toString()) || 0).toFixed(2)}</td>
+                      <td className="py-1 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
                     </tr>
                   ))}
                   {/* Grid lines placeholder - reduced to keep footer properly in frame on A4 */}
@@ -8535,24 +8535,24 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             </div>
 
             {/* Fixed Footer (Page Bottom) */}
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[225px] print:relative print:mt-auto">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[210px] print:fixed print:bottom-0">
               {/* Left Side: Bank Details & T&C */}
-              <div className="border-r-2 border-black p-4 flex flex-col justify-between h-full bg-white">
-                <div className="py-2 border-b border-black border-dashed">
-                  <div className="font-black underline mb-1 uppercase text-[9pt] text-indigo-600">Bank Details (AXIS BANK)</div>
-                  <div className="grid grid-cols-[80px_1fr] gap-y-0.5 text-[9.5pt] uppercase font-bold text-slate-800">
+              <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full bg-white">
+                <div className="py-1 border-b border-black border-dashed">
+                  <div className="font-black underline mb-0.5 uppercase text-[8pt] text-indigo-700">Bank Details (AXIS BANK)</div>
+                  <div className="grid grid-cols-[70px_1fr] gap-y-0 text-[8.5pt] uppercase font-bold text-slate-800">
                     <span>Bank:</span> <span className="font-black">{settings?.bankName || "AXIS BANK"}</span>
-                    <span>A/c No:</span> <span className="font-black tracking-[0.1em]">{settings?.accountNumber || "924020074358147"}</span>
+                    <span>A/c No:</span> <span className="font-black tracking-[0.05em]">{settings?.accountNumber || "924020074358147"}</span>
                     <span>IFSC:</span> <span className="font-black">{settings?.ifscCode || "UTIB0001772"}</span>
                   </div>
-                  <div className="text-[7.5pt] font-black mt-2 text-red-600 uppercase border-y border-black/10 py-1">
+                  <div className="text-[7pt] font-black mt-1 text-red-600 uppercase italic">
                     NOTICE: AFTER 45 DAYS INTEREST WILL BE CHARGED 18% PER ANNUM
                   </div>
                 </div>
 
-                <div className="text-[8pt] leading-snug">
-                  <div className="font-black underline mb-1 uppercase text-slate-500">Terms & Conditions:</div>
-                  <ol className="list-decimal pl-4 space-y-0.5 font-bold uppercase text-slate-600 italic">
+                <div className="text-[7.5pt] leading-[1.1]">
+                  <div className="font-black underline mb-0.5 uppercase text-slate-500">Terms & Conditions:</div>
+                  <ol className="list-decimal pl-4 space-y-0 font-bold uppercase text-slate-600 italic">
                     <li>Goods once sold will not be taken back or replaced.</li>
                     <li>No responsibility for any damages/losses in transit.</li>
                     <li>Interest @ 18% p.a. will be charged after 45 days.</li>
@@ -8563,22 +8563,22 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
 
               {/* Right Side: Tax Breakdown & Signatory */}
               <div className="flex flex-col h-full bg-white">
-                <div className="p-3 space-y-1 flex-1 font-bold text-[10pt] uppercase text-slate-700">
-                   <div className="font-black text-[9pt] text-slate-500 mb-1 border-b border-black border-dashed italic">Amount in Words: {numberToWords(p.grandTotal)}</div>
+                <div className="p-2 space-y-0.5 flex-1 font-bold text-[9pt] uppercase text-slate-700">
+                   <div className="font-black text-[8pt] text-slate-500 mb-1 border-b border-black border-dotted italic truncate">Words: {numberToWords(p.grandTotal)}</div>
                   <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{derivedTaxableValue.toFixed(2)}</span></div>
                   {Number(cgst) > 0 && <div className="flex justify-between"><span>CGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(cgst.toString()) || 0).toFixed(2)}</span></div>}
                   {Number(sgst) > 0 && <div className="flex justify-between"><span>SGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(sgst.toString()) || 0).toFixed(2)}</span></div>}
                   {Number(igst) > 0 && <div className="flex justify-between"><span>IGST @ {tr.toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(igst.toString()) || 0).toFixed(2)}</span></div>}
                 </div>
 
-                <div className="border-y-2 border-black p-3 flex justify-between items-center font-black text-2xl uppercase bg-black text-white">
-                  <span className="text-sm">NET AMOUNT</span>
+                <div className="border-y-2 border-black p-2 flex justify-between items-center font-black text-xl uppercase bg-black text-white">
+                  <span className="text-[10pt]">NET AMOUNT</span>
                   <span>₹ {(parseFloat(p.grandTotal?.toString()) || 0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
 
-                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-[105px]">
-                  <div className="font-black uppercase text-[10pt] mb-12 text-right">For {consignorName}</div>
-                  <div className="text-[9pt] font-black uppercase text-center border-t-2 border-black pt-1 block mx-auto w-[220px]">Authorised Signatory</div>
+                <div className="p-2 pt-2 text-center flex flex-col justify-end min-h-[85px]">
+                  <div className="font-black uppercase text-[8.5pt] mb-8 text-right px-2 underline">For {consignorName}</div>
+                  <div className="text-[8pt] font-black uppercase text-center border-t border-black pt-0.5 block mx-auto w-[160px]">Authorised Signatory</div>
                 </div>
               </div>
             </div>
@@ -11706,65 +11706,65 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
           </button>
         </div>
 
-        {/* Hidden Print Area */}
-        <div id="admin-print-area" className="hidden print:block print:w-full">
-           <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white">
-            {/* Professional Header Section */}
-            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
-              <div className="font-extrabold text-[11pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
-              <div className="flex flex-col items-center w-full">
-                <h1 className="text-5xl font-black uppercase tracking-tighter text-black mb-1" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
-                <div className="grid grid-cols-[1fr_auto_1fr] w-full px-4 font-bold text-[9pt] uppercase tracking-tight items-start border-t border-black/10 pt-1">
-                  <div className="text-left leading-tight">
-                    <span className="text-[7pt] text-slate-500 block mb-0.5 underline font-black">Office Address:</span>
-                    {settings?.address || "SURAT, GUJARAT"}
-                  </div>
-                  <div className="px-6 self-stretch flex items-center">
-                    <div className="w-[1px] h-full bg-black/20"></div>
-                  </div>
-                  <div className="text-right leading-tight">
-                    <span className="text-[7pt] text-slate-500 block mb-0.5 underline font-black">Factory Address:</span>
-                    {settings?.factoryAddress || "GIDC, SURAT"}<br/>
-                    <span className="text-black font-black">MO: {settings?.mobile || "9988776655"}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+         {/* Hidden Print Area */}
+         <div id="admin-print-area" className="hidden print:block print:w-full">
+            <div className="border-2 border-black flex flex-col w-full min-h-[297mm] relative box-border overflow-hidden bg-white">
+             {/* Professional Header Section */}
+             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
+               <div className="font-extrabold text-[10pt] uppercase mb-1 underline w-full text-center">|| HAR HAR MAHADEV ||</div>
+               <div className="flex flex-col items-center w-full">
+                 <h1 className="text-3xl font-black uppercase tracking-tighter text-black mb-1" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
+                 <div className="grid grid-cols-[140px_1fr_140px] w-full px-2 font-bold text-[8.5pt] uppercase tracking-tight items-start border-t border-black/10 pt-1 leading-[1.2]">
+                   <div className="text-left">
+                     <span className="text-[6.5pt] text-slate-500 block underline font-black">Office:</span>
+                     {settings?.address || "SURAT, GUJARAT"}
+                   </div>
+                   <div className="px-2 text-center text-[7pt] text-slate-400 self-center font-black">
+                     ESTD. 1995
+                   </div>
+                   <div className="text-right">
+                     <span className="text-[6.5pt] text-slate-500 block underline font-black">Factory:</span>
+                     {settings?.factoryAddress || "GIDC, SURAT"}<br/>
+                     <span className="text-black font-black">MO: {settings?.mobile || "9988776655"}</span>
+                   </div>
+                 </div>
+               </div>
+             </div>
 
-            <div className="flex justify-between items-center px-4 py-1 border-b-2 border-black font-bold uppercase text-[10pt]">
-              <div className="w-1/3">GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}</div>
-              <div className="w-1/3 text-center text-3xl font-black tracking-[0.1em] bg-black text-white px-6 py-1">TAX INVOICE</div>
-              <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
-            </div>
+             <div className="flex justify-between items-center px-4 py-1 border-b-2 border-black font-bold uppercase text-[9pt]">
+               <div className="w-1/3">GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}</div>
+               <div className="w-1/3 text-center text-2xl font-black tracking-[0.1em] bg-black text-white px-6 py-0.5">TAX INVOICE</div>
+               <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
+             </div>
 
-            {/* Three Column Info Box (Agam Style) */}
-            <div className="grid grid-cols-[33%_33%_34%] border-b-2 border-black min-h-[160px]">
-              {/* Buyer Box */}
-              <div className="border-r-2 border-black p-3 flex flex-col">
-                <div className="font-black text-[8pt] uppercase underline mb-1">Details of Receiver (Buyer):</div>
-                <div className="font-black text-[12pt] uppercase leading-none mb-1 text-slate-900">{formData.consigneeName || formData.partyName || "-"}</div>
-                <div className="font-bold text-[9pt] uppercase flex-1 leading-tight text-slate-700">{formData.consigneeAddress || formData.partyAddress || "-"}</div>
-                <div className="font-black text-[10pt] mt-2 border-t border-black pt-1">GSTIN: {formData.consigneeGstin || formData.partyGstin || "-"}</div>
-              </div>
-              
-              {/* Consignee Box */}
-              <div className="border-r-2 border-black p-3 flex flex-col">
-                <div className="font-black text-[8pt] uppercase underline mb-1">Details of Consignee (Shipped To):</div>
-                <div className="font-black text-[12pt] uppercase leading-none mb-1 text-slate-900">{formData.consigneeName || formData.partyName || "-"}</div>
-                <div className="font-bold text-[9pt] uppercase flex-1 leading-tight text-slate-700">{formData.consigneeAddress || formData.partyAddress || "-"}</div>
-                <div className="font-black text-[10pt] mt-2 border-t border-black pt-1">GSTIN: {formData.consigneeGstin || formData.partyGstin || "-"}</div>
-              </div>
+             {/* Three Column Info Box (Agam Style) */}
+             <div className="grid grid-cols-[33%_33%_34%] border-b-2 border-black min-h-[140px]">
+               {/* Buyer Box */}
+               <div className="border-r-2 border-black p-2 flex flex-col">
+                 <div className="font-black text-[7pt] uppercase underline mb-1 italic">Details of Receiver (Buyer):</div>
+                 <div className="font-black text-[10pt] uppercase leading-none mb-1 text-slate-900">{formData.consigneeName || formData.partyName || "-"}</div>
+                 <div className="font-bold text-[8pt] uppercase flex-1 leading-[1.2] text-slate-700">{formData.consigneeAddress || formData.partyAddress || "-"}</div>
+                 <div className="font-black text-[9pt] mt-1 border-t border-black border-dashed pt-1">GSTIN: {formData.consigneeGstin || formData.partyGstin || "-"}</div>
+               </div>
+               
+               {/* Consignee Box */}
+               <div className="border-r-2 border-black p-2 flex flex-col">
+                 <div className="font-black text-[7pt] uppercase underline mb-1 italic">Details of Consignee (Shipped To):</div>
+                 <div className="font-black text-[10pt] uppercase leading-none mb-1 text-slate-900">{formData.consigneeName || formData.partyName || "-"}</div>
+                 <div className="font-bold text-[8pt] uppercase flex-1 leading-[1.2] text-slate-700">{formData.consigneeAddress || formData.partyAddress || "-"}</div>
+                 <div className="font-black text-[9pt] mt-1 border-t border-black border-dashed pt-1">GSTIN: {formData.consigneeGstin || formData.partyGstin || "-"}</div>
+               </div>
 
-              {/* Invoice Meta Box */}
-              <div className="p-3 grid grid-cols-[100px_1fr] gap-y-1 font-bold text-[9.5pt] uppercase items-start">
-                <span className="text-slate-500">Invoice No:</span> <span className="font-black text-[12pt]"># {formData.billNumber}</span>
-                <span className="text-slate-500">Date:</span> <span className="font-black">{new Date(formData.date).toLocaleDateString('en-GB')}</span>
-                <span className="text-slate-500">Transport:</span> <span className="font-black truncate">{formData.transportName || "-"}</span>
-                <span className="text-slate-500">LR No:</span> <span className="font-black">{formData.lrNumber || "-"}</span>
-                <span className="text-slate-500">E-Way Bill:</span> <span className="font-black">{formData.ewayBill || formData.ewbNumber || "-"}</span>
-                <span className="text-slate-500">State:</span> <span className="font-black">{formData.consigneeState || "GUJARAT (24)"}</span>
-              </div>
-            </div>
+               {/* Invoice Meta Box */}
+               <div className="p-2 grid grid-cols-[85px_1fr] gap-y-0.5 font-bold text-[8.5pt] uppercase items-start">
+                 <span className="text-slate-500">Invoice No:</span> <span className="font-black text-[10pt]"># {formData.billNumber}</span>
+                 <span className="text-slate-500">Date:</span> <span className="font-black">{new Date(formData.date).toLocaleDateString('en-GB')}</span>
+                 <span className="text-slate-500">Transport:</span> <span className="font-black truncate">{formData.transportName || "-"}</span>
+                 <span className="text-slate-500">LR No:</span> <span className="font-black">{formData.lrNumber || "-"}</span>
+                 <span className="text-slate-500">E-Way Bill:</span> <span className="font-black truncate block w-[110px]">{formData.ewayBill || formData.ewbNumber || "-"}</span>
+                 <span className="text-slate-500">State:</span> <span className="font-black">{formData.consigneeState || "GUJARAT (24)"}</span>
+               </div>
+             </div>
 
             {/* The Item Table */}
             <div className="flex-1 min-h-[400px] mb-[230px]">
@@ -11781,16 +11781,16 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                     <th className="w-[110px] py-2 text-right px-4">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="font-bold text-[10pt] uppercase text-slate-800">
+                <tbody className="font-bold text-[8.5pt] uppercase text-slate-800">
                   {(formData.items || []).map((item: any, i: number) => (
                     <tr key={i} className="border-b border-black">
-                      <td className="border-r-2 border-black py-1.5 text-center">{i + 1}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 truncate">{item.name} {item.color}</td>
-                      <td className="border-r-2 border-black py-1.5 text-center">{item.hsnCode}</td>
-                      <td className="border-r-2 border-black py-1.5 text-center">{item.unit || "MTR"}</td>
-                      <td className="border-r-2 border-black py-1.5 text-center">{item.grade || "-"}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 text-right">{(parseFloat(item.quantity?.toString()) || 0).toFixed(2)}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 text-right font-black">{(parseFloat(item.rate?.toString()) || 0).toFixed(2)}</td>
+                      <td className="border-r-2 border-black py-1 text-center">{i + 1}</td>
+                      <td className="border-r-2 border-black py-1 px-3 truncate">{item.name} {item.color}</td>
+                      <td className="border-r-2 border-black py-1 text-center">{item.hsnCode}</td>
+                      <td className="border-r-2 border-black py-1 text-center">{item.unit || "MTR"}</td>
+                      <td className="border-r-2 border-black py-1 text-center">{item.grade || "-"}</td>
+                      <td className="border-r-2 border-black py-1 px-3 text-right">{(parseFloat(item.quantity?.toString()) || 0).toFixed(2)}</td>
+                      <td className="border-r-2 border-black py-1 px-3 text-right font-black">{(parseFloat(item.rate?.toString()) || 0).toFixed(2)}</td>
                       <td className="py-1.5 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
                     </tr>
                   ))}
@@ -11805,24 +11805,24 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
             </div>
 
             {/* Fixed Footer (Page Bottom) */}
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[225px] print:relative print:mt-auto">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[210px] print:fixed print:bottom-0">
               {/* Left Side: Bank Details & T&C */}
-              <div className="border-r-2 border-black p-4 flex flex-col justify-between h-full bg-white">
-                <div className="py-2 border-b border-black border-dashed">
-                  <div className="font-black underline mb-1 uppercase text-[9pt] text-indigo-600">Bank Details (AXIS BANK)</div>
-                  <div className="grid grid-cols-[80px_1fr] gap-y-0.5 text-[9.5pt] uppercase font-bold text-slate-800">
+              <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full bg-white">
+                <div className="py-1 border-b border-black border-dashed">
+                  <div className="font-black underline mb-0.5 uppercase text-[8pt] text-indigo-700">Bank Details (AXIS BANK)</div>
+                  <div className="grid grid-cols-[70px_1fr] gap-y-0 text-[8.5pt] uppercase font-bold text-slate-800">
                     <span>Bank:</span> <span className="font-black">{settings?.bankName || "AXIS BANK"}</span>
-                    <span>A/c No:</span> <span className="font-black tracking-[0.1em]">{settings?.accountNumber || "924020074358147"}</span>
+                    <span>A/c No:</span> <span className="font-black tracking-[0.05em]">{settings?.accountNumber || "924020074358147"}</span>
                     <span>IFSC:</span> <span className="font-black">{settings?.ifscCode || "UTIB0001772"}</span>
                   </div>
-                  <div className="text-[7.5pt] font-black mt-2 text-red-600 uppercase border-y border-black/10 py-1">
+                  <div className="text-[7pt] font-black mt-1 text-red-600 uppercase italic">
                     NOTICE: AFTER 45 DAYS INTEREST WILL BE CHARGED 18% PER ANNUM
                   </div>
                 </div>
 
-                <div className="text-[8pt] leading-snug">
-                  <div className="font-black underline mb-1 uppercase text-slate-500">Terms & Conditions:</div>
-                  <ol className="list-decimal pl-4 space-y-0.5 font-bold uppercase text-slate-600 italic">
+                <div className="text-[7.5pt] leading-[1.1]">
+                  <div className="font-black underline mb-0.5 uppercase text-slate-500">Terms & Conditions:</div>
+                  <ol className="list-decimal pl-4 space-y-0 font-bold uppercase text-slate-600 italic">
                     <li>Goods once sold will not be taken back or replaced.</li>
                     <li>No responsibility for any damages/losses in transit.</li>
                     <li>Interest @ 18% p.a. will be charged after 45 days.</li>
@@ -11833,22 +11833,22 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
 
               {/* Right Side: Tax Breakdown & Signatory */}
               <div className="flex flex-col h-full bg-white">
-                <div className="p-3 space-y-1 flex-1 font-bold text-[10pt] uppercase text-slate-700">
-                   <div className="font-black text-[9pt] text-slate-500 mb-1 border-b border-black border-dashed italic">Amount in Words: {formData.numberToWords}</div>
+                <div className="p-2 space-y-0.5 flex-1 font-bold text-[9pt] uppercase text-slate-700">
+                   <div className="font-black text-[8pt] text-slate-500 mb-1 border-b border-black border-dotted italic truncate">Words: {formData.numberToWords}</div>
                   <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{(parseFloat(formData.taxableValue?.toString()) || 0).toFixed(2)}</span></div>
                   {Number(formData.cgstAmount) > 0 && <div className="flex justify-between"><span>CGST @ {(parseFloat(formData.taxRate?.toString()) === 5 ? 2.5 : (parseFloat(formData.taxRate?.toString()) || 5)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(formData.cgstAmount?.toString()) || 0).toFixed(2)}</span></div>}
                   {Number(formData.sgstAmount) > 0 && <div className="flex justify-between"><span>SGST @ {(parseFloat(formData.taxRate?.toString()) === 5 ? 2.5 : (parseFloat(formData.taxRate?.toString()) || 5)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(formData.sgstAmount?.toString()) || 0).toFixed(2)}</span></div>}
                   {Number(formData.igstAmount) > 0 && <div className="flex justify-between"><span>IGST @ {formData.taxRate}%</span> <span className="font-black text-slate-900">{(parseFloat(formData.igstAmount?.toString()) || 0).toFixed(2)}</span></div>}
                 </div>
 
-                <div className="border-y-2 border-black p-3 flex justify-between items-center font-black text-2xl uppercase bg-black text-white">
-                  <span className="text-sm">NET AMOUNT</span>
+                <div className="border-y-2 border-black p-2 flex justify-between items-center font-black text-xl uppercase bg-black text-white">
+                  <span className="text-[10pt]">NET AMOUNT</span>
                   <span>₹ {(parseFloat(formData.grandTotal?.toString()) || 0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
 
-                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-[105px]">
-                  <div className="font-black uppercase text-[10pt] mb-12 text-right">For {settings?.companyName}</div>
-                  <div className="text-[9pt] font-black uppercase text-center border-t-2 border-black pt-1 block mx-auto w-[220px]">Authorised Signatory</div>
+                <div className="p-2 pt-2 text-center flex flex-col justify-end min-h-[85px]">
+                  <div className="font-black uppercase text-[8.5pt] mb-8 text-right px-2 underline">For {settings?.companyName}</div>
+                  <div className="text-[8pt] font-black uppercase text-center border-t border-black pt-0.5 block mx-auto w-[160px]">Authorised Signatory</div>
                 </div>
               </div>
             </div>

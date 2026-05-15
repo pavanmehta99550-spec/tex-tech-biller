@@ -36,7 +36,7 @@
 @media print {
   @page {
     size: A4;
-    margin: 5mm !important;
+    margin: 0 !important;
   }
   html, body {
     height: auto !important;
@@ -52,9 +52,9 @@
   }
   #print-area, #admin-print-area, .print-container {
     display: block !important;
-    width: 200mm !important;
-    min-height: 285mm !important;
-    margin: 0 auto !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     position: relative !important;
