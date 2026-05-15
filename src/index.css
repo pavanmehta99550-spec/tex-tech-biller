@@ -33,6 +33,7 @@
   font-weight: 900;
 }
 
+/*
 @media print {
   @page {
     size: A4;
@@ -42,11 +43,9 @@
     height: auto !important;
     overflow: visible !important;
   }
-  /* Hide UI elements */
   button, nav, aside, .no-print {
     display: none !important;
   }
-  /* Ensure the bill container fits */
   #bill-container, main {
     width: 100% !important;
     height: auto !important;
@@ -63,3 +62,4 @@
     background: white !important;
   }
 }
+*/
