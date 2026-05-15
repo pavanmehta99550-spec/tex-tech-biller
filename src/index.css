@@ -33,33 +33,32 @@
   font-weight: 900;
 }
 
-/*
 @media print {
   @page {
     size: A4;
-    margin: 0;
+    margin: 5mm;
   }
   html, body {
-    height: auto !important;
-    overflow: visible !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    background: white !important;
   }
-  button, nav, aside, .no-print {
+  button, nav, aside, .no-print, .print-hide {
     display: none !important;
   }
-  #bill-container, main {
+  #print-container, .print-container {
     width: 100% !important;
-    height: auto !important;
-    overflow: visible !important;
-    position: static !important;
     margin: 0 !important;
     padding: 0 !important;
-    display: block !important;
+    border: none !important;
+    position: relative !important;
   }
   .watermark {
     display: none !important;
   }
-  body {
-    background: white !important;
+  /* Force background colors in print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
-*/

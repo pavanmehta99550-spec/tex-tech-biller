@@ -84,6 +84,7 @@ export interface AppSettings {
   accountNumber?: string;
   ifscCode?: string;
   branchName?: string;
+  logoUrl?: string;
 }
 
 export interface Payment {

@@ -1917,6 +1917,7 @@ export default function App() {
                 onSaveCommission={(c: BrokerCommission) => setCommissions(prev => [c, ...prev])}
                 onDeletePayment={(id: string) => setBrokerPayments(prev => prev.filter(p => p.id !== id))}
                 onDeleteCommission={(id: string) => setCommissions(prev => prev.filter(c => c.id !== id))}
+                onBack={() => setCurrentView('dash')}
               />
             )}
             {currentView === 'inv' && <BookingView 
@@ -2117,6 +2118,7 @@ export default function App() {
                 debitNotes={debitNotes} 
                 creditNotes={creditNotes} 
                 settings={settings}
+                onBack={() => setCurrentView('dash')}
                 onDeletePayment={handleDeletePayment}
                 onEditPayment={(p: any) => {
                   setEditingPayment(p);
@@ -3088,13 +3090,18 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setShowPreview(false);
-        if (activeCalcId) setActiveCalcId(null);
+        if (showPreview) {
+          setShowPreview(false);
+        } else if (activeCalcId) {
+          setActiveCalcId(null);
+        } else if (onCancel) {
+          onCancel();
+        }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [activeCalcId]);
+  }, [activeCalcId, showPreview, onCancel]);
 
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
   const handleEnter = (e: React.KeyboardEvent) => {
@@ -4493,14 +4500,20 @@ function BookingView({
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setShowPreview(false);
-        if (activeCalcId) setActiveCalcId(null);
-        if (activePurchaseId) setActivePurchaseId(null);
+        if (showPreview) {
+          setShowPreview(false);
+        } else if (activeCalcId) {
+          setActiveCalcId(null);
+        } else if (activePurchaseId) {
+          setActivePurchaseId(null);
+        } else if (onCancel) {
+          onCancel();
+        }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [activeCalcId, activePurchaseId]);
+  }, [activeCalcId, activePurchaseId, showPreview, onCancel]);
 
   const [navigatedBillLocked, setNavigatedBillLocked] = useState(false);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
@@ -4532,6 +4545,8 @@ function BookingView({
       notes: editingBooking?.notes || ''
     };
   });
+
+  const hasItemDiscount = formData.items.some((item: any) => Number(item.discount || 0) > 0);
 
   const isLocked = useMemo(() => {
     if (navigatedBillLocked) return true;
@@ -4590,8 +4605,9 @@ function BookingView({
             if (numVal < 0) return item;
           }
           const updated = { ...item, [field]: value };
-          const gross = (updated.quantity || 0) * (updated.rate || 0);
-          updated.amount = Math.round(gross - (updated.discount || 0));
+          const gross = (parseFloat(updated.quantity) || 0) * (parseFloat(updated.rate) || 0);
+          const discountPct = parseFloat(updated.discount) || 0;
+          updated.amount = gross - (gross * discountPct / 100);
           return updated;
         }
         return item;
@@ -4613,29 +4629,24 @@ function BookingView({
     setFormData({ ...formData, billNumber: val });
   };
 
-  const hasItemDiscount = useMemo(() => formData.items.some(item => (item.discount || 0) > 0), [formData.items]);
-
   const calc = useMemo(() => {
-    // 1. Gross Amount - Round each item amount first
-    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
+    // 1. Calculate Taxable Value by summing item amounts
+    const taxableValue = formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     
-    // 2. Taxable Value
-    const taxableValue = grossAmount;
-    
-    // 3. GST Calculation
-    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
+    // 2. GST Calculation
+    const tax = taxableValue * (parseFloat(formData.taxRate) / 100);
     
     // Determine CGST/SGST vs IGST
     const consignorStateCode = formData.consignorGstin?.substring(0, 2);
     const consigneeStateCode = formData.consigneeGstin?.substring(0, 2);
     const isInterstate = consignorStateCode && consigneeStateCode && consignorStateCode !== consigneeStateCode;
     
-    const cgst = isInterstate ? 0 : Math.round(tax / 2);
-    const sgst = isInterstate ? 0 : Math.round(tax / 2);
+    const cgst = isInterstate ? 0 : tax / 2;
+    const sgst = isInterstate ? 0 : tax / 2;
     const igst = isInterstate ? tax : 0;
     
     return { 
-      basicAmount: grossAmount, 
+      basicAmount: taxableValue, 
       taxableValue, 
       tax, 
       cgst, 
@@ -4644,7 +4655,7 @@ function BookingView({
       isInterstate, 
       total: Math.round(taxableValue + tax)
     };
-  }, [formData.items, formData.taxRate, hasItemDiscount, formData.consignorGstin, formData.consigneeGstin]);
+  }, [formData.items, formData.taxRate, formData.consignorGstin, formData.consigneeGstin]);
 
   useEffect(() => {
     if (Math.abs(formData.basicAmount - calc.basicAmount) > 0.01) {
@@ -6011,11 +6022,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
 
 
 function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }: any) {
-  const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
   const p = creditNote;
-  const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
-  const remainingBalance = Math.max(0, p.grandTotal - totalPaid);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -6025,246 +6032,139 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const consigneeName = p.consigneeName || p.partyName || '';
-  const consigneeAddress = p.consigneeAddress || p.partyAddress || '';
-  const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
-  const consigneeMobile = p.consigneeMobile || p.partyMobile || '';
-  const consignorName = p.consignorName || settings?.companyName || "K.K. FABRICS";
+  const consigneeName = p.partyName || '';
+  const consigneeAddress = p.partyAddress || '';
+  const consigneeGstin = p.partyGstin || '';
+  const consignorName = settings?.companyName || "ANGAD SILK MILLS";
+
+  const myStateCode = "24";
+  const rState = (consigneeGstin || '').substring(0, 2);
+  const isInterstate = rState !== myStateCode;
   
   const taxableValue = p.basicAmount - (p.globalDiscount || 0);
   const tr = p.taxRate || 5;
   const tax = taxableValue * (tr / 100);
-  // Safely fallback cgst, sgst, igst values
-  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
-  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
-  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
-
-  const handleDownloadPDF = async () => {
-    const element = document.getElementById('print-container');
-    if (!element) return;
-    try {
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${p.billNumber || 'document'}.pdf`);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const cgst = isInterstate ? 0 : tax/2;
+  const sgst = isInterstate ? 0 : tax/2;
+  const igst = isInterstate ? tax : 0;
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      exit={{ opacity: 0 }} 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
     >
-      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto">
         <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
           <ChevronLeft size={16} /> Close Preview
         </button>
-        
         <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
-          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100">
             <Printer size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Bill</span>
-          </button>
-          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
-            <Download size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
-          <div className="border border-black">
-            
-            {/* Header */}
-            <div className="text-center p-2 border-b border-black">
-              <div className="font-bold text-xs" style={{ fontFamily: 'Georgia, serif' }}>||| SHREE GANESHAY NAMAH |||</div>
-              <h1 className="text-3xl font-black mt-1 uppercase tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "K.K. FABRICS"}</h1>
-              <div className="font-bold uppercase mt-1 tracking-wide">{settings?.address || "SURAT, GUJARAT"}</div>
-            </div>
-
-            <div className="flex justify-between items-center p-2 border-b border-black font-bold uppercase">
-              <div className="w-1/3 text-left">
-                <div>GSTIN: {settings?.gstin || ""}</div>
-              </div>
-              <div className="w-1/3 text-center text-xl font-black tracking-widest uppercase">
-                CREDIT NOTE
-              </div>
-              <div className="w-1/3 text-right">
-                <div>Mo: {settings?.mobile || ""}</div>
+        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight">
+          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
+              <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
+              <div className="flex items-center gap-6 justify-center w-full mb-1">
+                {settings?.logoUrl && <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain bg-transparent" referrerPolicy="no-referrer" />}
+                <div className="flex flex-col items-center">
+                  <h1 className="text-3xl font-black mt-1 uppercase tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>{consignorName}</h1>
+                  <div className="font-bold uppercase mt-1 text-xs tracking-tighter">{settings?.address || "SURAT, GUJARAT"}</div>
+                </div>
               </div>
             </div>
 
-            {/* Transaction Details */}
-            <div className="grid grid-cols-[60%_40%] border-b border-black">
-              <div className="border-r border-black p-2 space-y-1">
-                <div className="flex"><span className="w-32 font-bold">From:</span> <span className="uppercase">{consignorName}</span></div>
-                <div className="flex"><span className="w-32 font-bold">Transport:</span> <span className="uppercase">{p.transportName || '-'}</span></div>
-                <div className="flex"><span className="w-32 font-bold">LR No:</span> <span className="uppercase">{p.lrNumber || '-'}</span></div>
-                <div className="flex"><span className="w-32 font-bold">Remittance:</span> <span></span></div>
+            <div className="flex justify-between items-center px-3 py-1 border-b-2 border-black font-bold uppercase text-xs">
+              <div className="w-1/3 text-left">GSTIN: {settings?.gstin || ""}</div>
+              <div className="w-1/3 text-center text-xl font-black tracking-widest">CREDIT NOTE</div>
+              <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
+            </div>
+
+            <div className="grid grid-cols-2 border-b-2 border-black">
+              <div className="border-r-2 border-black p-3 space-y-1">
+                 <div className="font-bold mb-1 underline text-[9px] uppercase">Billed To:</div>
+                 <div className="font-black text-sm uppercase tracking-wide leading-none">{consigneeName}</div>
+                 <div className="uppercase flex-1 text-[10px] leading-tight mt-1">{consigneeAddress}</div>
+                 <div className="mt-2 flex gap-4 uppercase font-bold text-[10px]">
+                   <div>GSTIN: {consigneeGstin}</div>
+                 </div>
               </div>
-              <div className="p-2 space-y-1">
-                <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-bold">{p.billNumber}</span></div>
+              <div className="p-3 space-y-1 flex flex-col justify-center">
+                <div className="flex justify-between"><span className="font-bold">Note No:</span> <span className="uppercase font-black text-sm">#{p.noteNumber}</span></div>
                 <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                {p.ewbNumber ? (
-                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>
-                ) : (
-                  <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">-</span></div>
-                )}
-                {p.parcels && (
-                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">PARCELS/BAILS:</span> <span className="uppercase font-black text-black tracking-widest">{p.parcels}</span></div>
-                )}
-                <div className="flex justify-between"><span className="font-bold">Broker:</span> <span>-</span></div>
+                <div className="flex justify-between"><span className="font-bold underline italic text-indigo-600">Against Bill No:</span> <span className="uppercase font-black text-indigo-600">{p.salesBillNumber || '-'}</span></div>
               </div>
             </div>
 
-            {/* Parties */}
-            <div className="grid grid-cols-2 border-b border-black">
-              <div className="border-r border-black p-2 h-full">
-                <div className="font-bold mb-1 underline">Details of Receiver (Billed To)</div>
-                <div className="font-black text-[13px] uppercase tracking-wide">{consigneeName}</div>
-                <div className="uppercase">{consigneeAddress}</div>
-                {consigneeMobile && <div className="mt-1">Contact: {consigneeMobile}</div>}
-                <div className="mt-2 flex gap-4 uppercase">
-                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
-                  {p.consigneeStateCode && <div><span className="font-bold">State Code:</span> {p.consigneeStateCode}</div>}
-                </div>
-              </div>
-              <div className="p-2 h-full">
-                <div className="font-bold mb-1 underline">Details of Consignee (Shipped To)</div>
-                <div className="font-black text-[13px] uppercase tracking-wide">{consigneeName}</div>
-                <div className="uppercase">{consigneeAddress}</div>
-                <div className="mt-2 flex gap-4 uppercase">
-                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
-                </div>
-              </div>
+            <div className="flex-1">
+              <table className="w-full text-center border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-black uppercase text-[10px] font-black h-10 bg-slate-50">
+                    <th className="border-r-2 border-black p-1 w-10">No</th>
+                    <th className="border-r-2 border-black p-1 text-left px-3">Description / Reason</th>
+                    <th className="border-r-2 border-black p-1 w-20">HSN</th>
+                    <th className="border-r-2 border-black p-1 w-20">Qty</th>
+                    <th className="border-r-2 border-black p-1 w-20">Rate</th>
+                    <th className="p-1 text-right px-3 w-32">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[11px] font-bold">
+                  {p.items.map((item: any, idx: number) => (
+                    <tr key={item.id} className="border-b border-slate-100 h-8">
+                      <td className="border-r-2 border-black p-1">{idx + 1}</td>
+                      <td className="border-r-2 border-black p-1 text-left px-3 uppercase text-xs">{item.name}</td>
+                      <td className="border-r-2 border-black p-1">{item.hsnCode}</td>
+                      <td className="border-r-2 border-black p-1 uppercase font-black">{item.quantity} {item.unit}</td>
+                      <td className="border-r-2 border-black p-1">{Number(item.rate).toFixed(2)}</td>
+                      <td className="p-1 text-right px-3 font-black text-xs">{Number(item.amount).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {Array.from({ length: Math.max(0, 8 - p.items.length) }).map((_, i) => (
+                    <tr key={'empty'+i} className="h-8">
+                      <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            {/* Table */}
-            <table className="w-full text-center border-collapse">
-              <thead>
-                <tr className="border-b border-black uppercase text-[10px] font-bold h-8">
-                  <th className="border-r border-black p-1.5 min-w-[30px]">No</th>
-                  <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
-                  <th className="border-r border-black p-1.5">HSN No</th>
-                  <th className="border-r border-black p-1.5">Taka / Box</th>
-                  <th className="border-r border-black p-1.5">Qty</th>
-                  <th className="border-r border-black p-1.5">Rate</th>
-                  <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {p.items.map((item: any, idx: number) => (
-                  <tr key={item.id} className="border-b-0 text-[11px] align-top">
-                    <td className="border-r border-black p-1">{idx + 1}</td>
-                    <td className="border-r border-black p-1 text-left font-bold uppercase">
-                      {item.name} {item.color && <span className="font-normal ml-1">({item.color})</span>}
-                    </td>
-                    <td className="border-r border-black p-1">{item.hsnCode}</td>
-                    <td className="border-r border-black p-1">{item.taka || '-'}</td>
-                    <td className="border-r border-black p-1 uppercase font-bold">{item.quantity} <span className="font-normal text-[9px]">{item.unit}</span></td>
-                    <td className="border-r border-black p-1">{Number(item.rate).toFixed(2)}</td>
-                    <td className="p-1 text-right">{Number(item.amount).toFixed(2)}</td>
-                  </tr>
-                ))}
-                {Array.from({ length: Math.max(0, 10 - p.items.length) }).map((_, i) => (
-                  <tr key={'empty'+i} className="align-top h-6">
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td></td>
-                  </tr>
-                ))}
-                {/* Total Row */}
-                <tr className="border-y border-black font-bold uppercase text-[11px] h-6 bg-slate-50">
-                  <td className="border-r border-black p-1.5" colSpan={3}>Total</td>
-                  <td className="border-r border-black p-1.5">{p.items.reduce((s:number, i:any) => s + (Number(i.taka) || 0), 0) || '-'}</td>
-                  <td className="border-r border-black p-1.5">{p.items.reduce((s:number, i:any) => s + (Number(i.quantity) || 0), 0).toFixed(2)}</td>
-                  <td className="border-r border-black p-1.5"></td>
-                  <td className="p-1.5 text-right tracking-wider">{Number(p.basicAmount).toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* Footer sections */}
-            <div className="grid grid-cols-[60%_40%]">
-              {/* Left Footer */}
-              <div className="border-r border-black p-2 flex flex-col justify-between">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[180px]">
+              <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full">
                 <div>
-                  <div className="font-bold underline mb-1 uppercase text-[10px]">Amount in Words:</div>
-                  <div className="font-bold italic uppercase indent-2 text-[11px]">{numberToWords(p.grandTotal)}</div>
+                  <div className="font-black underline mb-1 uppercase text-[10px]">Amount in Words:</div>
+                  <div className="font-black italic uppercase text-xs leading-tight">{numberToWords(p.grandTotal)}</div>
                 </div>
-                
-                <div className="mt-4 pb-2 border-b border-black border-dashed">
-                  <div className="font-bold underline mb-1 uppercase text-[10px]">Bank Details</div>
-                  <div className="grid grid-cols-[60px_1fr] gap-y-0.5 text-[10px] uppercase">
-                    <span className="font-bold">Bank:</span> <span>{settings?.bankName || ''}</span>
-                    <span className="font-bold">Branch:</span> <span>{settings?.branchName || ''}</span>
-                    <span className="font-bold">A/c No:</span> <span className="font-black tracking-widest">{settings?.accountNumber || ''}</span>
-                    <span className="font-bold">IFSC:</span> <span className="font-black tracking-widest">{settings?.ifscCode || ''}</span>
-                  </div>
-                </div>
-
-                <div className="mt-2 text-[9px] leading-snug">
-                  <div className="font-bold underline mb-1 uppercase">Terms of Sales</div>
-                  <ol className="list-decimal pl-4 space-y-0.5 m-0 uppercase font-bold text-slate-800">
-                    <li>Goods once sold will not be taken back.</li>
-                    <li>Interest @ 24% p.a. will be charged if not paid within 30 days.</li>
-                    <li>We are not responsible for any damage in transit.</li>
-                    <li>Subject to Surat Jurisdiction only.</li>
-                  </ol>
+                <div className="text-[9px] leading-tight">
+                  <div className="font-black underline mb-1 uppercase">Reason for Credit Note:</div>
+                  <div className="font-black italic text-slate-600 uppercase leading-snug">{p.reason || 'Sales Return / Discount'}</div>
                 </div>
               </div>
-
-              {/* Right Footer */}
-              <div className="flex flex-col">
-                <div className="p-2 space-y-1 bg-white flex-1 text-[11px]">
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Gross Amount</span> <span className="font-bold">{Number(p.basicAmount).toFixed(2)}</span></div>
-                  {p.globalDiscount > 0 && (
-                     <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Less Discount</span> <span className="font-bold">- {Number(p.globalDiscount).toFixed(2)}</span></div>
-                  )}
-                  
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+              <div className="flex flex-col bg-slate-50/20 h-full">
+                <div className="p-3 space-y-1 flex-1 font-bold text-xs uppercase">
+                  <div className="flex justify-between"><span>Taxable Amount</span> <span>{Number(p.basicAmount).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>SGST</span> <span>{Number(sgst).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>CGST</span> <span>{Number(cgst).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>IGST</span> <span>{Number(igst).toFixed(2)}</span></div>
                 </div>
-
-                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50 relative overflow-hidden">
-                  <div className="flex flex-col">
-                    <span>Net Amount</span>
-                    <span className={`text-[10px] mt-0.5 px-1.5 py-0.5 rounded inline-block w-fit ${isFullyPaid ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-                      {isFullyPaid ? 'FULLY PAID' : remainingBalance < p.grandTotal ? 'PARTIALLY PAID' : 'UNPAID'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
-                    {!isFullyPaid && remainingBalance < p.grandTotal && (
-                      <span className="text-[10px] text-rose-600 font-bold mt-1 uppercase tracking-widest">Bal: ₹ {remainingBalance.toFixed(2)}</span>
-                    )}
-                  </div>
+                <div className="border-t-2 border-black p-3 flex justify-between font-black text-lg uppercase bg-white">
+                  <span>Net Credit</span>
+                  <span>₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
-
-                <div className="p-2 pt-6 text-center flex-1 flex flex-col justify-end">
-                  <div className="font-black uppercase text-[10px] mb-8 text-right tracking-widest leading-none">For {settings?.companyName || "K.K. FABRICS"}</div>
-                  <div className="text-[9px] font-bold uppercase text-right opacity-60 leading-none">Authorized Signatory</div>
+                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-20 bg-white">
+                  <div className="font-black uppercase text-[10px] mb-6 text-right tracking-widest leading-none">For {consignorName}</div>
+                  <div className="text-[9px] font-black uppercase text-right border-t border-black pt-1 inline-block ml-auto min-w-[150px]">Authorized Signatory</div>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
     </motion.div>
   );
 }
+
 function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, onDelete, onCancel, payments = [], debitNotes = [], isSyncing = false }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
@@ -7628,7 +7528,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
   );
 }
 
-function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment, onEditBooking, onEditPurchase, onEditCreditNote, onEditDebitNote }: any) {
+function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment, onEditBooking, onEditPurchase, onEditCreditNote, onEditDebitNote, onBack }: any) {
   const [selectedParty, setSelectedParty] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
@@ -7656,12 +7556,14 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
           setPrintAllTransactions(null);
         } else if (selectedParty) {
           setSelectedParty(null);
+        } else if (onBack) {
+          onBack();
         }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [selectedParty, previewBooking, previewPurchase, previewCreditNote, previewDebitNote, previewPayment, showLedgerPrint, printAllTransactions]);
+  }, [selectedParty, previewBooking, previewPurchase, previewCreditNote, previewDebitNote, previewPayment, showLedgerPrint, printAllTransactions, onBack]);
 
   const filteredParties = (activeTab === 'sales' ? (parties || []) : (purchaseParties || [])).filter((p: any) => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -7723,30 +7625,31 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
         <div className={isLocalPrintOpen ? 'print:hidden' : ''}>
           <header className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm print:hidden">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setSelectedParty(null)} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm">
-              <ChevronLeft size={20} />
-            </button>
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{selectedParty.name}</h2>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{selectedParty.gstin}</p>
+            <div className="flex items-center gap-4">
+              <button onClick={() => setSelectedParty(null)} className="p-4 bg-indigo-600 text-white rounded-2xl hover:bg-black transition-all shadow-xl flex items-center gap-2 group">
+                <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                <span className="text-[10px] font-black uppercase tracking-widest px-2">Back to List</span>
+              </button>
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{selectedParty.name}</h2>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{selectedParty.gstin}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <button 
-              onClick={() => setShowLedgerPrint(true)}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-200"
-            >
-              <Printer size={14} /> Print Ledger
-            </button>
-            <div className="text-right">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Current Balance</p>
-              <p className={`text-3xl font-black tracking-tighter ${runningBalance > 0 ? 'text-red-500' : 'text-green-600'}`}>
-                ₹ {runningBalance.toLocaleString()}
-              </p>
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => setShowLedgerPrint(true)}
+                className="px-6 py-2 border-2 border-slate-900 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all flex items-center gap-2 shadow-lg"
+              >
+                <Printer size={14} /> Print Ledger
+              </button>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Current Balance</p>
+                <p className={`text-3xl font-black tracking-tighter ${runningBalance > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                  ₹ {runningBalance.toLocaleString()}
+                </p>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
         <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
           <div className="overflow-x-auto">
@@ -7879,10 +7782,15 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div>
-          <h2 className="text-3xl font-black tracking-tight text-slate-900 uppercase">Party Ledger</h2>
-          <p className="text-slate-500 font-medium italic">Comprehensive hisab-kitab records</p>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 print:hidden">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-4 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all shadow-sm">
+            <ChevronLeft size={20} />
+          </button>
+          <div>
+            <h2 className="text-3xl font-black tracking-tight text-slate-900 uppercase">Party Ledger</h2>
+            <p className="text-slate-500 font-medium italic">Comprehensive hisab-kitab records</p>
+          </div>
         </div>
         
         <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -8038,7 +7946,6 @@ function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Pay
 function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: any) {
   const p = purchase;
   const paymentInfo = getBillPaymentInfo(p.id, p.grandTotal, payments, [], p.billNumber?.toString());
-  const totalPaid = paymentInfo.paidAmount;
   const isFullyPaid = paymentInfo.status === 'PAID';
   const remainingBalance = paymentInfo.balance;
 
@@ -8055,31 +7962,13 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
   const consigneeAddress = p.consigneeAddress || p.partyAddress || '';
   const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
   const consigneeMobile = p.consigneeMobile || p.partyMobile || '';
-  const consignorName = p.consignorName || settings?.companyName || "K.K. FABRICS";
-  
+  const isInterstate = p.isInterstate;
   const taxableValue = p.basicAmount - (p.globalDiscount || 0);
   const tr = p.taxRate || 5;
   const tax = taxableValue * (tr / 100);
-  // Safely fallback cgst, sgst, igst values
-  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
-  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
-  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
-
-  const handleDownloadPDF = async () => {
-    const element = document.getElementById('print-container');
-    if (!element) return;
-    try {
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${p.billNumber || 'document'}.pdf`);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const cgst = p.cgstAmount ?? (isInterstate ? 0 : tax/2);
+  const sgst = p.sgstAmount ?? (isInterstate ? 0 : tax/2);
+  const igst = p.igstAmount ?? (isInterstate ? tax : 0);
 
   return (
     <motion.div 
@@ -8088,7 +7977,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
     >
-      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto">
         <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
           <ChevronLeft size={16} /> Close Preview
         </button>
@@ -8098,190 +7987,98 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
             <Printer size={20} />
             <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Bill</span>
           </button>
-          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
-            <Download size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
-          </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
-          <div className="border border-black">
+        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
+          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
             
-            {/* Header */}
-            <div className="text-center p-2 border-b border-black">
-              <div className="font-bold text-xs" style={{ fontFamily: 'Georgia, serif' }}>||| SHREE GANESHAY NAMAH |||</div>
-              <h1 className="text-3xl font-black mt-1 uppercase tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "K.K. FABRICS"}</h1>
-              <div className="font-bold uppercase mt-1 tracking-wide">{settings?.address || "SURAT, GUJARAT"}</div>
-            </div>
-
-            <div className="flex justify-between items-center p-2 border-b border-black font-bold uppercase">
-              <div className="w-1/3 text-left">
-                <div>GSTIN: {settings?.gstin || ""}</div>
-              </div>
-              <div className="w-1/3 text-center text-xl font-black tracking-widest uppercase">
-                PURCHASE BILL
-              </div>
-              <div className="w-1/3 text-right">
-                <div>Mo: {settings?.mobile || ""}</div>
+            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
+              <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
+              <div className="flex items-center gap-6 justify-center w-full mb-1">
+                {settings?.logoUrl && <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain bg-transparent" referrerPolicy="no-referrer" />}
+                <div className="flex flex-col items-center">
+                  <h1 className="text-3xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
+                  <div className="font-bold uppercase text-[10px] tracking-tight max-w-sm leading-tight mt-1">{settings?.address || "SURAT, GUJARAT"}</div>
+                </div>
               </div>
             </div>
 
-            {/* Transaction Details */}
-            <div className="grid grid-cols-[60%_40%] border-b border-black">
-              <div className="border-r border-black p-2 space-y-1">
-                <div className="flex"><span className="w-32 font-bold">From:</span> <span className="uppercase">{consignorName}</span></div>
+            <div className="flex justify-between items-center px-3 py-1 border-b-2 border-black font-bold uppercase text-xs">
+              <div className="w-1/3 text-left">GSTIN: {settings?.gstin || ""}</div>
+              <div className="w-1/3 text-center text-xl font-black tracking-widest">PURCHASE BILL</div>
+              <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
+            </div>
+
+            <div className="grid grid-cols-[60%_40%] border-b-2 border-black">
+              <div className="border-r-2 border-black p-3 space-y-1">
+                <div className="flex"><span className="w-32 font-bold text-indigo-700">Supplier:</span> <span className="uppercase font-black">{p.partyName || "SUPPLIER NAME"}</span></div>
+                <div className="flex"><span className="w-32 font-bold">Address:</span> <span className="uppercase text-[10px]">{p.partyAddress || "-"}</span></div>
+                <div className="flex thin-border-b border-slate-200 pb-1 mt-1"><span className="w-32 font-bold">GSTIN:</span> <span className="font-black">{p.partyGstin || "-"}</span></div>
                 <div className="flex"><span className="w-32 font-bold">Transport:</span> <span className="uppercase">{p.transportName || '-'}</span></div>
                 <div className="flex"><span className="w-32 font-bold">LR No:</span> <span className="uppercase">{p.lrNumber || '-'}</span></div>
-                <div className="flex"><span className="w-32 font-bold">Remittance:</span> <span></span></div>
               </div>
-              <div className="p-2 space-y-1">
-                <div className="flex justify-between font-black text-red-600"><span className="font-bold">Our Bill No:</span> <span className="uppercase font-bold">#{p.billNumber}</span></div>
-                <div className="flex justify-between font-black text-indigo-700"><span className="font-bold">Party Bill No:</span> <span className="uppercase font-bold">{p.partyBillNumber || '-'}</span></div>
+              <div className="p-3 space-y-1">
+                <div className="flex justify-between font-black text-rose-600"><span className="font-bold text-black">Our Bill No:</span> <span className="uppercase">#{p.billNumber}</span></div>
+                <div className="flex justify-between font-black text-indigo-700"><span className="font-bold text-black">Party Inv No:</span> <span className="uppercase">{p.partyBillNumber || '-'}</span></div>
                 <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                {p.ewbNumber ? (
-                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>
-                ) : (
-                  <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">-</span></div>
-                )}
-                {p.parcels && (
-                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">PARCELS/BAILS:</span> <span className="uppercase font-black text-black tracking-widest">{p.parcels}</span></div>
-                )}
-                <div className="flex justify-between"><span className="font-bold">Broker:</span> <span>-</span></div>
               </div>
             </div>
 
-            {/* Parties */}
-            <div className="grid grid-cols-2 border-b border-black">
-              <div className="border-r border-black p-2 h-full">
-                <div className="font-bold mb-1 underline">Details of Receiver (Billed To)</div>
-                <div className="font-black text-[13px] uppercase tracking-wide">{consigneeName}</div>
-                <div className="uppercase">{consigneeAddress}</div>
-                {consigneeMobile && <div className="mt-1">Contact: {consigneeMobile}</div>}
-                <div className="mt-2 flex gap-4 uppercase">
-                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
-                  {p.consigneeStateCode && <div><span className="font-bold">State Code:</span> {p.consigneeStateCode}</div>}
-                </div>
-              </div>
-              <div className="p-2 h-full">
-                <div className="font-bold mb-1 underline">Details of Consignee (Shipped To)</div>
-                <div className="font-black text-[13px] uppercase tracking-wide">{consigneeName}</div>
-                <div className="uppercase">{consigneeAddress}</div>
-                <div className="mt-2 flex gap-4 uppercase">
-                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
-                </div>
-              </div>
+            <div className="flex-1">
+              <table className="w-full text-center border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-black uppercase text-[10px] font-black h-10 bg-slate-50">
+                    <th className="border-r-2 border-black p-1 w-10">No</th>
+                    <th className="border-r-2 border-black p-1 text-left px-3">Description of Goods</th>
+                    <th className="border-r-2 border-black p-1 w-20">HSN No</th>
+                    <th className="border-r-2 border-black p-1 w-20">Taka</th>
+                    <th className="border-r-2 border-black p-1 w-20">Qty</th>
+                    <th className="border-r-2 border-black p-1 w-20">Rate</th>
+                    <th className="p-1 text-right px-3 w-32">Taxable Amt</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[11px] font-bold">
+                  {p.items.map((item: any, idx: number) => (
+                    <tr key={item.id} className="border-b border-slate-100 h-8">
+                      <td className="border-r-2 border-black p-1">{idx + 1}</td>
+                      <td className="border-r-2 border-black p-1 text-left px-3 uppercase text-xs font-black">{item.name}</td>
+                      <td className="border-r-2 border-black p-1">{item.hsnCode}</td>
+                      <td className="border-r-2 border-black p-1">{item.taka || '-'}</td>
+                      <td className="border-r-2 border-black p-1 uppercase font-black">{item.quantity} <span className="font-normal text-[8px]">{item.unit}</span></td>
+                      <td className="border-r-2 border-black p-1">{Number(item.rate).toFixed(2)}</td>
+                      <td className="p-1 text-right px-3 font-black text-xs">{Number(item.amount).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {Array.from({ length: Math.max(0, 10 - p.items.length) }).map((_, i) => (
+                    <tr key={'empty'+i} className="h-8">
+                      <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            {/* Table */}
-            <table className="w-full text-center border-collapse">
-              <thead>
-                <tr className="border-b border-black uppercase text-[10px] font-bold h-8">
-                  <th className="border-r border-black p-1.5 min-w-[30px]">No</th>
-                  <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
-                  <th className="border-r border-black p-1.5">HSN No</th>
-                  <th className="border-r border-black p-1.5">Taka / Box</th>
-                  <th className="border-r border-black p-1.5">Qty</th>
-                  <th className="border-r border-black p-1.5">Rate</th>
-                  <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {p.items.map((item: any, idx: number) => (
-                  <tr key={item.id} className="border-b-0 text-[11px] align-top">
-                    <td className="border-r border-black p-1">{idx + 1}</td>
-                    <td className="border-r border-black p-1 text-left font-bold uppercase">
-                      {item.name} {item.color && <span className="font-normal ml-1">({item.color})</span>}
-                    </td>
-                    <td className="border-r border-black p-1">{item.hsnCode}</td>
-                    <td className="border-r border-black p-1">{item.taka || '-'}</td>
-                    <td className="border-r border-black p-1 uppercase font-bold">{item.quantity} <span className="font-normal text-[9px]">{item.unit}</span></td>
-                    <td className="border-r border-black p-1">{Number(item.rate).toFixed(2)}</td>
-                    <td className="p-1 text-right">{Number(item.amount).toFixed(2)}</td>
-                  </tr>
-                ))}
-                {Array.from({ length: Math.max(0, 10 - p.items.length) }).map((_, i) => (
-                  <tr key={'empty'+i} className="align-top h-6">
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td></td>
-                  </tr>
-                ))}
-                {/* Total Row */}
-                <tr className="border-y border-black font-bold uppercase text-[11px] h-6 bg-slate-50">
-                  <td className="border-r border-black p-1.5" colSpan={3}>Total</td>
-                  <td className="border-r border-black p-1.5">{p.items.reduce((s:number, i:any) => s + (Number(i.taka) || 0), 0) || '-'}</td>
-                  <td className="border-r border-black p-1.5">{p.items.reduce((s:number, i:any) => s + (Number(i.quantity) || 0), 0).toFixed(2)}</td>
-                  <td className="border-r border-black p-1.5"></td>
-                  <td className="p-1.5 text-right tracking-wider">{Number(p.basicAmount).toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* Footer sections */}
-            <div className="grid grid-cols-[60%_40%]">
-              {/* Left Footer */}
-              <div className="border-r border-black p-2 flex flex-col justify-between">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[180px]">
+              <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full text-black">
                 <div>
-                  <div className="font-bold underline mb-1 uppercase text-[10px]">Amount in Words:</div>
-                  <div className="font-bold italic uppercase indent-2 text-[11px]">{numberToWords(p.grandTotal)}</div>
+                  <div className="font-black underline mb-1 uppercase text-[10px]">Amount in Words:</div>
+                  <div className="font-black italic uppercase text-xs leading-tight">{numberToWords(p.grandTotal)}</div>
                 </div>
-                
-                <div className="mt-4 pb-2 border-b border-black border-dashed">
-                  <div className="font-bold underline mb-1 uppercase text-[10px]">Bank Details</div>
-                  <div className="grid grid-cols-[60px_1fr] gap-y-0.5 text-[10px] uppercase">
-                    <span className="font-bold">Bank:</span> <span>{settings?.bankName || ''}</span>
-                    <span className="font-bold">Branch:</span> <span>{settings?.branchName || ''}</span>
-                    <span className="font-bold">A/c No:</span> <span className="font-black tracking-widest">{settings?.accountNumber || ''}</span>
-                    <span className="font-bold">IFSC:</span> <span className="font-black tracking-widest">{settings?.ifscCode || ''}</span>
-                  </div>
-                </div>
-
-                <div className="mt-2 text-[9px] leading-snug">
-                  <div className="font-bold underline mb-1 uppercase">Terms of Sales</div>
-                  <ol className="list-decimal pl-4 space-y-0.5 m-0 uppercase font-bold text-slate-800">
-                    <li>Goods once sold will not be taken back.</li>
-                    <li>Interest @ 24% p.a. will be charged if not paid within 30 days.</li>
-                    <li>We are not responsible for any damage in transit.</li>
-                    <li>Subject to Surat Jurisdiction only.</li>
-                  </ol>
+                <div className="text-[9px] leading-snug">
+                  <div className="font-black underline mb-1 uppercase">Notes</div>
+                  <div className="font-black text-slate-600 italic leading-tight">{p.notes || "No special notes provided."}</div>
                 </div>
               </div>
-
-              {/* Right Footer */}
-              <div className="flex flex-col">
-                <div className="p-2 space-y-1 bg-white flex-1 text-[11px]">
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Gross Amount</span> <span className="font-bold">{Number(p.basicAmount).toFixed(2)}</span></div>
-                  {p.globalDiscount > 0 && (
-                     <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Less Discount</span> <span className="font-bold">- {Number(p.globalDiscount).toFixed(2)}</span></div>
-                  )}
-                  
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+              <div className="flex flex-col bg-slate-50/20 h-full">
+                <div className="p-3 space-y-1 flex-1 font-bold text-xs">
+                  <div className="flex justify-between"><span>Taxable Amount</span> <span>{Number(p.taxableValue).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>SGST</span> <span>{Number(sgst).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>CGST</span> <span>{Number(cgst).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>IGST</span> <span>{Number(igst).toFixed(2)}</span></div>
                 </div>
-
-                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50 relative overflow-hidden">
-                  <div className="flex flex-col">
-                    <span>Net Amount</span>
-                    <span className={`text-[10px] mt-0.5 px-1.5 py-0.5 rounded inline-block w-fit ${isFullyPaid ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-                      {isFullyPaid ? 'FULLY PAID' : remainingBalance < p.grandTotal ? 'PARTIALLY PAID' : 'UNPAID'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
-                    {!isFullyPaid && remainingBalance < p.grandTotal && (
-                      <span className="text-[10px] text-rose-600 font-bold mt-1 uppercase tracking-widest">Bal: ₹ {remainingBalance.toFixed(2)}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="p-2 pt-6 text-center flex-1 flex flex-col justify-end">
-                  <div className="font-black uppercase text-[10px] mb-8 text-right tracking-widest leading-none">For {settings?.companyName || "K.K. FABRICS"}</div>
-                  <div className="text-[9px] font-bold uppercase text-right opacity-60 leading-none">Authorized Signatory</div>
+                <div className="border-t-2 border-black p-3 flex justify-between font-black text-lg uppercase bg-white">
+                  <span>Net Amount</span>
+                  <span>₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
               </div>
             </div>
@@ -8294,11 +8091,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
 }
 
 function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: any) {
-  const totalPaid = (payments || []).reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
   const p = debitNote;
-  const isFullyPaid = totalPaid >= (p.grandTotal - 0.5);
-  const remainingBalance = Math.max(0, p.grandTotal - totalPaid);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -8308,251 +8101,141 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const consigneeName = p.consigneeName || p.partyName || '';
-  const consigneeAddress = p.consigneeAddress || p.partyAddress || '';
-  const consigneeGstin = p.consigneeGstin || p.partyGstin || '';
-  const consigneeMobile = p.consigneeMobile || p.partyMobile || '';
-  const consignorName = p.consignorName || settings?.companyName || "K.K. FABRICS";
-  
+  const consigneeName = p.partyName || '';
+  const consigneeAddress = p.partyAddress || '';
+  const consigneeGstin = p.partyGstin || '';
+  const consignorName = settings?.companyName || "ANGAD SILK MILLS";
+
+  const myStateCode = "24";
+  const rState = (consigneeGstin || '').substring(0, 2);
+  const isInterstate = rState !== myStateCode;
+
   const taxableValue = p.basicAmount - (p.globalDiscount || 0);
   const tr = p.taxRate || 5;
   const tax = taxableValue * (tr / 100);
-  // Safely fallback cgst, sgst, igst values
-  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
-  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
-  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
-
-  const handleDownloadPDF = async () => {
-    const element = document.getElementById('print-container');
-    if (!element) return;
-    try {
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${p.billNumber || 'document'}.pdf`);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const cgst = isInterstate ? 0 : tax/2;
+  const sgst = isInterstate ? 0 : tax/2;
+  const igst = isInterstate ? tax : 0;
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      exit={{ opacity: 0 }} 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
     >
-      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto">
         <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
           <ChevronLeft size={16} /> Close Preview
         </button>
-        
         <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
-          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
+          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100">
             <Printer size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Bill</span>
-          </button>
-          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
-            <Download size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
-          <div className="border border-black">
-            
-            {/* Header */}
-            <div className="text-center p-2 border-b border-black">
-              <div className="font-bold text-xs" style={{ fontFamily: 'Georgia, serif' }}>||| SHREE GANESHAY NAMAH |||</div>
-              <h1 className="text-3xl font-black mt-1 uppercase tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "K.K. FABRICS"}</h1>
-              <div className="font-bold uppercase mt-1 tracking-wide">{settings?.address || "SURAT, GUJARAT"}</div>
-            </div>
-
-            <div className="flex justify-between items-center p-2 border-b border-black font-bold uppercase">
-              <div className="w-1/3 text-left">
-                <div>GSTIN: {settings?.gstin || ""}</div>
-              </div>
-              <div className="w-1/3 text-center text-xl font-black tracking-widest uppercase">
-                DEBIT NOTE
-              </div>
-              <div className="w-1/3 text-right">
-                <div>Mo: {settings?.mobile || ""}</div>
-              </div>
-            </div>
-
-            {/* Transaction Details */}
-            <div className="grid grid-cols-[60%_40%] border-b border-black">
-              <div className="border-r border-black p-2 space-y-1">
-                <div className="flex"><span className="w-32 font-bold">From:</span> <span className="uppercase">{consignorName}</span></div>
-                <div className="flex"><span className="w-32 font-bold">Transport:</span> <span className="uppercase">{p.transportName || '-'}</span></div>
-                <div className="flex"><span className="w-32 font-bold">LR No:</span> <span className="uppercase">{p.lrNumber || '-'}</span></div>
-                <div className="flex"><span className="w-32 font-bold">Remittance:</span> <span></span></div>
-              </div>
-              <div className="p-2 space-y-1">
-                <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-bold">{p.billNumber}</span></div>
-                <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                {p.ewbNumber ? (
-                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>
-                ) : (
-                  <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">-</span></div>
-                )}
-                {p.parcels && (
-                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">PARCELS/BAILS:</span> <span className="uppercase font-black text-black tracking-widest">{p.parcels}</span></div>
-                )}
-                <div className="flex justify-between"><span className="font-bold">Broker:</span> <span>-</span></div>
-              </div>
-            </div>
-
-            {/* Parties */}
-            <div className="grid grid-cols-2 border-b border-black">
-              <div className="border-r border-black p-2 h-full">
-                <div className="font-bold mb-1 underline">Details of Receiver (Billed To)</div>
-                <div className="font-black text-[13px] uppercase tracking-wide">{consigneeName}</div>
-                <div className="uppercase">{consigneeAddress}</div>
-                {consigneeMobile && <div className="mt-1">Contact: {consigneeMobile}</div>}
-                <div className="mt-2 flex gap-4 uppercase">
-                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
-                  {p.consigneeStateCode && <div><span className="font-bold">State Code:</span> {p.consigneeStateCode}</div>}
-                </div>
-              </div>
-              <div className="p-2 h-full">
-                <div className="font-bold mb-1 underline">Details of Consignee (Shipped To)</div>
-                <div className="font-black text-[13px] uppercase tracking-wide">{consigneeName}</div>
-                <div className="uppercase">{consigneeAddress}</div>
-                <div className="mt-2 flex gap-4 uppercase">
-                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight">
+          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
+              <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
+              <div className="flex items-center gap-6 justify-center w-full mb-1">
+                {settings?.logoUrl && <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain bg-transparent" referrerPolicy="no-referrer" />}
+                <div className="flex flex-col items-center">
+                   <h1 className="text-3xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{consignorName}</h1>
+                   <div className="font-bold uppercase mt-1 text-xs tracking-tighter">{settings?.address || "SURAT, GUJARAT"}</div>
                 </div>
               </div>
             </div>
 
-            {/* Table */}
-            <table className="w-full text-center border-collapse">
-              <thead>
-                <tr className="border-b border-black uppercase text-[10px] font-bold h-8">
-                  <th className="border-r border-black p-1.5 min-w-[30px]">No</th>
-                  <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
-                  <th className="border-r border-black p-1.5">HSN No</th>
-                  <th className="border-r border-black p-1.5">Taka / Box</th>
-                  <th className="border-r border-black p-1.5">Qty</th>
-                  <th className="border-r border-black p-1.5">Rate</th>
-                  <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {p.items.map((item: any, idx: number) => (
-                  <tr key={item.id} className="border-b-0 text-[11px] align-top">
-                    <td className="border-r border-black p-1">{idx + 1}</td>
-                    <td className="border-r border-black p-1 text-left font-bold uppercase">
-                      {item.name} {item.color && <span className="font-normal ml-1">({item.color})</span>}
-                    </td>
-                    <td className="border-r border-black p-1">{item.hsnCode}</td>
-                    <td className="border-r border-black p-1">{item.taka || '-'}</td>
-                    <td className="border-r border-black p-1 uppercase font-bold">{item.quantity} <span className="font-normal text-[9px]">{item.unit}</span></td>
-                    <td className="border-r border-black p-1">{Number(item.rate).toFixed(2)}</td>
-                    <td className="p-1 text-right">{Number(item.amount).toFixed(2)}</td>
-                  </tr>
-                ))}
-                {Array.from({ length: Math.max(0, 10 - p.items.length) }).map((_, i) => (
-                  <tr key={'empty'+i} className="align-top h-6">
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td></td>
-                  </tr>
-                ))}
-                {/* Total Row */}
-                <tr className="border-y border-black font-bold uppercase text-[11px] h-6 bg-slate-50">
-                  <td className="border-r border-black p-1.5" colSpan={3}>Total</td>
-                  <td className="border-r border-black p-1.5">{p.items.reduce((s:number, i:any) => s + (Number(i.taka) || 0), 0) || '-'}</td>
-                  <td className="border-r border-black p-1.5">{p.items.reduce((s:number, i:any) => s + (Number(i.quantity) || 0), 0).toFixed(2)}</td>
-                  <td className="border-r border-black p-1.5"></td>
-                  <td className="p-1.5 text-right tracking-wider">{Number(p.basicAmount).toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="flex justify-between items-center px-3 py-1 border-b-2 border-black font-bold uppercase text-xs">
+              <div className="w-1/3 text-left">GSTIN: {settings?.gstin || ""}</div>
+              <div className="w-1/3 text-center text-xl font-black tracking-widest">DEBIT NOTE</div>
+              <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
+            </div>
 
-            {/* Footer sections */}
-            <div className="grid grid-cols-[60%_40%]">
-              {/* Left Footer */}
-              <div className="border-r border-black p-2 flex flex-col justify-between">
+            <div className="grid grid-cols-2 border-b-2 border-black">
+              <div className="border-r-2 border-black p-3 space-y-1">
+                 <div className="font-bold mb-1 underline text-[9px] uppercase tracking-widest">To:</div>
+                 <div className="font-black text-sm uppercase tracking-wide leading-none">{consigneeName}</div>
+                 <div className="uppercase flex-1 text-[10px] leading-tight mt-1">{consigneeAddress}</div>
+                 <div className="mt-2 flex gap-4 uppercase font-bold text-[10px]">
+                   <div>GSTIN: {consigneeGstin}</div>
+                 </div>
+              </div>
+              <div className="p-3 space-y-1 flex flex-col justify-center">
+                <div className="flex justify-between uppercase"><span className="font-black">Note No:</span> <span className="font-black text-sm">#{p.noteNumber}</span></div>
+                <div className="flex justify-between uppercase"><span className="font-black">Date:</span> <span className="font-bold">{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
+                <div className="flex justify-between uppercase border-t border-slate-200 mt-2 pt-2"><span className="font-black text-indigo-600">Against Bill No:</span> <span className="font-black text-indigo-600">#{p.purchaseBillNumber || '-'}</span></div>
+              </div>
+            </div>
+
+            <div className="flex-1">
+              <table className="w-full text-center border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-black uppercase text-[10px] font-black h-10 bg-slate-50">
+                    <th className="border-r-2 border-black p-1 w-10">No</th>
+                    <th className="border-r-2 border-black p-1 text-left px-3">Description / Reason</th>
+                    <th className="border-r-2 border-black p-1 w-20">HSN</th>
+                    <th className="border-r-2 border-black p-1 w-20">Qty</th>
+                    <th className="p-1 text-right px-3 w-32">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[11px] font-bold">
+                  {p.items.map((item: any, idx: number) => (
+                    <tr key={item.id} className="border-b border-slate-100 h-8">
+                      <td className="border-r-2 border-black p-1">{idx + 1}</td>
+                      <td className="border-r-2 border-black p-1 text-left px-3 uppercase text-xs">{item.name}</td>
+                      <td className="border-r-2 border-black p-1">{item.hsnCode}</td>
+                      <td className="border-r-2 border-black p-1 uppercase font-black">{item.quantity} {item.unit}</td>
+                      <td className="p-1 text-right px-3 font-black text-xs">{Number(item.amount).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {Array.from({ length: Math.max(0, 8 - p.items.length) }).map((_, i) => (
+                    <tr key={'empty'+i} className="h-8">
+                      <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[220px]">
+              <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full">
                 <div>
-                  <div className="font-bold underline mb-1 uppercase text-[10px]">Amount in Words:</div>
-                  <div className="font-bold italic uppercase indent-2 text-[11px]">{numberToWords(p.grandTotal)}</div>
+                  <div className="font-black underline mb-1 uppercase text-[10px] tracking-widest">Amount in Words:</div>
+                  <div className="font-black italic uppercase text-xs leading-tight">{numberToWords(p.grandTotal)}</div>
                 </div>
-                
-                <div className="mt-4 pb-2 border-b border-black border-dashed">
-                  <div className="font-bold underline mb-1 uppercase text-[10px]">Bank Details</div>
-                  <div className="grid grid-cols-[60px_1fr] gap-y-0.5 text-[10px] uppercase">
-                    <span className="font-bold">Bank:</span> <span>{settings?.bankName || ''}</span>
-                    <span className="font-bold">Branch:</span> <span>{settings?.branchName || ''}</span>
-                    <span className="font-bold">A/c No:</span> <span className="font-black tracking-widest">{settings?.accountNumber || ''}</span>
-                    <span className="font-bold">IFSC:</span> <span className="font-black tracking-widest">{settings?.ifscCode || ''}</span>
-                  </div>
+                <div className="text-[9px] leading-tight">
+                  <div className="font-black underline mb-1 uppercase tracking-widest">Reason / Note:</div>
+                  <div className="font-black italic text-slate-600 uppercase">{p.reason || 'Purchase Return / Rate Diff'}</div>
                 </div>
-
-                <div className="mt-2 text-[9px] leading-snug">
-                  <div className="font-bold underline mb-1 uppercase">Terms of Sales</div>
-                  <ol className="list-decimal pl-4 space-y-0.5 m-0 uppercase font-bold text-slate-800">
-                    <li>Goods once sold will not be taken back.</li>
-                    <li>Interest @ 24% p.a. will be charged if not paid within 30 days.</li>
-                    <li>We are not responsible for any damage in transit.</li>
-                    <li>Subject to Surat Jurisdiction only.</li>
-                  </ol>
+                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-16">
+                  <div className="text-[9px] font-black uppercase text-left border-t border-black pt-1 inline-block mr-auto min-w-[150px]">Receiver's Signatory</div>
                 </div>
               </div>
-
-              {/* Right Footer */}
-              <div className="flex flex-col">
-                <div className="p-2 space-y-1 bg-white flex-1 text-[11px]">
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Gross Amount</span> <span className="font-bold">{Number(p.basicAmount).toFixed(2)}</span></div>
-                  {p.globalDiscount > 0 && (
-                     <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Less Discount</span> <span className="font-bold">- {Number(p.globalDiscount).toFixed(2)}</span></div>
-                  )}
-                  
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+              <div className="flex flex-col bg-slate-50/50 h-full">
+                <div className="p-3 space-y-1 flex-1 font-bold text-xs uppercase border-b border-black/10">
+                  <div className="flex justify-between"><span>Taxable Amount</span> <span>{Number(p.basicAmount).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>GST Amount</span> <span>{Number(tax).toFixed(2)}</span></div>
                 </div>
-
-                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50 relative overflow-hidden">
-                  <div className="flex flex-col">
-                    <span>Net Amount</span>
-                    <span className={`text-[10px] mt-0.5 px-1.5 py-0.5 rounded inline-block w-fit ${isFullyPaid ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-                      {isFullyPaid ? 'FULLY PAID' : remainingBalance < p.grandTotal ? 'PARTIALLY PAID' : 'UNPAID'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
-                    {!isFullyPaid && remainingBalance < p.grandTotal && (
-                      <span className="text-[10px] text-rose-600 font-bold mt-1 uppercase tracking-widest">Bal: ₹ {remainingBalance.toFixed(2)}</span>
-                    )}
-                  </div>
+                <div className="border-t-2 border-black p-4 flex justify-between font-black text-lg uppercase bg-white">
+                   <span>Net Debit</span>
+                   <span>₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
-
-                <div className="p-2 pt-6 text-center flex-1 flex flex-col justify-end">
-                  <div className="font-black uppercase text-[10px] mb-8 text-right tracking-widest leading-none">For {settings?.companyName || "K.K. FABRICS"}</div>
-                  <div className="text-[9px] font-bold uppercase text-right opacity-60 leading-none">Authorized Signatory</div>
+                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-24 bg-white">
+                  <div className="font-black uppercase text-[10px] mb-8 text-right tracking-widest leading-none">For {consignorName}</div>
+                  <div className="text-[9px] font-black uppercase text-right border-t border-black pt-1 inline-block ml-auto min-w-[180px]">Authorized Signatory</div>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
     </motion.div>
   );
 }
+
 function PrintPreview({ booking, settings, payments = [], creditNotes = [], onClose }: { booking: any, settings: AppSettings | null, payments?: Payment[], creditNotes?: CreditNote[], onClose: () => void }) {
   const p = booking;
   const paymentInfo = getBillPaymentInfo(p.id, p.grandTotal, payments, creditNotes, p.billNumber?.toString());
-  const totalPaid = paymentInfo.paidAmount;
-  const cnAmount = paymentInfo.cnAmount;
   const isFullyPaid = paymentInfo.status === 'PAID';
   const remainingBalance = paymentInfo.balance;
 
@@ -8565,14 +8248,12 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Fixing lint errors
   const consigneeName = p.consigneeName || '';
   const consigneeAddress = p.consigneeAddress || '';
   const consigneeGstin = p.consigneeGstin || '';
   const consigneeMobile = p.consigneeMobile || '';
-  const consignorName = p.consignorName || settings?.companyName || "K.K. FABRICS";
+  const consignorName = p.consignorName || settings?.companyName || "ANGAD SILK MILLS";
 
-  // Calculate isInterstate on the fly to avoid type errors if not on Booking
   const myStateCode = "24";
   const rState = (consigneeGstin || '').substring(0, 2);
   const isInterstate = rState !== myStateCode;
@@ -8580,26 +8261,9 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
   const taxableValue = p.basicAmount - (p.globalDiscount || 0);
   const tr = p.taxRate || 5;
   const tax = taxableValue * (tr / 100);
-  // Safely fallback cgst, sgst, igst values
   const cgst = p.cgstAmount ?? (isInterstate ? 0 : tax/2);
   const sgst = p.sgstAmount ?? (isInterstate ? 0 : tax/2);
   const igst = p.igstAmount ?? (isInterstate ? tax : 0);
-
-  const handleDownloadPDF = async () => {
-    const element = document.getElementById('print-container');
-    if (!element) return;
-    try {
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${p.billNumber || 'document'}.pdf`);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   return (
     <motion.div 
@@ -8608,7 +8272,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
     >
-      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto">
         <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
           <ChevronLeft size={16} /> Close Preview
         </button>
@@ -8618,189 +8282,175 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
             <Printer size={20} />
             <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Bill</span>
           </button>
-          <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
-            <Download size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
-          </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 md:text-[11px] text-[10px]">
-          <div className="border border-black">
+        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
+          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
             
             {/* Header */}
-            <div className="text-center p-2 border-b border-black">
-              <div className="font-bold text-xs" style={{ fontFamily: 'Georgia, serif' }}>||| SHREE GANESHAY NAMAH |||</div>
-              <h1 className="text-3xl font-black mt-1 uppercase tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "K.K. FABRICS"}</h1>
-              <div className="font-bold uppercase mt-1 tracking-wide">{settings?.address || "SURAT, GUJARAT"}</div>
+            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
+              <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
+              <div className="flex items-center gap-6 justify-center w-full mb-1">
+                {settings?.logoUrl && <img src={settings.logoUrl} alt="Logo" className="h-20 object-contain bg-transparent" referrerPolicy="no-referrer" />}
+                <div className="flex flex-col items-center">
+                  <h1 className="text-4xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
+                  <div className="font-bold uppercase text-[11px] tracking-tight max-w-sm leading-tight mt-1">{settings?.address || "SURAT, GUJARAT"}</div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex justify-between items-center p-2 border-b border-black font-bold uppercase">
-              <div className="w-1/3 text-left">
-                <div>GSTIN: {settings?.gstin || ""}</div>
-              </div>
-              <div className="w-1/3 text-center text-xl font-black tracking-widest uppercase">
-                TAX INVOICE
-              </div>
-              <div className="w-1/3 text-right">
-                <div>Mo: {settings?.mobile || ""}</div>
-              </div>
+            <div className="flex justify-between items-center px-3 py-1 border-b-2 border-black font-bold uppercase text-xs">
+              <div className="w-1/3 text-left">GSTIN: {settings?.gstin || ""}</div>
+              <div className="w-1/3 text-center text-xl font-black tracking-widest">TAX INVOICE</div>
+              <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
             </div>
 
             {/* Transaction Details */}
-            <div className="grid grid-cols-[60%_40%] border-b border-black">
-              <div className="border-r border-black p-2 space-y-1">
-                <div className="flex"><span className="w-32 font-bold">From:</span> <span className="uppercase">{consignorName}</span></div>
+            <div className="grid grid-cols-[60%_40%] border-b-2 border-black">
+              <div className="border-r-2 border-black p-3 space-y-1">
+                <div className="flex"><span className="w-32 font-bold">From:</span> <span className="uppercase font-black">{consignorName}</span></div>
                 <div className="flex"><span className="w-32 font-bold">Transport:</span> <span className="uppercase">{p.transportName || '-'}</span></div>
                 <div className="flex"><span className="w-32 font-bold">LR No:</span> <span className="uppercase">{p.lrNumber || '-'}</span></div>
-                <div className="flex"><span className="w-32 font-bold">Remittance:</span> <span></span></div>
+                <div className="flex"><span className="w-32 font-bold">Broker:</span> <span>-</span></div>
               </div>
-              <div className="p-2 space-y-1">
-                <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-bold">{p.billNumber}</span></div>
+              <div className="p-3 space-y-1">
+                <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-black text-xs">#{p.billNumber}</span></div>
                 <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                {p.ewbNumber ? (
-                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">EWAY BILL:</span> <span className="uppercase font-black text-black tracking-widest">{p.ewbNumber}</span></div>
-                ) : (
-                  <div className="flex justify-between"><span className="font-bold">Challan No:</span> <span className="uppercase">-</span></div>
-                )}
-                {p.parcels && (
-                  <div className="flex justify-between"><span className="font-black text-black tracking-widest">PARCELS/BAILS:</span> <span className="uppercase font-black text-black tracking-widest">{p.parcels}</span></div>
-                )}
-                <div className="flex justify-between"><span className="font-bold">Broker:</span> <span>-</span></div>
+                <div className="flex justify-between"><span className="font-bold">EWAY BILL:</span> <span className="uppercase font-bold">{p.ewbNumber || '-'}</span></div>
+                <div className="flex justify-between"><span className="font-bold">PARCELS:</span> <span className="uppercase font-bold">{p.parcels || '-'}</span></div>
               </div>
             </div>
 
             {/* Parties */}
-            <div className="grid grid-cols-2 border-b border-black">
-              <div className="border-r border-black p-2 h-full">
-                <div className="font-bold mb-1 underline">Details of Receiver (Billed To)</div>
-                <div className="font-black text-[13px] uppercase tracking-wide">{consigneeName}</div>
-                <div className="uppercase">{consigneeAddress}</div>
-                {consigneeMobile && <div className="mt-1">Contact: {consigneeMobile}</div>}
-                <div className="mt-2 flex gap-4 uppercase">
-                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
-                  {p.consigneeStateCode && <div><span className="font-bold">State Code:</span> {p.consigneeStateCode}</div>}
+            <div className="grid grid-cols-2 border-b-2 border-black h-32">
+              <div className="border-r-2 border-black p-3 flex flex-col">
+                <div className="font-bold mb-1 underline text-[9px] uppercase">Details of Receiver (Billed To)</div>
+                <div className="font-black text-sm uppercase tracking-wide leading-none mb-1">{consigneeName}</div>
+                <div className="uppercase flex-1 text-[10px] leading-tight">{consigneeAddress}</div>
+                <div className="mt-1 flex justify-between uppercase font-bold text-[10px]">
+                  <div>GSTIN: {consigneeGstin}</div>
+                  {p.consigneeStateCode && <div>SC: {p.consigneeStateCode}</div>}
                 </div>
               </div>
-              <div className="p-2 h-full">
-                <div className="font-bold mb-1 underline">Details of Consignee (Shipped To)</div>
-                <div className="font-black text-[13px] uppercase tracking-wide">{consigneeName}</div>
-                <div className="uppercase">{consigneeAddress}</div>
-                <div className="mt-2 flex gap-4 uppercase">
-                  <div><span className="font-bold">GSTIN:</span> {consigneeGstin}</div>
+              <div className="p-3 flex flex-col">
+                <div className="font-bold mb-1 underline text-[9px] uppercase">Details of Consignee (Shipped To)</div>
+                <div className="font-black text-sm uppercase tracking-wide leading-none mb-1">{consigneeName}</div>
+                <div className="uppercase flex-1 text-[10px] leading-tight">{consigneeAddress}</div>
+                <div className="mt-1 flex uppercase font-bold text-[10px]">
+                   <div>GSTIN: {consigneeGstin}</div>
                 </div>
               </div>
             </div>
 
             {/* Table */}
-            <table className="w-full text-center border-collapse">
-              <thead>
-                <tr className="border-b border-black uppercase text-[10px] font-bold h-8">
-                  <th className="border-r border-black p-1.5 min-w-[30px]">No</th>
-                  <th className="border-r border-black p-1.5 text-left w-[40%]">Description of Goods</th>
-                  <th className="border-r border-black p-1.5">HSN No</th>
-                  <th className="border-r border-black p-1.5">Taka / Box</th>
-                  <th className="border-r border-black p-1.5">Qty</th>
-                  <th className="border-r border-black p-1.5">Rate</th>
-                  <th className="p-1.5 text-right w-[15%]">Taxable Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {p.items.map((item: any, idx: number) => (
-                  <tr key={item.id} className="border-b-0 text-[11px] align-top">
-                    <td className="border-r border-black p-1">{idx + 1}</td>
-                    <td className="border-r border-black p-1 text-left font-bold uppercase">
-                      {item.name} {item.color && <span className="font-normal ml-1">({item.color})</span>}
-                    </td>
-                    <td className="border-r border-black p-1">{item.hsnCode}</td>
-                    <td className="border-r border-black p-1">{item.taka || '-'}</td>
-                    <td className="border-r border-black p-1 uppercase font-bold">{item.quantity} <span className="font-normal text-[9px]">{item.unit}</span></td>
-                    <td className="border-r border-black p-1">{Number(item.rate).toFixed(2)}</td>
-                    <td className="p-1 text-right">{Number(item.amount).toFixed(2)}</td>
+            <div className="flex-1">
+              <table className="w-full text-center border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-black uppercase text-[10px] font-black h-10 bg-slate-50">
+                    <th className="border-r-2 border-black p-1 w-10">No</th>
+                    <th className="border-r-2 border-black p-1 text-left px-3">Description of Goods</th>
+                    <th className="border-r-2 border-black p-1 w-20">HSN No</th>
+                    <th className="border-r-2 border-black p-1 w-20">Taka</th>
+                    <th className="border-r-2 border-black p-1 w-20">Qty</th>
+                    <th className="border-r-2 border-black p-1 w-20">Rate</th>
+                    <th className="p-1 text-right px-3 w-32">Taxable Amt</th>
                   </tr>
-                ))}
-                {Array.from({ length: Math.max(0, 10 - p.items.length) }).map((_, i) => (
-                  <tr key={'empty'+i} className="align-top h-6">
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td></td>
-                  </tr>
-                ))}
-                {/* Total Row */}
-                <tr className="border-y border-black font-bold uppercase text-[11px] h-6 bg-slate-50">
-                  <td className="border-r border-black p-1.5" colSpan={3}>Total</td>
-                  <td className="border-r border-black p-1.5">{p.items.reduce((s:number, i:any) => s + (Number(i.taka) || 0), 0) || '-'}</td>
-                  <td className="border-r border-black p-1.5">{p.items.reduce((s:number, i:any) => s + (Number(i.quantity) || 0), 0).toFixed(2)}</td>
-                  <td className="border-r border-black p-1.5"></td>
-                  <td className="p-1.5 text-right tracking-wider">{Number(p.basicAmount).toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="text-[11px] font-bold">
+                  {p.items.map((item: any, idx: number) => (
+                    <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors h-8">
+                      <td className="border-r-2 border-black p-1">{idx + 1}</td>
+                      <td className="border-r-2 border-black p-1 text-left px-3 uppercase text-xs">
+                        {item.name} {item.color && <span className="font-normal text-[10px] ml-1">[{item.color}]</span>}
+                      </td>
+                      <td className="border-r-2 border-black p-1">{item.hsnCode}</td>
+                      <td className="border-r-2 border-black p-1">{item.taka || '-'}</td>
+                      <td className="border-r-2 border-black p-1 uppercase font-black">{item.quantity} <span className="font-normal text-[8px]">{item.unit}</span></td>
+                      <td className="border-r-2 border-black p-1">{Number(item.rate).toFixed(2)}</td>
+                      <td className="p-1 text-right px-3 font-black text-xs">{Number(item.amount).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {/* Fill empty space */}
+                  {Array.from({ length: Math.max(0, 10 - p.items.length) }).map((_, i) => (
+                    <tr key={'empty'+i} className="h-8">
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Total Row */}
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black border-collapse">
+               <div className="flex justify-between items-center px-4 font-black text-xs uppercase bg-slate-50 border-r-2 border-black">
+                 <span>Total Balance</span>
+                 <div className="flex gap-12">
+                   <span>Taka: {p.items.reduce((s:number, i:any) => s + (Number(i.taka) || 0), 0) || '-'}</span>
+                   <span>Qty: {p.items.reduce((s:number, i:any) => s + (Number(i.quantity) || 0), 0).toFixed(2)}</span>
+                 </div>
+               </div>
+               <div className="flex justify-between items-center px-4 font-black text-sm uppercase bg-slate-50">
+                 <span>SubTotal</span>
+                 <span>₹{Number(p.basicAmount).toFixed(2)}</span>
+               </div>
+            </div>
 
             {/* Footer sections */}
-            <div className="grid grid-cols-[60%_40%]">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[220px]">
               {/* Left Footer */}
-              <div className="border-r border-black p-2 flex flex-col justify-between">
+              <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full">
                 <div>
-                  <div className="font-bold underline mb-1 uppercase text-[10px]">Amount in Words:</div>
-                  <div className="font-bold italic uppercase indent-2 text-[11px]">{numberToWords(p.grandTotal)}</div>
+                  <div className="font-black underline mb-1 uppercase text-[10px]">Amount in Words:</div>
+                  <div className="font-black italic uppercase text-xs leading-tight">{numberToWords(p.grandTotal)}</div>
                 </div>
                 
-                <div className="mt-4 pb-2 border-b border-black border-dashed">
-                  <div className="font-bold underline mb-1 uppercase text-[10px]">Bank Details</div>
-                  <div className="grid grid-cols-[60px_1fr] gap-y-0.5 text-[10px] uppercase">
-                    <span className="font-bold">Bank:</span> <span>{settings?.bankName || ''}</span>
-                    <span className="font-bold">Branch:</span> <span>{settings?.branchName || ''}</span>
-                    <span className="font-bold">A/c No:</span> <span className="font-black tracking-widest">{settings?.accountNumber || ''}</span>
-                    <span className="font-bold">IFSC:</span> <span className="font-black tracking-widest">{settings?.ifscCode || ''}</span>
+                <div className="py-2 border-y border-black border-dashed">
+                  <div className="font-black underline mb-1 uppercase text-[10px]">Bank Details</div>
+                  <div className="grid grid-cols-[60px_1fr] gap-y-0.5 text-[9px] uppercase font-bold">
+                    <span>Bank:</span> <span>{settings?.bankName || 'HDFC BANK'}</span>
+                    <span>Branch:</span> <span>{settings?.branchName || 'RING ROAD, SURAT'}</span>
+                    <span>A/c No:</span> <span className="font-black tracking-widest">{settings?.accountNumber || ''}</span>
+                    <span>IFSC:</span> <span className="font-black tracking-widest">{settings?.ifscCode || ''}</span>
                   </div>
                 </div>
 
-                <div className="mt-2 text-[9px] leading-snug">
-                  <div className="font-bold underline mb-1 uppercase">Terms of Sales</div>
-                  <ol className="list-decimal pl-4 space-y-0.5 m-0 uppercase font-bold text-slate-800">
-                    <li>Goods once sold will not be taken back.</li>
+                <div className="text-[8px] leading-snug">
+                  <div className="font-black underline mb-0.5 uppercase">Terms & Conditions</div>
+                  <ol className="list-decimal pl-3 space-y-0 m-0 uppercase font-bold text-slate-800">
+                    <li>Subject to Surat Jurisdiction only.</li>
                     <li>Interest @ 24% p.a. will be charged if not paid within 30 days.</li>
                     <li>We are not responsible for any damage in transit.</li>
-                    <li>Subject to Surat Jurisdiction only.</li>
+                    <li>Goods once sold will not be taken back.</li>
                   </ol>
                 </div>
               </div>
 
               {/* Right Footer */}
-              <div className="flex flex-col">
-                <div className="p-2 space-y-1 bg-white flex-1 text-[11px]">
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Gross Amount</span> <span className="font-bold">{Number(p.basicAmount).toFixed(2)}</span></div>
+              <div className="flex flex-col bg-slate-50/20 h-full">
+                <div className="p-3 space-y-1 flex-1 font-bold text-xs">
+                  <div className="flex justify-between"><span className="uppercase">Taxable Amount</span> <span>{Number(p.taxableValue).toFixed(2)}</span></div>
                   {p.globalDiscount > 0 && (
-                     <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Less Discount</span> <span className="font-bold">- {Number(p.globalDiscount).toFixed(2)}</span></div>
+                     <div className="flex justify-between"><span className="uppercase">Discount</span> <span>- {Number(p.globalDiscount).toFixed(2)}</span></div>
                   )}
-                  
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="uppercase">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="uppercase">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="uppercase">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
                 </div>
 
-                <div className="border-y border-black p-3 flex justify-between font-black text-sm uppercase items-center pb-2 pt-2 bg-slate-50 relative overflow-hidden">
-                  <div className="flex flex-col">
-                    <span>Net Amount</span>
-                    <span className={`text-[10px] mt-0.5 px-1.5 py-0.5 rounded inline-block w-fit ${isFullyPaid ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-                      {isFullyPaid ? 'FULLY PAID' : remainingBalance < p.grandTotal ? 'PARTIALLY PAID' : 'UNPAID'}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-base tracking-wider">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
-                    {!isFullyPaid && remainingBalance < p.grandTotal && (
-                      <span className="text-[10px] text-rose-600 font-bold mt-1 uppercase tracking-widest">Bal: ₹ {remainingBalance.toFixed(2)}</span>
-                    )}
-                  </div>
+                <div className="border-y-2 border-black p-3 flex justify-between font-black text-lg uppercase bg-white">
+                  <span>Net Amount</span>
+                  <span>₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
 
-                <div className="p-2 pt-6 text-center flex-1 flex flex-col justify-end">
-                  <div className="font-black uppercase text-[10px] mb-8 text-right tracking-widest leading-none">For {settings?.companyName || "K.K. FABRICS"}</div>
-                  <div className="text-[9px] font-bold uppercase text-right opacity-60 leading-none">Authorized Signatory</div>
+                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-24">
+                  <div className="font-black uppercase text-[10px] mb-8 text-right tracking-widest leading-none">For {consignorName}</div>
+                  <div className="text-[9px] font-black uppercase text-right border-t border-black pt-1 inline-block ml-auto min-w-[180px]">Authorized Signatory</div>
                 </div>
               </div>
             </div>
@@ -11519,7 +11169,7 @@ function BrokersView({ brokers, saleParties, purchaseParties, millChallans, onSa
   );
 }
 
-function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSaveCommission, onDeletePayment, onDeleteCommission, bookings, purchases, millChallans = [], settings }: any) {
+function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSaveCommission, onDeletePayment, onDeleteCommission, bookings, purchases, millChallans = [], settings, onBack }: any) {
   const [selectedBroker, setSelectedBroker] = useState<any>(null);
   const [showCommModal, setShowCommModal] = useState(false);
   const [previewBooking, setPreviewBooking] = useState<any>(null);
@@ -11537,12 +11187,14 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
           setShowCommModal(false);
         } else if (selectedBroker) {
           setSelectedBroker(null);
+        } else if (onBack) {
+          onBack();
         }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [selectedBroker, showCommModal, previewBooking, previewPurchase, previewPayment]);
+  }, [selectedBroker, showCommModal, previewBooking, previewPurchase, previewPayment, onBack]);
   const [commForm, setCommForm] = useState({
     billNumber: '',
     date: new Date().toISOString().split('T')[0],
@@ -11725,6 +11377,11 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
         <div className="flex items-center gap-4">
           {selectedBroker && (
             <button onClick={() => setSelectedBroker(null)} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm">
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          {!selectedBroker && onBack && (
+            <button onClick={onBack} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm">
               <ChevronLeft size={20} />
             </button>
           )}
