@@ -4677,11 +4677,26 @@ function BookingView({
   };
 
   const calc = useMemo(() => {
-    // 1. Calculate Taxable Value by summing item amounts
-    const taxableValue = formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    // 1. Calculate Gross sum (Sum of Qty * Rate for all items)
+    const grossTotal = formData.items.reduce((sum, item) => {
+      const g = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
+      return sum + g;
+    }, 0);
     
-    // 2. GST Calculation
-    const tax = taxableValue * (parseFloat(formData.taxRate) / 100);
+    // 2. Item-level discount total
+    const itemDiscountTotal = formData.items.reduce((sum, item) => {
+      const g = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
+      const d = g * ((Number(item.discount) || 0) / 100);
+      return sum + d;
+    }, 0);
+
+    const afterItemDiscount = grossTotal - itemDiscountTotal;
+    const globalDiscount = Number(formData.globalDiscount) || 0;
+    const taxableValue = Math.max(0, afterItemDiscount - globalDiscount);
+    
+    // 3. GST Calculation
+    const taxRate = parseFloat(formData.taxRate) || 5;
+    const tax = taxableValue * (taxRate / 100);
     
     // Determine CGST/SGST vs IGST
     const consignorStateCode = formData.consignorGstin?.substring(0, 2);
@@ -4693,7 +4708,7 @@ function BookingView({
     const igst = isInterstate ? tax : 0;
     
     return { 
-      basicAmount: taxableValue, 
+      basicAmount: afterItemDiscount, // Basic amount is before global discount but after item discount
       taxableValue, 
       tax, 
       cgst, 
@@ -4702,7 +4717,7 @@ function BookingView({
       isInterstate, 
       total: Math.round(taxableValue + tax)
     };
-  }, [formData.items, formData.taxRate, formData.consignorGstin, formData.consigneeGstin]);
+  }, [formData.items, formData.taxRate, formData.consignorGstin, formData.consigneeGstin, formData.globalDiscount]);
 
   useEffect(() => {
     if (Math.abs(formData.basicAmount - calc.basicAmount) > 0.01) {
@@ -4831,7 +4846,16 @@ function BookingView({
       <form 
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({ ...formData, globalDiscount: 0, taxAmount: calc.tax, grandTotal: calc.total });
+          onSave({ 
+            ...formData, 
+            taxAmount: calc.tax, 
+            grandTotal: calc.total,
+            taxableValue: calc.taxableValue,
+            cgstAmount: calc.cgst,
+            sgstAmount: calc.sgst,
+            igstAmount: calc.igst,
+            isInterstate: calc.isInterstate
+          });
         }}
         className="p-8 lg:p-12 space-y-10"
       >
@@ -8288,9 +8312,31 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
   const p = booking;
   const consignorName = settings?.companyName || "ANGAD SILK MILLS";
   const tr = Number(p.taxRate || 5);
-  const igst = p.isInterstate ? p.taxAmount : 0;
-  const cgst = !p.isInterstate ? p.taxAmount / 2 : 0;
-  const sgst = !p.isInterstate ? p.taxAmount / 2 : 0;
+  const igst = Number(p.igstAmount || (p.isInterstate ? (p.taxAmount || 0) : 0));
+  const cgst = Number(p.cgstAmount || (!p.isInterstate ? (p.taxAmount || 0) / 2 : 0));
+  const sgst = Number(p.sgstAmount || (!p.isInterstate ? (p.taxAmount || 0) / 2 : 0));
+
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+         const availableWidth = window.innerWidth * 0.95;
+         const availableHeight = window.innerHeight * 0.85; // Leave space for buttons
+         const billWidth = 210 * 3.78; // 210mm in pixels approx (96dpi)
+         const billHeight = 297 * 3.78; // 297mm in pixels approx
+
+         const scaleW = availableWidth / billWidth;
+         const scaleH = availableHeight / billHeight;
+         const newScale = Math.min(1, scaleW, scaleH);
+         setScale(newScale);
+      }
+    };
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
 
   useEffect(() => {
     const handleEvents = (e: KeyboardEvent) => {
@@ -8328,11 +8374,14 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 overflow-y-auto no-scrollbar print:bg-white print:p-0 print:block">
-      <div className="bg-white w-full max-w-[210mm] min-h-screen sm:min-h-0 sm:rounded-[2rem] shadow-2xl relative print:shadow-none print:rounded-none overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md flex items-center justify-center p-0 sm:p-2 overflow-hidden print:bg-white print:p-0 print:block">
+      <div 
+        className="bg-white w-full max-w-[95vw] h-full sm:h-auto sm:max-h-[98vh] sm:rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] relative print:shadow-none print:rounded-none overflow-hidden flex flex-col items-center"
+        style={{ margin: '0 auto' }}
+      >
         
         {/* Top Sticky Bar - Controls */}
-        <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 sm:p-6 flex justify-between items-center print:hidden">
+        <div className="w-full bg-white/90 backdrop-blur-md border-b border-slate-100 p-4 sm:p-5 flex justify-between items-center print:hidden shadow-sm z-[101]">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-200">
               <Printer size={20} />
@@ -8363,8 +8412,22 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
           </div>
         </div>
 
-        <div id="print-area" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[11pt] leading-tight flex justify-center">
-          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white">
+        <div 
+          className="flex-1 overflow-auto w-full flex justify-center p-4 bg-slate-100/50 print:bg-white print:p-0 no-scrollbar"
+          ref={containerRef}
+        >
+          <div 
+            id="print-area" 
+            className="print-container bg-white shadow-2xl print:shadow-none transition-transform duration-300 origin-top"
+            style={{ 
+              transform: `scale(${scale})`,
+              transformOrigin: 'top center',
+              width: '210mm',
+              height: '297mm',
+              minHeight: '297mm'
+            }}
+          >
+            <div className="border-2 border-black flex flex-col w-full h-full relative box-border overflow-hidden bg-white">
             
             {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
@@ -8419,7 +8482,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             </div>
 
             {/* The Item Table */}
-            <div className="flex-1 min-h-[480px]">
+            <div className="flex-1 min-h-[480px] mb-[225px]">
               <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
@@ -8533,6 +8596,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
         </div>
       </div>
     </div>
+  </div>
   );
 }
 function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses, settings }: any) {
@@ -8562,20 +8626,20 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
 
   const gstr1Data = useMemo(() => {
     return filteredSales.map((b: any) => {
-      const taxable = b.basicAmount - (b.globalDiscount || 0);
+      const taxable = (Number(b.basicAmount) || 0) - (Number(b.globalDiscount) || 0);
       return {
         id: b.id,
         invoiceNo: b.billNumber,
-        date: b.date.split('T')[0],
+        date: b.date?.split('T')[0] || '',
         customer: b.consigneeName,
         gstin: b.consigneeGstin,
         taxableValue: taxable,
         taxRate: b.taxRate,
-        cgst: b.cgstAmount || 0,
-        sgst: b.sgstAmount || 0,
-        igst: b.igstAmount || 0,
-        totalTax: b.taxAmount,
-        grandTotal: b.grandTotal,
+        cgst: Number(b.cgstAmount) || 0,
+        sgst: Number(b.sgstAmount) || 0,
+        igst: Number(b.igstAmount) || 0,
+        totalTax: Number(b.taxAmount) || 0,
+        grandTotal: Number(b.grandTotal) || 0,
         hsn: (b.items && b.items[0]?.hsnCode) || 'N/A'
       };
     });
@@ -11456,19 +11520,27 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
   
   // Recalculation logic
   useEffect(() => {
-    const basicAmount = (formData.items || []).reduce((sum: number, item: any) => sum + (Number(item.quantity) * Number(item.rate)), 0);
-    const discountAmount = Number(formData.globalDiscount) || 0;
-    const taxableValue = basicAmount - discountAmount;
-    const taxRate = Number(formData.taxRate) || 5; // Default 5% if missing
+    const basicAmount = (formData.items || []).reduce((sum: number, item: any) => sum + (Number(item.quantity || 0) * Number(item.rate || 0)), 0);
+    const discountAmount = Number(formData.globalDiscount || 0);
+    const taxableValue = Math.max(0, basicAmount - discountAmount);
+    const taxRate = Number(formData.taxRate) || 5;
     const taxAmount = Math.round(taxableValue * (taxRate / 100));
     const grandTotal = Math.round(taxableValue + taxAmount);
     
+    // For breakdown
+    const consignorStateCode = formData.consignorGstin?.substring(0, 2);
+    const consigneeStateCode = formData.consigneeGstin?.substring(0, 2);
+    const isInterstate = consignorStateCode && consigneeStateCode && consignorStateCode !== consigneeStateCode;
+
     setFormData(prev => ({
       ...prev,
       basicAmount,
       taxableValue,
       taxAmount,
       grandTotal,
+      cgstAmount: isInterstate ? 0 : taxAmount / 2,
+      sgstAmount: isInterstate ? 0 : taxAmount / 2,
+      igstAmount: isInterstate ? taxAmount : 0,
       numberToWords: numberToWords(grandTotal)
     }));
   }, [formData.items, formData.globalDiscount, formData.taxRate]);
@@ -11662,7 +11734,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
             </div>
 
             {/* The Item Table */}
-            <div className="flex-1 min-h-[480px]">
+            <div className="flex-1 min-h-[480px] mb-[225px]">
               <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
