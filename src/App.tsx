@@ -8476,9 +8476,9 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col min-h-[500px]">
-              <table className="w-full flex-1 border-collapse" style={{ tableLayout: 'fixed' }}>
-                <thead className="flex-none">
+            <div className="flex-1">
+              <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                <thead>
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
                     <th className="w-[40px] border-r-2 border-black py-2 text-center">No</th>
                     <th className="border-r-2 border-black py-2 text-left px-3">Description of Goods</th>
