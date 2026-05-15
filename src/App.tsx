@@ -8059,8 +8059,8 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
           </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
-          <div className="border-2 border-black flex flex-col w-full h-auto relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+        <div id="print-container" className="print-container bg-white w-full print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
+          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] relative box-border bg-white shadow-sm print:shadow-none">
             
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
@@ -8094,7 +8094,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
               </div>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-1 min-h-[600px]">
               <table className="w-full text-center border-collapse">
                 <thead>
                   <tr className="border-b-2 border-black uppercase text-[10px] font-black h-10 bg-slate-50">
@@ -8197,8 +8197,8 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
           </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight">
-          <div className="border-2 border-black flex flex-col w-full h-auto relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+        <div id="print-container" className="print-container bg-white w-full print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
+          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] relative box-border bg-white shadow-sm print:shadow-none">
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
               <div className="flex items-center gap-6 justify-center w-full mb-1">
@@ -8232,7 +8232,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
               </div>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-1 min-h-[600px]">
               <table className="w-full text-center border-collapse">
                 <thead>
                   <tr className="border-b-2 border-black uppercase text-[10px] font-black h-10 bg-slate-50">
