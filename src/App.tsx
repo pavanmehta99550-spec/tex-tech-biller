@@ -8413,7 +8413,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
         </div>
 
         <div 
-          className="flex-1 overflow-auto w-full flex justify-center p-4 bg-slate-100/50 print:bg-white print:p-0 no-scrollbar"
+          className="flex-1 overflow-hidden w-full flex justify-center p-4 bg-slate-100/50 print:bg-white print:p-0"
           ref={containerRef}
         >
           <div 
@@ -8482,7 +8482,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             </div>
 
             {/* The Item Table */}
-            <div className="flex-1 min-h-[480px] mb-[225px]">
+            <div className="flex-1 min-h-[400px] mb-[230px]">
               <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
@@ -8504,13 +8504,13 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                       <td className="border-r-2 border-black py-1.5 text-center">{item.hsnCode}</td>
                       <td className="border-r-2 border-black py-1.5 text-center">{item.unit || "MTR"}</td>
                       <td className="border-r-2 border-black py-1.5 text-center">{item.grade || "-"}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 text-right">{Number(item.quantity).toFixed(2)}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 text-right">{Number(item.rate).toFixed(2)}</td>
-                      <td className="py-1.5 px-4 text-right font-black">{Number(item.amount).toFixed(2)}</td>
+                      <td className="border-r-2 border-black py-1.5 px-3 text-right">{(parseFloat(item.quantity?.toString()) || 0).toFixed(2)}</td>
+                      <td className="border-r-2 border-black py-1.5 px-3 text-right">{(parseFloat(item.rate?.toString()) || 0).toFixed(2)}</td>
+                      <td className="py-1.5 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {/* Grid lines placeholder to maintain table structure */}
-                  {Array.from({ length: Math.max(0, 15 - (p.items?.length || 0)) }).map((_, i) => (
+                  {/* Grid lines placeholder - reduced to keep footer properly in frame */}
+                  {Array.from({ length: Math.max(0, 8 - (p.items?.length || 0)) }).map((_, i) => (
                     <tr key={`empty-${i}`} className="h-8">
                       <td className="border-r-2 border-black"></td>
                       <td className="border-r-2 border-black"></td>
@@ -8527,9 +8527,9 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             </div>
 
             {/* Fixed Footer (Page Bottom) */}
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[220px]">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[225px] print:relative print:mt-auto">
               {/* Left Side: Bank Details & T&C */}
-              <div className="border-r-2 border-black p-4 flex flex-col justify-between h-full">
+              <div className="border-r-2 border-black p-4 flex flex-col justify-between h-full bg-white">
                 <div className="py-2 border-b border-black border-dashed">
                   <div className="font-black underline mb-1 uppercase text-[9pt] text-indigo-600">Bank Details (AXIS BANK)</div>
                   <div className="grid grid-cols-[80px_1fr] gap-y-0.5 text-[9.5pt] uppercase font-bold text-slate-800">
@@ -8537,7 +8537,9 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                     <span>A/c No:</span> <span className="font-black tracking-[0.1em]">{settings?.accountNumber || "924020074358147"}</span>
                     <span>IFSC:</span> <span className="font-black">{settings?.ifscCode || "UTIB0001772"}</span>
                   </div>
-                  <div className="text-[7pt] font-black mt-1 text-red-600 uppercase">NOTICE: AFTER 45 DAYS INTEREST WILL BE CHARGED 18% PER ANNUM</div>
+                  <div className="text-[7.5pt] font-black mt-2 text-red-600 uppercase border-y border-black/10 py-1">
+                    NOTICE: AFTER 45 DAYS INTEREST WILL BE CHARGED 18% PER ANNUM
+                  </div>
                 </div>
 
                 <div className="text-[8pt] leading-snug">
@@ -8545,7 +8547,6 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                   <ol className="list-decimal pl-4 space-y-0.5 font-bold uppercase text-slate-600 italic">
                     <li>Goods once sold will not be taken back or replaced.</li>
                     <li>No responsibility for any damages/losses in transit.</li>
-                    <li>Our responsibility ceases as soon as goods leave our premises.</li>
                     <li>Interest @ 18% p.a. will be charged after 45 days.</li>
                     <li>Subject to Surat Jurisdiction Only.</li>
                   </ol>
@@ -8567,7 +8568,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                   <span>₹ {(parseFloat(p.grandTotal?.toString()) || 0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
 
-                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-[100px]">
+                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-[105px]">
                   <div className="font-black uppercase text-[10pt] mb-12 text-right">For {consignorName}</div>
                   <div className="text-[9pt] font-black uppercase text-center border-t-2 border-black pt-1 block mx-auto w-[220px]">Authorised Signatory</div>
                 </div>
@@ -11522,7 +11523,17 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
   useEffect(() => {
     const grossTotal = (formData.items || []).reduce((sum: number, item: any) => sum + (parseFloat(item.quantity?.toString() || "0") * parseFloat(item.rate?.toString() || "0")), 0);
     
-    const itemDiscountTotal = (formData.items || []).reduce((sum: number, item: any) => {
+    // Also update individual item amounts to prevent NaN in display
+    const updatedItems = (formData.items || []).map((item: any) => {
+      const q = parseFloat(item.quantity?.toString() || "0");
+      const r = parseFloat(item.rate?.toString() || "0");
+      const d = parseFloat(item.discount?.toString() || "0");
+      const g = q * r;
+      const disc = g * (d / 100);
+      return { ...item, amount: g - disc };
+    });
+
+    const itemDiscountTotal = updatedItems.reduce((sum, item) => {
       const g = (parseFloat(item.quantity?.toString() || "0") * parseFloat(item.rate?.toString() || "0"));
       const d = g * ((parseFloat(item.discount?.toString() || "0")) / 100);
       return sum + d;
@@ -11542,6 +11553,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
 
     setFormData(prev => ({
       ...prev,
+      items: updatedItems,
       basicAmount: afterItemDiscount,
       taxableValue,
       taxAmount,
@@ -11551,7 +11563,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
       igstAmount: isInterstate ? taxAmount : 0,
       numberToWords: numberToWords(grandTotal)
     }));
-  }, [formData.items, formData.globalDiscount, formData.taxRate]);
+  }, [formData.globalDiscount, formData.taxRate, JSON.stringify(formData.items.map(it => ({ q: it.quantity, r: it.rate, d: it.discount })))]);
 
   const handleItemChange = (idx: number, field: string, value: any) => {
     const newItems = [...formData.items];
@@ -11742,7 +11754,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
             </div>
 
             {/* The Item Table */}
-            <div className="flex-1 min-h-[480px] mb-[225px]">
+            <div className="flex-1 min-h-[400px] mb-[230px]">
               <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
@@ -11764,13 +11776,13 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                       <td className="border-r-2 border-black py-1.5 text-center">{item.hsnCode}</td>
                       <td className="border-r-2 border-black py-1.5 text-center">{item.unit || "MTR"}</td>
                       <td className="border-r-2 border-black py-1.5 text-center">{item.grade || "-"}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 text-right">{Number(item.quantity).toFixed(2)}</td>
-                      <td className="border-r-2 border-black py-1.5 px-3 text-right font-black">{Number(item.rate).toFixed(2)}</td>
-                      <td className="py-1.5 px-4 text-right font-black">{Number(item.amount).toFixed(2)}</td>
+                      <td className="border-r-2 border-black py-1.5 px-3 text-right">{(parseFloat(item.quantity?.toString()) || 0).toFixed(2)}</td>
+                      <td className="border-r-2 border-black py-1.5 px-3 text-right font-black">{(parseFloat(item.rate?.toString()) || 0).toFixed(2)}</td>
+                      <td className="py-1.5 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {/* Grid lines placeholder to maintain table structure */}
-                  {Array.from({ length: Math.max(0, 15 - (formData.items?.length || 0)) }).map((_, i) => (
+                  {/* Grid lines placeholder - reduced to maintain proper layout */}
+                  {Array.from({ length: Math.max(0, 8 - (formData.items?.length || 0)) }).map((_, i) => (
                     <tr key={`edit-empty-${i}`} className="h-8">
                       <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
                     </tr>
@@ -11780,9 +11792,9 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
             </div>
 
             {/* Fixed Footer (Page Bottom) */}
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[220px]">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[225px] print:relative print:mt-auto">
               {/* Left Side: Bank Details & T&C */}
-              <div className="border-r-2 border-black p-4 flex flex-col justify-between h-full">
+              <div className="border-r-2 border-black p-4 flex flex-col justify-between h-full bg-white">
                 <div className="py-2 border-b border-black border-dashed">
                   <div className="font-black underline mb-1 uppercase text-[9pt] text-indigo-600">Bank Details (AXIS BANK)</div>
                   <div className="grid grid-cols-[80px_1fr] gap-y-0.5 text-[9.5pt] uppercase font-bold text-slate-800">
@@ -11790,7 +11802,9 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                     <span>A/c No:</span> <span className="font-black tracking-[0.1em]">{settings?.accountNumber || "924020074358147"}</span>
                     <span>IFSC:</span> <span className="font-black">{settings?.ifscCode || "UTIB0001772"}</span>
                   </div>
-                  <div className="text-[7pt] font-black mt-1 text-red-600 uppercase">NOTICE: AFTER 45 DAYS INTEREST WILL BE CHARGED 18% PER ANNUM</div>
+                  <div className="text-[7.5pt] font-black mt-2 text-red-600 uppercase border-y border-black/10 py-1">
+                    NOTICE: AFTER 45 DAYS INTEREST WILL BE CHARGED 18% PER ANNUM
+                  </div>
                 </div>
 
                 <div className="text-[8pt] leading-snug">
@@ -11798,7 +11812,6 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                   <ol className="list-decimal pl-4 space-y-0.5 font-bold uppercase text-slate-600 italic">
                     <li>Goods once sold will not be taken back or replaced.</li>
                     <li>No responsibility for any damages/losses in transit.</li>
-                    <li>Our responsibility ceases as soon as goods leave our premises.</li>
                     <li>Interest @ 18% p.a. will be charged after 45 days.</li>
                     <li>Subject to Surat Jurisdiction Only.</li>
                   </ol>
@@ -11820,7 +11833,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                   <span>₹ {(parseFloat(formData.grandTotal?.toString()) || 0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                 </div>
 
-                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-[100px]">
+                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-[105px]">
                   <div className="font-black uppercase text-[10pt] mb-12 text-right">For {settings?.companyName}</div>
                   <div className="text-[9pt] font-black uppercase text-center border-t-2 border-black pt-1 block mx-auto w-[220px]">Authorised Signatory</div>
                 </div>
