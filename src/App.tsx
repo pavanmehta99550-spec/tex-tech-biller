@@ -3134,7 +3134,6 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       buyerAddress: settings?.address || '',
       items: (editingPurchase?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingPurchase?.basicAmount || 0,
-      globalDiscount: editingPurchase?.globalDiscount || 0,
       taxRate: editingPurchase?.taxRate || 5,
       date: editingPurchase?.date || new Date().toISOString(),
       partyBillNumber: editingPurchase?.partyBillNumber || '',
@@ -3165,7 +3164,6 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
         buyerAddress: settings?.address || '',
         items: currentEditingPurchase.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }],
         basicAmount: currentEditingPurchase.basicAmount || 0,
-        globalDiscount: currentEditingPurchase.globalDiscount || 0,
         taxRate: currentEditingPurchase.taxRate || 5,
         date: currentEditingPurchase.date || new Date().toISOString(),
         partyBillNumber: currentEditingPurchase.partyBillNumber || '',
@@ -3229,8 +3227,9 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
             if (numVal < 0) return item;
           }
           const updated = { ...item, [field]: value };
-          const gross = (updated.quantity || 0) * (updated.rate || 0);
-          updated.amount = Math.round(gross - (updated.discount || 0));
+          const gross = (parseFloat(updated.quantity) || 0) * (parseFloat(updated.rate) || 0);
+          const discountPct = parseFloat(updated.discount) || 0;
+          updated.amount = gross - (gross * discountPct / 100);
           return updated;
         }
         return item;
@@ -3252,29 +3251,24 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
     setFormData({ ...formData, billNumber: val });
   };
 
-  const hasItemDiscount = useMemo(() => formData.items.some(item => (item.discount || 0) > 0), [formData.items]);
-
   const calc = useMemo(() => {
-    // 1. Gross Amount - Round each item amount first
-    const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
+    // 1. Calculate Taxable Value by summing item amounts
+    const taxableValue = formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     
-    // 2. Taxable Value
-    const taxableValue = grossAmount;
-    
-    // 3. GST Calculation
-    const tax = Math.round(taxableValue * (parseFloat(formData.taxRate) / 100));
+    // 2. GST Calculation
+    const tax = taxableValue * (parseFloat(formData.taxRate) / 100);
     
     // Determine CGST/SGST vs IGST
     const buyerStateCode = formData.buyerGstin?.substring(0, 2);
     const supplierStateCode = formData.partyGstin?.substring(0, 2);
     const isInterstate = buyerStateCode && supplierStateCode && buyerStateCode !== supplierStateCode;
     
-    const cgst = isInterstate ? 0 : Math.round(tax / 2);
-    const sgst = isInterstate ? 0 : Math.round(tax / 2);
+    const cgst = isInterstate ? 0 : tax / 2;
+    const sgst = isInterstate ? 0 : tax / 2;
     const igst = isInterstate ? tax : 0;
     
     return { 
-      basicAmount: grossAmount, 
+      basicAmount: taxableValue, 
       taxableValue, 
       tax, 
       cgst, 
@@ -3283,7 +3277,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       isInterstate, 
       total: Math.round(taxableValue + tax)
     };
-  }, [formData.items, formData.taxRate, hasItemDiscount, formData.buyerGstin, formData.partyGstin]);
+  }, [formData.items, formData.taxRate, formData.buyerGstin, formData.partyGstin]);
 
   useEffect(() => {
     if (Math.abs(formData.basicAmount - calc.basicAmount) > 0.01) {
@@ -3338,7 +3332,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       <form 
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({ ...formData, globalDiscount: 0, taxAmount: calc.tax, grandTotal: calc.total });
+          onSave({ ...formData, taxAmount: calc.tax, grandTotal: calc.total });
         }}
         className="p-8 lg:p-12 space-y-10"
       >
@@ -3643,22 +3637,13 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                     </div>
                   )}
                 </div>
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">HSN</label>
-                  <input type="text" readOnly={isLocked} value={item.hsnCode} onChange={e => updateItem(item.id, 'hsnCode', e.target.value)} onKeyDown={handleEnter} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" />
-                </div>
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Unit</label>
-                  <select disabled={isLocked} value={item.unit} onChange={e => updateItem(item.id, 'unit', e.target.value as any)} onKeyDown={handleEnter} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white">
-                    <option value="MTR">MTR</option>
-                    <option value="PCS">PCS</option>
-                  </select>
-                </div>
                 <div className="md:col-span-1 space-y-1 relative">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Qty</label>
                   <div className="relative group">
                     <input 
                       type="number" 
+                      step="any"
+                      min="0"
                       readOnly={isLocked} 
                       value={item.quantity || ''} 
                       onChange={e => updateItem(item.id, 'quantity', e.target.value)} 
@@ -3694,23 +3679,44 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Rate</label>
                   <input 
                     type="number" 
+                    step="any"
+                    min="0"
                     readOnly={isLocked} 
                     value={item.rate || ''} 
                     onChange={e => updateItem(item.id, 'rate', e.target.value)} 
-                    onKeyDown={(e) => {
-                      if (e.key === 'Tab' && index === formData.items.length - 1 && !e.shiftKey) {
-                        e.preventDefault();
-                        addItem();
-                      } else if (e.key === 'Enter') {
-                        handleEnter(e);
-                      }
-                    }}
+                    onKeyDown={handleEnter}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white" 
                   />
                 </div>
                 <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider text-right block">Total</label>
-                  <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg font-black text-right">₹{item.amount.toLocaleString()}</div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Discount (%)</label>
+                  <input 
+                    type="number" 
+                    step="any"
+                    min="0"
+                    readOnly={isLocked} 
+                    value={item.discount || ''} 
+                    onChange={e => updateItem(item.id, 'discount', e.target.value)} 
+                    onKeyDown={handleEnter}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg font-bold bg-white"
+                    placeholder="0%"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider text-right block">Taxable Value</label>
+                  <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg font-black text-right">₹{Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                </div>
+                <div className="md:col-span-2 space-y-1 flex gap-2">
+                   <div className="flex-1 space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">HSN/Unit</label>
+                      <div className="flex gap-1">
+                        <input type="text" readOnly={isLocked} value={item.hsnCode} onChange={e => updateItem(item.id, 'hsnCode', e.target.value)} onKeyDown={handleEnter} className="w-1/2 px-2 py-2 border border-slate-200 rounded-lg font-bold bg-white text-[10px]" placeholder="HSN" />
+                        <select disabled={isLocked} value={item.unit} onChange={e => updateItem(item.id, 'unit', e.target.value as any)} onKeyDown={handleEnter} className="w-1/2 px-2 py-2 border border-slate-200 rounded-lg font-bold bg-white text-[10px]">
+                          <option value="MTR">MTR</option>
+                          <option value="PCS">PCS</option>
+                        </select>
+                      </div>
+                   </div>
                 </div>
                 {!isLocked && formData.items.length > 1 && (
                   <button onClick={() => removeItem(item.id)} className="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">×</button>
@@ -3736,23 +3742,6 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               onChange={handleBillNumberChange} 
               onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50' : 'focus:border-indigo-500'}`} 
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
-              Global Discount
-            </label>
-            <input 
-              type="number" 
-              min="0"
-              value={formData.globalDiscount || ''} 
-              onChange={e => {
-                const val = e.target.value;
-                setFormData({ ...formData, globalDiscount: val as any });
-              }} 
-              onKeyDown={handleEnter}
-              className="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none focus:border-indigo-500 transition-all"
-              placeholder="₹ 0.00" 
             />
           </div>
         </div>
