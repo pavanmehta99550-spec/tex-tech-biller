@@ -8064,7 +8064,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
         </div>
 
         <div id="print-container" className="print-container bg-white w-full print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
-          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-auto bg-white shadow-sm print:shadow-none print:flex print:h-auto print:min-h-[280mm] print:border-0">
+          <div className="border-2 border-black flex flex-col w-full bg-white shadow-sm print:shadow-none print:border-0" style={{minHeight: '280mm'}}>
             
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white flex-none">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
@@ -8417,7 +8417,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
               width: '210mm'
             }}
           >
-            <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-auto bg-white shadow-sm print:shadow-none print:flex print:h-auto print:min-h-[280mm] print:border-0">
+            <div className="border-2 border-black flex flex-col w-full bg-white shadow-sm print:shadow-none print:border-0" style={{minHeight: '280mm'}}>
             
             {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
