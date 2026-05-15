@@ -34,21 +34,14 @@
 }
 
 @media print {
-  /* Poore body ko hide karo sirf bill area ko chhod kar */
-  body * {
-    visibility: hidden;
+  body > :not(#bill-print-area) {
+    display: none !important;
   }
   
-  #bill-print-area, #bill-print-area * {
-    visibility: visible;
-  }
-
-  /* Bill ko page ke ekdam upar aur sahi width mein set karo */
   #bill-print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+    display: block !important;
+    position: static !important;
+    width: 210mm;
     margin: 0;
     padding: 0;
   }
