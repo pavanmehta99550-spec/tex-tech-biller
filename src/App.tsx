@@ -3352,7 +3352,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
             <select 
               disabled={isLocked}
               value={formData.taxRate}
-              onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, taxRate: Math.max(0, parseFloat(e.target.value) || 0) })}
               onKeyDown={handleEnter}
               className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all appearance-none ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
             >
@@ -4034,7 +4034,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
             <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">GST Rate (%)</label>
             <select 
               value={formData.taxRate}
-              onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, taxRate: Math.max(0, parseFloat(e.target.value) || 0) })}
               onKeyDown={handleEnter}
               className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-red-500 transition-all appearance-none"
             >
@@ -4803,7 +4803,7 @@ function BookingView({
             <select 
               disabled={isLocked}
               value={formData.taxRate}
-              onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, taxRate: Math.max(0, parseFloat(e.target.value) || 0) })}
               onKeyDown={handleEnter}
               className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all appearance-none ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
             >
@@ -5648,7 +5648,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
             <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">GST Rate (%)</label>
             <select 
               value={formData.taxRate}
-              onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, taxRate: Math.max(0, parseFloat(e.target.value) || 0) })}
               onKeyDown={handleEnter}
               className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-green-500 transition-all appearance-none"
             >
