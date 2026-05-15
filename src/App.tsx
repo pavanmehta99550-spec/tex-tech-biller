@@ -8315,6 +8315,9 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
   const igst = parseFloat(p.igstAmount?.toString() || (p.isInterstate ? (p.taxAmount || 0).toString() : "0"));
   const cgst = parseFloat(p.cgstAmount?.toString() || (!p.isInterstate ? ((p.taxAmount || 0) / 2).toString() : "0"));
   const sgst = parseFloat(p.sgstAmount?.toString() || (!p.isInterstate ? ((p.taxAmount || 0) / 2).toString() : "0"));
+  
+  // Robustly derive taxable value if missing
+  const derivedTaxableValue = parseFloat(p.taxableValue?.toString()) || (parseFloat(p.basicAmount?.toString()) || 0) - (parseFloat(p.globalDiscount?.toString()) || 0);
 
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -8433,14 +8436,19 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
               <div className="font-extrabold text-[11pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
               <div className="flex flex-col items-center w-full">
-                <h1 className="text-5xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{consignorName}</h1>
-                <div className="flex justify-between w-full px-4 mt-2 font-bold text-[9pt] uppercase tracking-tight">
-                  <div className="text-left w-1/2">
-                    OFFICE: {settings?.address || "SURAT, GUJARAT"}
+                <h1 className="text-5xl font-black uppercase tracking-tighter text-black mb-1" style={{ fontFamily: 'Georgia, serif' }}>{consignorName}</h1>
+                <div className="grid grid-cols-[1fr_auto_1fr] w-full px-4 font-bold text-[9pt] uppercase tracking-tight items-start border-t border-black/10 pt-1">
+                  <div className="text-left leading-tight">
+                    <span className="text-[7pt] text-slate-500 block mb-0.5 underline font-black">Office Address:</span>
+                    {settings?.address || "SURAT, GUJARAT"}
                   </div>
-                  <div className="text-right w-1/2">
-                    FACTORY: {settings?.factoryAddress || "GIDC, SURAT"}<br/>
-                    MOBILE: {settings?.mobile || "9988776655"}
+                  <div className="px-6 self-stretch flex items-center">
+                    <div className="w-[1px] h-full bg-black/20"></div>
+                  </div>
+                  <div className="text-right leading-tight">
+                    <span className="text-[7pt] text-slate-500 block mb-0.5 underline font-black">Factory Address:</span>
+                    {settings?.factoryAddress || "GIDC, SURAT"}<br/>
+                    <span className="text-black font-black">MO: {settings?.mobile || "9988776655"}</span>
                   </div>
                 </div>
               </div>
@@ -8509,8 +8517,8 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                       <td className="py-1.5 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {/* Grid lines placeholder - reduced to keep footer properly in frame */}
-                  {Array.from({ length: Math.max(0, 8 - (p.items?.length || 0)) }).map((_, i) => (
+                  {/* Grid lines placeholder - reduced to keep footer properly in frame on A4 */}
+                  {Array.from({ length: Math.max(0, 6 - (p.items?.length || 0)) }).map((_, i) => (
                     <tr key={`empty-${i}`} className="h-8">
                       <td className="border-r-2 border-black"></td>
                       <td className="border-r-2 border-black"></td>
@@ -8557,7 +8565,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
               <div className="flex flex-col h-full bg-white">
                 <div className="p-3 space-y-1 flex-1 font-bold text-[10pt] uppercase text-slate-700">
                    <div className="font-black text-[9pt] text-slate-500 mb-1 border-b border-black border-dashed italic">Amount in Words: {numberToWords(p.grandTotal)}</div>
-                  <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{(parseFloat(p.taxableValue?.toString()) || 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{derivedTaxableValue.toFixed(2)}</span></div>
                   {Number(cgst) > 0 && <div className="flex justify-between"><span>CGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(cgst.toString()) || 0).toFixed(2)}</span></div>}
                   {Number(sgst) > 0 && <div className="flex justify-between"><span>SGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(sgst.toString()) || 0).toFixed(2)}</span></div>}
                   {Number(igst) > 0 && <div className="flex justify-between"><span>IGST @ {tr.toFixed(1)}%</span> <span className="font-black text-slate-900">{(parseFloat(igst.toString()) || 0).toFixed(2)}</span></div>}
@@ -11705,14 +11713,19 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
               <div className="font-extrabold text-[11pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
               <div className="flex flex-col items-center w-full">
-                <h1 className="text-5xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
-                <div className="flex justify-between w-full px-4 mt-2 font-bold text-[9pt] uppercase tracking-tight">
-                  <div className="text-left w-1/2">
-                    OFFICE: {settings?.address || "SURAT, GUJARAT"}
+                <h1 className="text-5xl font-black uppercase tracking-tighter text-black mb-1" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
+                <div className="grid grid-cols-[1fr_auto_1fr] w-full px-4 font-bold text-[9pt] uppercase tracking-tight items-start border-t border-black/10 pt-1">
+                  <div className="text-left leading-tight">
+                    <span className="text-[7pt] text-slate-500 block mb-0.5 underline font-black">Office Address:</span>
+                    {settings?.address || "SURAT, GUJARAT"}
                   </div>
-                  <div className="text-right w-1/2">
-                    FACTORY: {settings?.factoryAddress || "GIDC, SURAT"}<br/>
-                    MOBILE: {settings?.mobile || "9988776655"}
+                  <div className="px-6 self-stretch flex items-center">
+                    <div className="w-[1px] h-full bg-black/20"></div>
+                  </div>
+                  <div className="text-right leading-tight">
+                    <span className="text-[7pt] text-slate-500 block mb-0.5 underline font-black">Factory Address:</span>
+                    {settings?.factoryAddress || "GIDC, SURAT"}<br/>
+                    <span className="text-black font-black">MO: {settings?.mobile || "9988776655"}</span>
                   </div>
                 </div>
               </div>
@@ -11781,8 +11794,8 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                       <td className="py-1.5 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {/* Grid lines placeholder - reduced to maintain proper layout */}
-                  {Array.from({ length: Math.max(0, 8 - (formData.items?.length || 0)) }).map((_, i) => (
+                  {/* Grid lines placeholder - reduced to maintain proper layout on A4 */}
+                  {Array.from({ length: Math.max(0, 6 - (formData.items?.length || 0)) }).map((_, i) => (
                     <tr key={`edit-empty-${i}`} className="h-8">
                       <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
                     </tr>
