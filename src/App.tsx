@@ -40,7 +40,8 @@ import {
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { auth, db, fireStorage } from './lib/firebase';
-import { whatsappService } from './lib/whatsappService';
+
+
 import { onAuthStateChanged } from 'firebase/auth';
 import { 
   doc, 
@@ -213,51 +214,11 @@ export default function App() {
   }, [bookings, purchases, creditNotes, debitNotes, payments]);
 
   const [previewBooking, setPreviewBooking] = useState<Booking | null>(null);
-  const [isProcessingWhatsApp, setIsProcessingWhatsApp] = useState(false);
-  const [whatsappAutomationData, setWhatsappAutomationData] = useState<any>(null);
-  const [whatsappQueue, setWhatsappQueue] = useState<any[]>([]);
+
   const [previewPurchase, setPreviewPurchase] = useState<Purchase | null>(null);
   const [previewDebitNote, setPreviewDebitNote] = useState<DebitNote | null>(null);
   const [previewCreditNote, setPreviewCreditNote] = useState<CreditNote | null>(null);
 
-  const processWhatsAppQueue = useCallback(async () => {
-    if (whatsappQueue.length === 0 || isProcessingWhatsApp) return;
-    
-    const item = whatsappQueue[0];
-    setIsProcessingWhatsApp(true);
-    setWhatsappAutomationData(item);
-    
-    try {
-      // Wait for DOM to render the hidden preview
-      await new Promise(r => setTimeout(r, 2000));
-      
-      const blob = await whatsappService.generatePDF('whatsapp-auto-container');
-      const fileName = `${item.billNumber || item.noteNumber || 'bill'}_${item.id}`;
-      const downloadUrl = await whatsappService.uploadPDF(blob, fileName);
-      
-      const maskedLink = `${window.location.origin}/view/${item.id}`;
-      await whatsappService.createRedirect(item.id, downloadUrl);
-      
-      whatsappService.sendWhatsApp({
-        billNo: (item.billNumber || item.noteNumber || 'N/A').toString(),
-        partyName: item.consigneeName || item.partyName || 'Customer',
-        amount: item.grandTotal?.toString() || '0',
-        phone: item.consigneeMobile || item.partyMobile || item.mobile || '',
-        id: item.id
-      }, maskedLink);
-      
-    } catch (err) {
-      console.error("WhatsApp automation error:", err);
-    } finally {
-      setIsProcessingWhatsApp(false);
-      setWhatsappAutomationData(null);
-      setWhatsappQueue(prev => prev.slice(1));
-    }
-  }, [whatsappQueue, isProcessingWhatsApp]);
-
-  useEffect(() => {
-    processWhatsAppQueue();
-  }, [whatsappQueue, processWhatsAppQueue]);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [editingDebitNote, setEditingDebitNote] = useState<DebitNote | null>(null);
@@ -952,8 +913,7 @@ export default function App() {
       });
     }
 
-    setPreviewBooking(newBooking);
-    setWhatsappQueue(prev => [...prev, newBooking]);
+setPreviewBooking(newBooking);
     alert(isUpdate ? "Sale Bill Updated Successfully!" : "Sale Bill Saved Successfully!");
   };
 
@@ -1393,8 +1353,7 @@ export default function App() {
       });
 
       setEditingCreditNote(null);
-      setPreviewCreditNote(newCreditNote);
-      setWhatsappQueue(prev => [...prev, newCreditNote]);
+setPreviewCreditNote(newCreditNote);
       alert(isUpdate ? "Credit Note Updated Successfully!" : "Credit Note Saved Successfully!");
 
     } catch (e) {
@@ -2431,28 +2390,7 @@ export default function App() {
           </div>
         )}
 
-        {isProcessingWhatsApp && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[10000] flex items-center justify-center">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-6 max-w-sm text-center">
-              <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-              <div>
-                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">WhatsApp Automation</h3>
-                <p className="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest leading-relaxed">Uploading PDF & Generating Redirect Link. Please wait...</p>
-              </div>
-            </motion.div>
-          </div>
-        )}
 
-        {whatsappAutomationData && (
-          <div id="whatsapp-auto-container" style={{ position: 'fixed', left: '-9999px', top: 0, width: '800px', backgroundColor: 'white', zIndex: -1 }}>
-             <BillTemplate 
-                booking={whatsappAutomationData} 
-                settings={settings} 
-                payments={payments}
-                creditNotes={creditNotes}
-             />
-          </div>
-        )}
       </AnimatePresence>
     </div>
   );
