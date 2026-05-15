@@ -8417,7 +8417,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
               width: '210mm'
             }}
           >
-            <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-auto bg-white shadow-sm print:shadow-none print:flex print:h-auto print:min-h-0 print:border-0">
+            <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-auto bg-white shadow-sm print:shadow-none print:flex print:h-auto print:min-h-[280mm] print:border-0">
             
             {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
@@ -8476,9 +8476,9 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
               </div>
             </div>
 
-            <div className="flex-1">
-              <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
-                <thead>
+            <div className="flex-1 flex flex-col min-h-[500px]">
+              <table className="w-full flex-1 border-collapse" style={{ tableLayout: 'fixed' }}>
+                <thead className="flex-none">
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
                     <th className="w-[40px] border-r-2 border-black py-2 text-center">No</th>
                     <th className="border-r-2 border-black py-2 text-left px-3">Description of Goods</th>
