@@ -2562,11 +2562,6 @@ function BillTemplate({ booking, settings, payments = [], creditNotes = [] }: an
                 <td className="p-1 text-right">{Number(item.amount).toFixed(2)}</td>
               </tr>
             ))}
-            {Array.from({ length: Math.max(0, 10 - (p.items?.length || 0)) }).map((_, i) => (
-              <tr key={'empty'+i} className="align-top h-6">
-                <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-              </tr>
-            ))}
             <tr className="border-y border-black font-bold uppercase text-[11px] h-6 bg-slate-50">
               <td className="border-r border-black p-1.5" colSpan={3}>Total</td>
               <td className="border-r border-black p-1.5">{(p.items || []).reduce((s:number, i:any) => s + (Number(i.taka) || 0), 0) || '-'}</td>
@@ -8497,19 +8492,6 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                       <td className="border-r-2 border-black py-1 px-3 text-right">{(parseFloat(item.quantity?.toString()) || 0).toFixed(2)}</td>
                       <td className="border-r-2 border-black py-1 px-3 text-right">{(parseFloat(item.rate?.toString()) || 0).toFixed(2)}</td>
                       <td className="py-1 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                  {/* Fill remaining space */}
-                  {Array.from({ length: Math.max(0, 15 - (p.items?.length || 0)) }).map((_, i) => (
-                    <tr key={'filler-' + i} className="border-b border-black h-[24px]">
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className=""></td>
                     </tr>
                   ))}
                 </tbody>
