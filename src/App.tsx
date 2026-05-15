@@ -6080,7 +6080,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
           </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight text-black">
+        <div id="bill-print-area" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight text-black">
           <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-auto bg-white shadow-sm print:shadow-none print:flex print:h-auto print:min-h-[280mm] print:border-0">
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white flex-none">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
@@ -6116,7 +6116,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
             </div>
 
             <div className="flex-1 flex flex-col min-h-[500px]">
-              <table className="w-full flex-1 text-center border-collapse">
+              <table className="w-full flex-1 text-center border-collapse item-table">
                 <thead>
                   <tr className="border-b-2 border-black uppercase text-[10px] font-black h-10 bg-slate-50">
                     <th className="border-r-2 border-black p-1 w-10">No</th>
@@ -6142,7 +6142,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
               </table>
             </div>
 
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[180px] mt-auto">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[180px] mt-auto bill-footer">
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full">
                 <div>
                   <div className="font-black underline mb-1 uppercase text-[10px]">Amount in Words:</div>
@@ -8001,7 +8001,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
           </button>
         </div>
 
-        <div id="print-container" className="print-container bg-white w-full print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
+        <div id="bill-print-area" className="print-container bg-white w-full print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
           <div className="border-2 border-black flex flex-col w-full bg-white shadow-sm print:shadow-none print:border-0" style={{minHeight: '280mm'}}>
             
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white flex-none">
@@ -8037,7 +8037,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
             </div>
 
             <div className="flex-1 flex flex-col min-h-[500px]">
-              <table className="w-full flex-1 border-collapse">
+              <table className="w-full flex-1 border-collapse item-table">
                 <thead>
                   <tr className="border-b-2 border-black uppercase text-[10px] font-black h-10 bg-slate-50">
                     <th className="border-r-2 border-black p-1 w-10">No</th>
@@ -8065,7 +8065,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
               </table>
             </div>
 
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[180px] mt-auto flex-none">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[180px] mt-auto flex-none bill-footer">
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full text-black">
                 <div>
                   <div className="font-black underline mb-1 uppercase text-[10px]">Amount in Words:</div>
@@ -8347,7 +8347,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
           ref={containerRef}
         >
           <div 
-            id="print-area" 
+            id="bill-print-area" 
             className="print-container bg-white shadow-2xl print:shadow-none transition-transform duration-300 origin-top"
             style={{ 
               transform: `scale(${scale})`,
@@ -8415,7 +8415,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
             </div>
 
             <div className="flex-1">
-              <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+              <table className="w-full border-collapse item-table" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
                     <th className="w-[40px] border-r-2 border-black py-2 text-center">No</th>
@@ -8446,7 +8446,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
             </div>
 
             {/* Footer Section (Fixed at bottom when printing) */}
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[210px] mt-auto">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[210px] mt-auto bill-footer">
               {/* Left Side: Bank Details & T&C */}
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full bg-white">
                 <div className="py-1 border-b border-black border-dashed">

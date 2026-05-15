@@ -34,33 +34,42 @@
 }
 
 @media print {
+  /* 1. Sirf Bill Area ko dikhao, baki sab (Sidebar, Buttons) hide kar do */
+  body * {
+    visibility: hidden;
+  }
+  #bill-print-area, #bill-print-area * {
+    visibility: visible;
+  }
+  #bill-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm; /* A4 Width */
+  }
+
+  /* 2. Page Margins ko zero karo taaki content na kate */
   @page {
     size: A4;
-    margin: 10mm !important;
+    margin: 5mm;
   }
-  html, body {
-    height: auto !important;
-    overflow: visible !important;
-    background: white !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    margin: 0 !important;
-    padding: 0 !important;
+
+  /* 3. Table ko full height do taaki khali jagah na dikhe */
+  .item-table {
+    width: 100%;
+    min-height: 180mm; /* Isse table niche tak khincha rahega */
+    border-collapse: collapse;
   }
-  button, nav, aside, .no-print, .print-hide, .print\:hidden {
-    display: none !important;
+
+  /* 4. Footer ko hamesha bottom par rakho */
+  .bill-footer {
+    position: fixed;
+    bottom: 10mm;
+    width: 100%;
   }
-  #print-area, #admin-print-area, .print-container {
-    display: block !important;
-    width: 210mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    position: relative !important;
-    transform: none !important;
-    box-shadow: none !important;
-  }
-  .watermark {
+
+  /* 5. Buttons ko print se hatao */
+  .no-print, button, .download-btn {
     display: none !important;
   }
 }
