@@ -8413,7 +8413,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
               width: '210mm'
             }}
           >
-            <div className="border-2 border-black flex flex-col w-full bg-white">
+            <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] bg-white shadow-sm print:shadow-none print:flex print:h-full print:min-h-0 print:border-0">
             
             {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
@@ -8499,12 +8499,25 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                       <td className="py-1 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
                     </tr>
                   ))}
+                  {/* Fill remaining space */}
+                  {Array.from({ length: Math.max(0, 15 - (p.items?.length || 0)) }).map((_, i) => (
+                    <tr key={'filler-' + i} className="border-b border-black h-[24px]">
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className="border-r-2 border-black"></td>
+                      <td className=""></td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Footer Section (Immediately after table) */}
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[210px]">
+            {/* Footer Section (Fixed at bottom when printing) */}
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[210px] mt-auto">
               {/* Left Side: Bank Details & T&C */}
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full bg-white">
                 <div className="py-1 border-b border-black border-dashed">
