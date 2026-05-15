@@ -6919,7 +6919,7 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
           </button>
         </div>
 
-        <div ref={printRef} id="print-container" className="print-container space-y-0 p-4 sm:p-10 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-800 min-h-[297mm] flex flex-col">
+        <div ref={printRef} id="bill-print-area" className="print-container space-y-0 p-4 sm:p-10 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-800 min-h-[297mm] flex flex-col">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
@@ -7440,7 +7440,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
           </button>
         </div>
 
-        <div ref={printRef} id="print-container" className="print-container p-4 sm:p-10 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse min-h-[297mm] flex flex-col">
+        <div ref={printRef} id="bill-print-area" className="print-container p-4 sm:p-10 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse min-h-[297mm] flex flex-col">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden font-black text-[100px] uppercase">
             {settings?.companyName}

@@ -34,42 +34,33 @@
 }
 
 @media print {
-  /* 1. Sirf Bill Area ko dikhao, baki sab (Sidebar, Buttons) hide kar do */
+  /* Poore body ko hide karo sirf bill area ko chhod kar */
   body * {
     visibility: hidden;
   }
+  
   #bill-print-area, #bill-print-area * {
     visibility: visible;
   }
+
+  /* Bill ko page ke ekdam upar aur sahi width mein set karo */
   #bill-print-area {
     position: absolute;
     left: 0;
     top: 0;
-    width: 210mm; /* A4 Width */
+    width: 100%;
+    margin: 0;
+    padding: 0;
   }
 
-  /* 2. Page Margins ko zero karo taaki content na kate */
+  /* Page ki margins set karo taaki content na kate */
   @page {
     size: A4;
-    margin: 5mm;
+    margin: 10mm;
   }
 
-  /* 3. Table ko full height do taaki khali jagah na dikhe */
-  .item-table {
-    width: 100%;
-    min-height: 180mm; /* Isse table niche tak khincha rahega */
-    border-collapse: collapse;
-  }
-
-  /* 4. Footer ko hamesha bottom par rakho */
-  .bill-footer {
-    position: fixed;
-    bottom: 10mm;
-    width: 100%;
-  }
-
-  /* 5. Buttons ko print se hatao */
-  .no-print, button, .download-btn {
+  /* Buttons ko printout se hide karo */
+  .no-print {
     display: none !important;
   }
 }
