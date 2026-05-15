@@ -34,7 +34,7 @@
 }
 
 @media print {
-  /* Poore body ko hide karo sirf bill area ko chhod kar */
+  /* Hide unnecessary elements */
   body * {
     visibility: hidden;
   }
@@ -42,26 +42,37 @@
   #bill-print-area, #bill-print-area * {
     visibility: visible;
   }
+  
+  .sidebar, .navbar, .no-print, button {
+    display: none !important;
+  }
 
-  /* Bill ko page ke ekdam upar aur sahi width mein set karo */
+  /* Layout for Bill Area */
   #bill-print-area {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
+    width: 210mm; 
     margin: 0;
     padding: 0;
   }
 
-  /* Page ki margins set karo taaki content na kate */
+  /* Force print colors */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Table layout */
+  .item-table {
+    min-height: 180mm !important;
+    border: 1px solid black !important;
+  }
+
+  /* Page setup */
   @page {
     size: A4;
     margin: 10mm;
-  }
-
-  /* Buttons ko printout se hide karo */
-  .no-print {
-    display: none !important;
   }
 }
 
