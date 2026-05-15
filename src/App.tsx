@@ -3259,13 +3259,14 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
     const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
     
     // 2. Discount Calculation
-    const effectiveGlobalDiscount = hasItemDiscount ? 0 : Math.round(Number(formData.globalDiscount) || 0);
+    const globalDiscountPercent = Math.max(0, parseFloat(formData.globalDiscount) || 0);
+    const effectiveGlobalDiscount = hasItemDiscount ? 0 : Math.round(grossAmount * (globalDiscountPercent / 100));
 
     // 3. Taxable Value
-    const taxableValue = Math.round(Math.max(0, grossAmount - effectiveGlobalDiscount));
+    const taxableValue = Math.max(0, grossAmount - effectiveGlobalDiscount);
     
     // 4. GST Calculation
-    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
+    const tax = Math.round(taxableValue * (parseFloat(formData.taxRate) / 100));
     
     // Determine CGST/SGST vs IGST
     const buyerStateCode = formData.buyerGstin?.substring(0, 2);
