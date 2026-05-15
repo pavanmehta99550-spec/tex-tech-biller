@@ -1912,9 +1912,11 @@ export default function App() {
                 bookings={bookings}
                 purchases={purchases}
                 millChallans={millChallans}
+                settings={settings}
                 onSavePayment={(p: any) => setBrokerPayments(prev => [p, ...prev])}
                 onSaveCommission={(c: BrokerCommission) => setCommissions(prev => [c, ...prev])}
                 onDeletePayment={(id: string) => setBrokerPayments(prev => prev.filter(p => p.id !== id))}
+                onDeleteCommission={(id: string) => setCommissions(prev => prev.filter(c => c.id !== id))}
               />
             )}
             {currentView === 'inv' && <BookingView 
@@ -11516,9 +11518,12 @@ function BrokersView({ brokers, saleParties, purchaseParties, millChallans, onSa
   );
 }
 
-function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSaveCommission, onDeletePayment, bookings, purchases, millChallans = [] }: any) {
+function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSaveCommission, onDeletePayment, onDeleteCommission, bookings, purchases, millChallans = [], settings }: any) {
   const [selectedBroker, setSelectedBroker] = useState<any>(null);
   const [showCommModal, setShowCommModal] = useState(false);
+  const [previewBooking, setPreviewBooking] = useState<any>(null);
+  const [previewPurchase, setPreviewPurchase] = useState<any>(null);
+  const [previewPayment, setPreviewPayment] = useState<any>(null);
   const [commForm, setCommForm] = useState({
     billNumber: '',
     date: new Date().toISOString().split('T')[0],
@@ -11543,6 +11548,32 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
     return payments.filter((p: any) => p.brokerId === selectedBroker.id);
   }, [selectedBroker, payments]);
 
+  const handleDeleteEntry = (t: any) => {
+    if (!confirm("Are you sure you want to delete this entry?")) return;
+    if (t.type === 'PAYMENT') {
+      onDeletePayment(t.id);
+    } else {
+      onDeleteCommission(t.id);
+    }
+  };
+
+  const handlePreviewEntry = (t: any) => {
+    if (t.type === 'PAYMENT') {
+      setPreviewPayment(t.original);
+    } else if (t.type === 'SALE') {
+      const b = bookings.find((bill: any) => bill.id === t.original.billId);
+      if (b) setPreviewBooking(b);
+      else alert("Original Bill not found");
+    } else if (t.type === 'PURCHASE') {
+      const p = purchases.find((bill: any) => bill.id === t.original.billId);
+      if (p) setPreviewPurchase(p);
+      else alert("Original Bill not found");
+    } else {
+      // For Mill or Manual, maybe we don't have a full bill object
+      alert("Preview not available for this entry type");
+    }
+  };
+
   const transactions = useMemo(() => {
     const list = [
       ...brokerCommissions.map(c => ({ 
@@ -11555,7 +11586,8 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
         commRate: c.commissionRate,
         commType: c.commissionType,
         dr: c.commissionAmount, 
-        cr: 0 
+        cr: 0,
+        original: c
       })),
       ...brokerPayments.map(p => ({ 
         id: p.id, 
@@ -11564,7 +11596,8 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
         ref: '-', 
         party: '-',
         dr: 0, 
-        cr: p.amount 
+        cr: p.amount,
+        original: p
       }))
     ];
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -11833,6 +11866,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
                     </th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Brokerage</th>
                     <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Paid Amt</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -11858,12 +11892,37 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
                       <td className="px-8 py-6 text-right font-black text-lg tracking-tighter text-emerald-600">
                          {t.cr !== 0 ? `₹${Math.round(t.cr).toLocaleString()}` : '-'}
                       </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end gap-2">
+                           {t.type !== 'MILL' && (
+                             <button onClick={() => handlePreviewEntry(t)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Preview">
+                               <Eye size={16}/>
+                             </button>
+                           )}
+                           <button onClick={() => handleDeleteEntry(t)} className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Delete">
+                             <Trash2 size={16}/>
+                           </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
+          {previewBooking && <PrintPreview booking={previewBooking} settings={settings} onClose={() => setPreviewBooking(null)} />}
+          {previewPurchase && <PurchasePrintPreview purchase={previewPurchase} settings={settings} onClose={() => setPreviewPurchase(null)} />}
+          {previewPayment && (
+            <PaymentPrintPreview 
+              payment={{
+                ...previewPayment,
+                partyName: selectedBroker.name,
+                partyGstin: selectedBroker.pan // Using PAN as a fallback for GSTIN
+              }} 
+              settings={settings} 
+              onClose={() => setPreviewPayment(null)} 
+            />
+          )}
         </div>
       )}
     </div>
