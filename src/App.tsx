@@ -6981,14 +6981,14 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
           </button>
         </div>
 
-        <div ref={printRef} id="print-container" className="print-container space-y-0 p-4 sm:p-10 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-800">
+        <div ref={printRef} id="print-container" className="print-container space-y-0 p-4 sm:p-10 relative overflow-hidden print:border-2 print:border-slate-900 text-slate-800 min-h-[297mm] flex flex-col">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden">
             <span className="text-[120px] font-black uppercase text-slate-900 whitespace-nowrap">
               {settings?.companyName || "PRO BILLER"}
             </span>
           </div>
-          <header className="flex justify-between items-start border-b-2 border-slate-900 pb-8 p-8 print:p-6 relative z-10">
+          <header className="flex justify-between items-start border-b-2 border-slate-900 pb-8 p-8 print:p-6 relative z-10 flex-none">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">{settings?.companyName}</h1>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Payment Receipt / Voucher</p>
@@ -6999,7 +6999,7 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
             </div>
           </header>
 
-          <div className="grid grid-cols-2 gap-0 border-b-2 border-slate-900">
+          <div className="grid grid-cols-2 gap-0 border-b-2 border-slate-900 flex-none">
             <div className="p-8 print:p-6 border-r-2 border-slate-900">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Received From</h4>
               <p className="text-2xl font-black text-slate-900 uppercase leading-none mb-1">{payment.partyName}</p>
@@ -7013,7 +7013,7 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
             </div>
           </div>
 
-          <div className="p-8 print:p-6 border-b-2 border-slate-900 bg-slate-50/10">
+          <div className="p-8 print:p-6 border-b-2 border-slate-900 bg-slate-50/10 flex-1">
             <div className="flex justify-between items-center mb-6">
               <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">Total Amount Received</span>
               <div className="flex flex-col items-end">
@@ -7036,13 +7036,13 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
           </div>
 
           {payment.notes && (
-            <div className="p-8 print:p-6 border-b-2 border-slate-900">
+            <div className="p-8 print:p-6 border-b-2 border-slate-900 flex-none">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Notes / Internal Remarks</h4>
               <p className="text-sm text-slate-600 italic leading-relaxed">{payment.notes}</p>
             </div>
           )}
 
-          <footer className="p-8 print:p-6 flex justify-between items-stretch">
+          <footer className="p-8 print:p-6 flex justify-between items-stretch mt-auto flex-none">
             <div className="flex-1 pr-8 border-r-2 border-slate-900">
               {settings?.bankName && (
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 max-w-sm">
@@ -7502,13 +7502,13 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
           </button>
         </div>
 
-        <div ref={printRef} id="print-container" className="print-container p-4 sm:p-10 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse">
+        <div ref={printRef} id="print-container" className="print-container p-4 sm:p-10 bg-white text-slate-800 relative overflow-hidden print:border-2 print:border-slate-900 border-collapse min-h-[297mm] flex flex-col">
           {/* Watermark for Print */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.03] rotate-[-45deg] print:flex hidden font-black text-[100px] uppercase">
             {settings?.companyName}
           </div>
 
-          <header className="p-8 print:p-6 border-b-2 border-slate-900 flex justify-between items-start relative z-10">
+          <header className="p-8 print:p-6 border-b-2 border-slate-900 flex justify-between items-start relative z-10 flex-none">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">{settings?.companyName}</h1>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Address: {settings?.address}</p>
@@ -7521,7 +7521,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
             </div>
           </header>
 
-          <div className="p-8 print:p-6 border-b-2 border-slate-900 bg-slate-50/10">
+          <div className="p-8 print:p-6 border-b-2 border-slate-900 bg-slate-50/10 flex-none">
             <div className="grid grid-cols-2 gap-8">
               <div>
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Statement Period</h4>
@@ -7536,7 +7536,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
             </div>
           </div>
 
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse flex-1">
             <thead>
               <tr className="bg-slate-50 border-b-2 border-slate-900 font-black uppercase text-slate-600">
                 <th className="py-3 px-4 text-left border-r-2 border-slate-900">Date</th>
@@ -7579,7 +7579,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
             </tbody>
           </table>
 
-          <footer className="p-8 print:p-6 border-t-2 border-slate-900 bg-slate-50 flex justify-between items-end">
+          <footer className="p-8 print:p-6 border-t-2 border-slate-900 bg-slate-50 flex justify-between items-end mt-auto flex-none">
             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Automated Ledger Generated I Pro Biller</div>
             <div className="text-center min-w-[12rem]">
                {settings?.signature ? (
