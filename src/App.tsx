@@ -8284,145 +8284,122 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
 
 function PrintPreview({ booking, settings, payments = [], creditNotes = [], onClose }: { booking: any, settings: AppSettings | null, payments?: Payment[], creditNotes?: CreditNote[], onClose: () => void }) {
   const p = booking;
-  const paymentInfo = getBillPaymentInfo(p.id, p.grandTotal, payments, creditNotes, p.billNumber?.toString());
-  const isFullyPaid = paymentInfo.status === 'PAID';
-  const remainingBalance = paymentInfo.balance;
+  const consignorName = settings?.companyName || "ANGAD SILK MILLS";
+  const tr = Number(p.taxRate || 5);
+  const igst = p.isInterstate ? p.taxAmount : 0;
+  const cgst = !p.isInterstate ? p.taxAmount / 2 : 0;
+  const sgst = !p.isInterstate ? p.taxAmount / 2 : 0;
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      else if (e.key === 'Enter') window.print();
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
-  const consigneeName = p.consigneeName || '';
-  const consigneeAddress = p.consigneeAddress || '';
-  const consigneeGstin = p.consigneeGstin || '';
-  const consigneeMobile = p.consigneeMobile || '';
-  const consignorName = p.consignorName || settings?.companyName || "ANGAD SILK MILLS";
-
-  const myStateCode = "24";
-  const rState = (consigneeGstin || '').substring(0, 2);
-  const isInterstate = rState !== myStateCode;
-  
-  const taxableValue = p.basicAmount - (p.globalDiscount || 0);
-  const tr = p.taxRate || 5;
-  const tax = taxableValue * (tr / 100);
-  const cgst = p.cgstAmount ?? (isInterstate ? 0 : tax/2);
-  const sgst = p.sgstAmount ?? (isInterstate ? 0 : tax/2);
-  const igst = p.igstAmount ?? (isInterstate ? tax : 0);
-
   return (
-    <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      exit={{ opacity: 0 }} 
-      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 print:p-0 print:bg-white overflow-y-auto scrollbar-hide lg:py-12"
-    >
-      <div className="bg-white w-full max-w-4xl shadow-2xl relative print:shadow-none print:m-0 print:p-0 text-black font-sans box-border my-auto">
-        <button onClick={onClose} className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full print:hidden flex items-center gap-2 uppercase font-black text-[10px] tracking-widest">
-          <ChevronLeft size={16} /> Close Preview
-        </button>
+    <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 overflow-y-auto no-scrollbar print:bg-white print:p-0 print:block">
+      <div className="bg-white w-full max-w-[210mm] min-h-screen sm:min-h-0 sm:rounded-[2rem] shadow-2xl relative print:shadow-none print:rounded-none overflow-hidden flex flex-col">
         
-        <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
-          <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
-            <Printer size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Bill</span>
-          </button>
+        {/* Top Sticky Bar - Controls */}
+        <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 sm:p-6 flex justify-between items-center print:hidden">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-200">
+              <Printer size={20} />
+            </div>
+            <h3 className="font-black text-slate-800 uppercase tracking-tighter">Tax Invoice Preview</h3>
+          </div>
+          <div className="flex gap-4">
+            <button 
+              onClick={() => window.print()}
+              className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:bg-black transition-all shadow-xl shadow-slate-200 active:scale-95"
+            >
+              <Printer size={18} />
+              Print Invoice
+            </button>
+            <button 
+              onClick={onClose} 
+              className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
-        <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
-          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+        <div id="print-area" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[11pt] leading-tight flex justify-center">
+          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white">
             
-            {/* Header */}
+            {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
-              <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
-              <div className="flex items-center gap-6 justify-center w-full mb-1">
-                {settings?.logoUrl && <img src={settings.logoUrl} alt="Logo" className="h-20 object-contain bg-transparent" referrerPolicy="no-referrer" />}
-                <div className="flex flex-col items-center">
-                  <h1 className="text-4xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
-                  <div className="font-bold uppercase text-[11px] tracking-tight max-w-sm leading-tight mt-1">{settings?.address || "SURAT, GUJARAT"}</div>
+              <div className="font-bold text-[10pt] uppercase mb-1 underline">|| Shree Ganeshaya Namah ||</div>
+              <div className="flex flex-col items-center w-full">
+                <h1 className="text-5xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{consignorName}</h1>
+                <div className="flex justify-between w-full px-4 mt-2 font-bold text-[9pt] uppercase tracking-tight">
+                  <div className="text-left max-w-[45%]">
+                    OFFICE: {settings?.address || "SURAT, GUJARAT"}
+                  </div>
+                  <div className="text-right">
+                    FACTORY: {settings?.factoryAddress || "GIDC, SURAT"}<br/>
+                    MOBILE: {settings?.mobile || "9988776655"}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between items-center px-3 py-1 border-b-2 border-black font-bold uppercase text-xs">
-              <div className="w-1/3 text-left">GSTIN: {settings?.gstin || ""}</div>
-              <div className="w-1/3 text-center text-xl font-black tracking-widest">TAX INVOICE</div>
-              <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
+            <div className="flex justify-between items-center px-4 py-1 border-b-2 border-black font-bold uppercase text-[10pt]">
+              <div className="w-1/3">GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}</div>
+              <div className="w-1/3 text-center text-3xl font-black tracking-[0.2em] bg-black text-white px-6 py-1">TAX INVOICE</div>
+              <div className="w-1/3 text-right">ORIGINAL COPY</div>
             </div>
 
-            {/* Transaction Details */}
-            <div className="grid grid-cols-[60%_40%] border-b-2 border-black">
-              <div className="border-r-2 border-black p-3 space-y-1">
-                <div className="flex"><span className="w-32 font-bold">From:</span> <span className="uppercase font-black">{consignorName}</span></div>
-                <div className="flex"><span className="w-32 font-bold">Transport:</span> <span className="uppercase">{p.transportName || '-'}</span></div>
-                <div className="flex"><span className="w-32 font-bold">LR No:</span> <span className="uppercase">{p.lrNumber || '-'}</span></div>
-                <div className="flex"><span className="w-32 font-bold">Broker:</span> <span>-</span></div>
+            {/* Double Column Info Box (Agam Style) */}
+            <div className="grid grid-cols-2 border-b-2 border-black h-[160px]">
+              {/* Buyer Box (Left) */}
+              <div className="border-r-2 border-black p-4 flex flex-col">
+                <div className="font-black text-[9pt] uppercase underline mb-2">Details of Receiver (Buyer):</div>
+                <div className="font-black text-[13pt] uppercase leading-none mb-1 text-slate-900">{p.consigneeName || p.partyName || "-"}</div>
+                <div className="font-bold text-[10pt] uppercase flex-1 leading-tight text-slate-700">{p.consigneeAddress || p.partyAddress || "-"}</div>
+                <div className="font-black text-[11pt] mt-2 border-t-2 border-black pt-1">GSTIN: {p.consigneeGstin || p.partyGstin || "-"}</div>
               </div>
-              <div className="p-3 space-y-1">
-                <div className="flex justify-between"><span className="font-bold">Invoice No:</span> <span className="uppercase font-black text-xs">#{p.billNumber}</span></div>
-                <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date).toLocaleDateString('en-GB')}</span></div>
-                <div className="flex justify-between"><span className="font-bold">EWAY BILL:</span> <span className="uppercase font-bold">{p.ewbNumber || '-'}</span></div>
-                <div className="flex justify-between"><span className="font-bold">PARCELS:</span> <span className="uppercase font-bold">{p.parcels || '-'}</span></div>
-              </div>
-            </div>
-
-            {/* Parties */}
-            <div className="grid grid-cols-2 border-b-2 border-black h-32">
-              <div className="border-r-2 border-black p-3 flex flex-col">
-                <div className="font-bold mb-1 underline text-[9px] uppercase">Details of Receiver (Billed To)</div>
-                <div className="font-black text-sm uppercase tracking-wide leading-none mb-1">{consigneeName}</div>
-                <div className="uppercase flex-1 text-[10px] leading-tight">{consigneeAddress}</div>
-                <div className="mt-1 flex justify-between uppercase font-bold text-[10px]">
-                  <div>GSTIN: {consigneeGstin}</div>
-                  {p.consigneeStateCode && <div>SC: {p.consigneeStateCode}</div>}
-                </div>
-              </div>
-              <div className="p-3 flex flex-col">
-                <div className="font-bold mb-1 underline text-[9px] uppercase">Details of Consignee (Shipped To)</div>
-                <div className="font-black text-sm uppercase tracking-wide leading-none mb-1">{consigneeName}</div>
-                <div className="uppercase flex-1 text-[10px] leading-tight">{consigneeAddress}</div>
-                <div className="mt-1 flex uppercase font-bold text-[10px]">
-                   <div>GSTIN: {consigneeGstin}</div>
-                </div>
+              
+              {/* Invoice Meta Box (Right) */}
+              <div className="p-4 grid grid-cols-[120px_1fr] gap-y-1.5 font-bold text-[10pt] uppercase items-center">
+                <span className="text-slate-500 font-bold">Invoice No:</span> <span className="font-black text-[14pt]"># {p.billNumber}</span>
+                <span className="text-slate-500 font-bold">Date:</span> <span className="font-black">{new Date(p.date).toLocaleDateString('en-GB')}</span>
+                <span className="text-slate-500 font-bold">Transport:</span> <span className="font-black truncate">{p.transportName || "-"}</span>
+                <span className="text-slate-500 font-bold">LR No:</span> <span className="font-black">{p.lrNumber || "-"}</span>
+                <span className="text-slate-500 font-bold">E-Way Bill:</span> <span className="font-black">{p.ewayBill || p.ewbNumber || "-"}</span>
               </div>
             </div>
 
-            {/* Table */}
-            <div className="flex-1">
-              <table className="w-full text-center border-collapse">
+            {/* The Item Table */}
+            <div className="flex-1 overflow-hidden">
+              <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 <thead>
-                  <tr className="border-b-2 border-black uppercase text-[10px] font-black h-10 bg-slate-50">
-                    <th className="border-r-2 border-black p-1 w-10">No</th>
-                    <th className="border-r-2 border-black p-1 text-left px-3">Description of Goods</th>
-                    <th className="border-r-2 border-black p-1 w-20">HSN No</th>
-                    <th className="border-r-2 border-black p-1 w-20">Taka</th>
-                    <th className="border-r-2 border-black p-1 w-20">Qty</th>
-                    <th className="border-r-2 border-black p-1 w-20">Rate</th>
-                    <th className="p-1 text-right px-3 w-32">Taxable Amt</th>
+                  <tr className="border-b-2 border-black font-black text-[10pt] uppercase bg-slate-100">
+                    <th className="w-[45px] border-r-2 border-black py-2.5 text-center">No</th>
+                    <th className="border-r-2 border-black py-2.5 text-left px-3">Description of Goods</th>
+                    <th className="w-[85px] border-r-2 border-black py-2.5 text-center">HSN</th>
+                    <th className="w-[110px] border-r-2 border-black py-2.5 text-right px-3">Qty (MTR)</th>
+                    <th className="w-[110px] border-r-2 border-black py-2.5 text-right px-3">Rate</th>
+                    <th className="w-[130px] py-2.5 text-right px-4">Taxable Amt</th>
                   </tr>
                 </thead>
-                <tbody className="text-[11px] font-bold">
-                  {p.items.map((item: any, idx: number) => (
-                    <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors h-8">
-                      <td className="border-r-2 border-black p-1">{idx + 1}</td>
-                      <td className="border-r-2 border-black p-1 text-left px-3 uppercase text-xs">
-                        {item.name} {item.color && <span className="font-normal text-[10px] ml-1">[{item.color}]</span>}
-                      </td>
-                      <td className="border-r-2 border-black p-1">{item.hsnCode}</td>
-                      <td className="border-r-2 border-black p-1">{item.taka || '-'}</td>
-                      <td className="border-r-2 border-black p-1 uppercase font-black">{item.quantity} <span className="font-normal text-[8px]">{item.unit}</span></td>
-                      <td className="border-r-2 border-black p-1">{Number(item.rate).toFixed(2)}</td>
-                      <td className="p-1 text-right px-3 font-black text-xs">{Number(item.amount).toFixed(2)}</td>
+                <tbody className="font-bold text-[10.5pt] uppercase text-slate-800">
+                  {(p.items || []).map((item: any, i: number) => (
+                    <tr key={i} className="border-b border-black">
+                      <td className="border-r-2 border-black py-2 text-center">{i + 1}</td>
+                      <td className="border-r-2 border-black py-2 px-3 truncate">{item.name} {item.color}</td>
+                      <td className="border-r-2 border-black py-2 text-center">{item.hsnCode}</td>
+                      <td className="border-r-2 border-black py-2 px-3 text-right">{Number(item.quantity).toFixed(2)}</td>
+                      <td className="border-r-2 border-black py-2 px-3 text-right font-black">{Number(item.rate).toFixed(2)}</td>
+                      <td className="py-2 px-4 text-right font-black">{Number(item.amount).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {/* Fill empty space */}
-                  {Array.from({ length: Math.max(0, 10 - p.items.length) }).map((_, i) => (
-                    <tr key={'empty'+i} className="h-8">
-                      <td className="border-r-2 border-black"></td>
+                  {/* Grid lines placeholder for minimal aesthetics */}
+                  {Array.from({ length: Math.max(0, 12 - (p.items?.length || 0)) }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="h-9 border-b border-slate-100">
                       <td className="border-r-2 border-black"></td>
                       <td className="border-r-2 border-black"></td>
                       <td className="border-r-2 border-black"></td>
@@ -8435,71 +8412,65 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
               </table>
             </div>
 
-            {/* Total Row */}
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black border-collapse">
-               <div className="flex justify-between items-center px-4 font-black text-xs uppercase bg-slate-50 border-r-2 border-black">
-                 <span>Total Balance</span>
-                 <div className="flex gap-12">
-                   <span>Taka: {p.items.reduce((s:number, i:any) => s + (Number(i.taka) || 0), 0) || '-'}</span>
-                   <span>Qty: {p.items.reduce((s:number, i:any) => s + (Number(i.quantity) || 0), 0).toFixed(2)}</span>
-                 </div>
+            {/* Total Calculation Strip */}
+            <div className="grid grid-cols-[65%_35%] border-t-2 border-black bg-slate-50 font-black text-[11pt] uppercase py-2">
+               <div className="px-4 border-r-2 border-black flex justify-between items-center">
+                  <span>Grand Total Recap</span>
+                  <span>Items: {(p.items?.length || 0)}</span>
                </div>
-               <div className="flex justify-between items-center px-4 font-black text-sm uppercase bg-slate-50">
-                 <span>SubTotal</span>
-                 <span>₹{Number(p.basicAmount).toFixed(2)}</span>
+               <div className="px-4 flex justify-between items-center">
+                  <span className="text-slate-500">Sub Total</span>
+                  <span>₹ {Number(p.basicAmount).toFixed(2)}</span>
                </div>
             </div>
 
-            {/* Footer sections */}
+            {/* Fixed Footer (Page Bottom) */}
             <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[220px]">
-              {/* Left Footer */}
-              <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full">
+              {/* Left Side: Bank Details & T&C */}
+              <div className="border-r-2 border-black p-4 flex flex-col justify-between h-full bg-white">
                 <div>
-                  <div className="font-black underline mb-1 uppercase text-[10px]">Amount in Words:</div>
-                  <div className="font-black italic uppercase text-xs leading-tight">{numberToWords(p.grandTotal)}</div>
+                  <div className="font-black underline mb-1 uppercase text-[9pt] text-slate-500">Amount in Words:</div>
+                  <div className="font-black italic uppercase text-[11pt] leading-tight text-slate-900">{numberToWords(p.grandTotal)}</div>
                 </div>
                 
-                <div className="py-2 border-y border-black border-dashed">
-                  <div className="font-black underline mb-1 uppercase text-[10px]">Bank Details</div>
-                  <div className="grid grid-cols-[60px_1fr] gap-y-0.5 text-[9px] uppercase font-bold">
-                    <span>Bank:</span> <span>{settings?.bankName || 'HDFC BANK'}</span>
-                    <span>Branch:</span> <span>{settings?.branchName || 'RING ROAD, SURAT'}</span>
-                    <span>A/c No:</span> <span className="font-black tracking-widest">{settings?.accountNumber || ''}</span>
-                    <span>IFSC:</span> <span className="font-black tracking-widest">{settings?.ifscCode || ''}</span>
+                <div className="py-2 border-y-2 border-black border-dashed mt-3">
+                  <div className="font-black underline mb-1 uppercase text-[9pt] text-indigo-600">Bank Details (AXIS BANK)</div>
+                  <div className="grid grid-cols-[80px_1fr] gap-y-0.5 text-[10pt] uppercase font-bold text-slate-800">
+                    <span>Bank:</span> <span className="font-black">{settings?.bankName || "AXIS BANK LTD"}</span>
+                    <span>A/c No:</span> <span className="font-black tracking-[0.1em]">{settings?.accountNumber || "921020000000000"}</span>
+                    <span>IFSC:</span> <span className="font-black">{settings?.ifscCode || "UTIB0000000"}</span>
                   </div>
                 </div>
 
-                <div className="text-[8px] leading-snug">
-                  <div className="font-black underline mb-0.5 uppercase">Terms & Conditions</div>
-                  <ol className="list-decimal pl-3 space-y-0 m-0 uppercase font-bold text-slate-800">
+                <div className="text-[8.5pt] leading-snug mt-3">
+                  <div className="font-black underline mb-1 uppercase text-slate-500">Terms & Conditions:</div>
+                  <ol className="list-decimal pl-4 space-y-0.5 font-bold uppercase text-slate-600 italic">
                     <li>Subject to Surat Jurisdiction only.</li>
-                    <li>Interest @ 24% p.a. will be charged if not paid within 30 days.</li>
-                    <li>We are not responsible for any damage in transit.</li>
-                    <li>Goods once sold will not be taken back.</li>
+                    <li>Interest @ 24% p.a. will be charged if not paid in 30 days.</li>
+                    <li>Goods once sold will not be taken back or replaced.</li>
+                    <li>No responsibility for any damages in transit.</li>
+                    <li>Verify all items before accepting delivery.</li>
                   </ol>
                 </div>
               </div>
 
-              {/* Right Footer */}
-              <div className="flex flex-col bg-slate-50/20 h-full">
-                <div className="p-3 space-y-1 flex-1 font-bold text-xs">
-                  <div className="flex justify-between"><span className="uppercase">Taxable Amount</span> <span>{Number(p.taxableValue).toFixed(2)}</span></div>
-                  {p.globalDiscount > 0 && (
-                     <div className="flex justify-between"><span className="uppercase">Discount</span> <span>- {Number(p.globalDiscount).toFixed(2)}</span></div>
-                  )}
-                  <div className="flex justify-between"><span className="uppercase">SGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(sgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="uppercase">CGST @ {p.isInterstate ? '0.00' : (tr/2).toFixed(2)}%</span> <span>{Number(cgst).toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="uppercase">IGST @ {p.isInterstate ? tr.toFixed(2) : '0.00'}%</span> <span>{Number(igst).toFixed(2)}</span></div>
+              {/* Right Side: Tax Breakdown & Signatory */}
+              <div className="flex flex-col bg-white h-full">
+                <div className="p-4 space-y-1.5 flex-1 font-bold text-[10.5pt] uppercase text-slate-700">
+                  <div className="flex justify-between border-b border-slate-100 pb-1"><span>Taxable Value</span> <span className="font-black text-slate-900">{Number(p.taxableValue).toFixed(2)}</span></div>
+                  {Number(cgst) > 0 && <div className="flex justify-between border-b border-slate-100 pb-1"><span>CGST @ {(tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{cgst.toFixed(2)}</span></div>}
+                  {Number(sgst) > 0 && <div className="flex justify-between border-b border-slate-100 pb-1"><span>SGST @ {(tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{sgst.toFixed(2)}</span></div>}
+                  {Number(igst) > 0 && <div className="flex justify-between border-b border-slate-100 pb-1"><span>IGST @ {tr.toFixed(1)}%</span> <span className="font-black text-slate-900">{igst.toFixed(2)}</span></div>}
                 </div>
 
-                <div className="border-y-2 border-black p-3 flex justify-between font-black text-lg uppercase bg-white">
-                  <span>Net Amount</span>
-                  <span>₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                <div className="border-y-2 border-black p-4 flex justify-between items-center font-black text-3xl uppercase bg-slate-900 text-white">
+                  <span className="text-xl tracking-tighter text-indigo-400">NET BILL</span>
+                  <span className="tracking-tighter">₹ {Number(p.grandTotal).toLocaleString('en-IN', {minimumFractionDigits:2})}</span>
                 </div>
 
-                <div className="p-3 pt-6 text-center flex flex-col justify-end min-h-24">
-                  <div className="font-black uppercase text-[10px] mb-8 text-right tracking-widest leading-none">For {consignorName}</div>
-                  <div className="text-[9px] font-black uppercase text-right border-t border-black pt-1 inline-block ml-auto min-w-[180px]">Authorized Signatory</div>
+                <div className="p-4 pt-8 text-center flex flex-col justify-end min-h-[110px] bg-white">
+                  <div className="font-black uppercase text-[10pt] mb-12 text-right tracking-[0.1em]">For {consignorName}</div>
+                  <div className="text-[9pt] font-black uppercase text-center border-t-2 border-black pt-1 block mx-auto w-[220px] text-slate-500">Authorised Signatory</div>
                 </div>
               </div>
             </div>
@@ -8507,7 +8478,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses, settings }: any) {
@@ -9245,7 +9216,8 @@ function SettingsView({ settings, onSave }: any) {
     bankName: settings?.bankName || '',
     accountNumber: settings?.accountNumber || '',
     ifscCode: settings?.ifscCode || '',
-    branchName: settings?.branchName || ''
+    branchName: settings?.branchName || '',
+    factoryAddress: settings?.factoryAddress || ''
   });
   const [isLocked, setIsLocked] = useState(!!settings);
   const [password, setPassword] = useState('');
@@ -9381,6 +9353,16 @@ function SettingsView({ settings, onSave }: any) {
                 onChange={e => setFormData({ ...formData, address: e.target.value })}
                 className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all min-h-[100px]"
                 placeholder="Full Business Address..."
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Factory Address (Professional Layout Only)</label>
+              <textarea 
+                value={formData.factoryAddress}
+                onChange={e => setFormData({ ...formData, factoryAddress: e.target.value })}
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all min-h-[80px]"
+                placeholder="GIDC, Factory Site Address..."
               />
             </div>
 
@@ -11636,82 +11618,106 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
 
         {/* Hidden Print Area */}
         <div id="admin-print-area" className="hidden">
-           <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold uppercase">{settings?.companyName || "ANGAD SILK MILLS"}</h1>
-              <p className="text-sm font-medium">{settings?.address}</p>
-              <p className="text-xs font-bold uppercase mt-1">GSTIN: {settings?.gstin}</p>
-           </div>
-           
-           <div className="flex justify-between border-y-2 border-black py-2 mb-6 uppercase text-xs font-bold">
-              <div>Bill No: {formData.billNumber}</div>
-              <div className="text-center font-black text-lg">PROFORMA INVOICE (ADMIN)</div>
-              <div>Date: {new Date(formData.date).toLocaleDateString()}</div>
-           </div>
-
-           <div className="grid grid-cols-2 gap-8 mb-8">
-              <div className="border border-black p-4">
-                 <div className="font-black text-[10px] uppercase underline mb-2">Billed To:</div>
-                 <div className="font-bold text-sm uppercase">{formData.consigneeName || formData.partyName}</div>
-                 <div className="text-xs uppercase">{formData.consigneeAddress || formData.partyAddress}</div>
-                 <div className="font-bold text-xs mt-2 uppercase">GSTIN: {formData.consigneeGstin || formData.partyGstin}</div>
+           {/* Professional Header Section */}
+           <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white mb-4">
+              <div className="font-bold text-[10pt] uppercase mb-1">|| Shree Ganeshaya Namah ||</div>
+              <div className="flex flex-col items-center w-full">
+                <h1 className="text-5xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
+                <div className="flex justify-between w-full px-4 mt-2 font-bold text-[9pt] uppercase tracking-tight">
+                  <div className="text-left max-w-[40%]">
+                    OFFICE: {settings?.address || "SURAT, GUJARAT"}
+                  </div>
+                  <div className="text-right">
+                    FACT: {settings?.factoryAddress || "GIDC, SURAT"}<br/>
+                    MO: {settings?.mobile || "9988776655"}
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1 text-right text-xs">
-                 <div>LR No: {formData.lrNumber || '-'}</div>
-                 <div>Transport: {formData.transportName || '-'}</div>
-              </div>
-           </div>
+            </div>
 
-           <table className="w-full border-collapse mb-8">
+            <div className="flex justify-between items-center px-4 py-1 border-b-2 border-black font-bold uppercase text-[10pt] mb-4">
+              <div className="w-1/3">GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}</div>
+              <div className="w-1/3 text-center text-2xl font-black tracking-widest bg-black text-white px-4 py-1">TAX INVOICE</div>
+              <div className="w-1/3 text-right">ORIGINAL COPY</div>
+            </div>
+
+            {/* Double Column Info Box */}
+            <div className="grid grid-cols-2 border-2 border-black h-[140px] mb-4">
+              <div className="border-r-2 border-black p-3 flex flex-col">
+                <div className="font-black text-[9pt] uppercase underline mb-1">Details of Receiver (Buyer):</div>
+                <div className="font-black text-[12pt] uppercase mb-1">{formData.consigneeName || "-"}</div>
+                <div className="font-bold text-[10pt] uppercase flex-1">{formData.consigneeAddress || "-"}</div>
+                <div className="font-black text-[10pt] mt-1 border-t border-black pt-1">GSTIN: {formData.consigneeGstin || "-"}</div>
+              </div>
+              <div className="p-3 grid grid-cols-[100px_1fr] gap-y-1 font-bold text-[10pt] uppercase">
+                <span>Inv No:</span> <span className="font-black text-[12pt]"># {formData.billNumber}</span>
+                <span>Date:</span> <span className="font-black">{new Date(formData.date).toLocaleDateString('en-GB')}</span>
+                <span>Transport:</span> <span>{formData.transportName || "-"}</span>
+                <span>LR No:</span> <span>{formData.lrNumber || "-"}</span>
+                <span>E-Way Bill:</span> <span>{formData.ewayBill || "-"}</span>
+              </div>
+            </div>
+
+           <table className="w-full border-collapse mb-8" style={{ tableLayout: 'fixed' }}>
               <thead>
-                 <tr className="border-y-2 border-black">
-                    <th className="p-2 text-left text-xs uppercase">Description</th>
-                    <th className="p-2 text-center text-xs uppercase">HSN</th>
-                    <th className="p-2 text-right text-xs uppercase">Qty</th>
-                    <th className="p-2 text-right text-xs uppercase">Rate</th>
-                    <th className="p-2 text-right text-xs uppercase">Amount</th>
+                 <tr className="border-y-2 border-black bg-slate-50 font-black text-[9pt]">
+                    <th className="w-[40px] border-r-2 border-black p-2 text-center uppercase">No</th>
+                    <th className="border-r-2 border-black p-2 text-left uppercase text-ellipsis">Description</th>
+                    <th className="w-[80px] border-r-2 border-black p-2 text-center uppercase">HSN</th>
+                    <th className="w-[100px] border-r-2 border-black p-2 text-right uppercase">Qty (MTR)</th>
+                    <th className="w-[100px] border-r-2 border-black p-2 text-right uppercase">Rate</th>
+                    <th className="w-[120px] p-2 text-right uppercase">Taxable</th>
                  </tr>
               </thead>
-              <tbody>
+              <tbody className="font-bold text-[10pt] uppercase">
                  {(formData.items || []).map((item: any, i: number) => (
-                    <tr key={i} className="border-b border-slate-200">
-                       <td className="p-2 text-sm uppercase font-bold">{item.name} {item.color}</td>
-                       <td className="p-2 text-center text-sm">{item.hsnCode}</td>
-                       <td className="p-2 text-right text-sm">{item.quantity} {item.unit}</td>
-                       <td className="p-2 text-right text-sm font-bold">{item.rate}</td>
-                       <td className="p-2 text-right text-sm font-bold">{item.amount.toFixed(2)}</td>
+                    <tr key={i} className="border-b border-black">
+                       <td className="border-r-2 border-black p-2 text-center">{i + 1}</td>
+                       <td className="border-r-2 border-black p-2 truncate">{item.name} {item.color}</td>
+                       <td className="border-r-2 border-black p-2 text-center">{item.hsnCode}</td>
+                       <td className="border-r-2 border-black p-2 text-right">{Number(item.quantity).toFixed(2)}</td>
+                       <td className="border-r-2 border-black p-2 text-right">{Number(item.rate).toFixed(2)}</td>
+                       <td className="p-2 text-right">{Number(item.amount).toFixed(2)}</td>
+                    </tr>
+                 ))}
+                 {Array.from({ length: Math.max(0, 10 - (formData.items?.length || 0)) }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="h-8">
+                       <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
                     </tr>
                  ))}
               </tbody>
            </table>
 
            <div className="footer">
-              <div className="grid grid-cols-2 gap-4">
-                 <div>
-                    <div className="font-black text-[10px] uppercase underline mb-1">Amount in Words:</div>
-                    <div className="font-bold italic text-xs uppercase">{formData.numberToWords}</div>
+              <div className="grid grid-cols-[60%_40%] gap-4">
+                 <div className="border-t-2 border-black pt-4">
+                    <div className="font-black text-[9pt] uppercase underline mb-1">Amount in Words:</div>
+                    <div className="font-black italic text-[11pt] uppercase text-black leading-tight">{formData.numberToWords}</div>
                     
-                    <div className="mt-4 border-t border-black pt-2">
-                       <div className="font-black text-[10px] uppercase mb-1">Bank Details:</div>
-                       <div className="text-[10px] font-bold">
-                          <div>BANK: {settings?.bankName}</div>
-                          <div>A/C: {settings?.accountNumber}</div>
-                          <div>IFSC: {settings?.ifscCode}</div>
+                    <div className="mt-4 border-y-2 border-black border-dashed py-2">
+                       <div className="font-black text-[9pt] uppercase mb-1">Bank Details (AXIS BANK):</div>
+                       <div className="text-[10pt] font-bold uppercase grid grid-cols-[70px_1fr]">
+                          <span>BANK:</span> <span>{settings?.bankName || "AXIS BANK"}</span>
+                          <span>A/C NO:</span> <span className="tracking-widest">{settings?.accountNumber}</span>
+                          <span>IFSC:</span> <span>{settings?.ifscCode}</span>
                        </div>
                     </div>
-                 </div>
-                 <div className="text-right space-y-1">
-                    <div className="flex justify-between font-bold text-sm"><span>Taxable Value:</span> <span>{formData.taxableValue.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-bold text-sm"><span>Tax ({formData.taxRate}%):</span> <span>{formData.taxAmount.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-black text-xl border-t-2 border-black pt-2 mt-2"><span>GRAND TOTAL:</span> <span>₹ {formData.grandTotal.toFixed(2)}</span></div>
                     
-                    <div className="mt-12 text-center">
-                       <div className="font-black uppercase text-[8px] mb-8">For {settings?.companyName}</div>
-                       <div className="text-[9px] font-black uppercase inline-block border-t border-black pt-1 min-w-[150px]">Authorized Signatory</div>
+                    <div className="text-[8pt] leading-tight font-bold uppercase mt-4">
+                       <div className="underline font-black mb-1">Terms:</div>
+                       <div>1. Surat Jurisdiction Only. 2. 24% Interest if unpaid in 30 days. 3. Goods sold won't be taken back.</div>
                     </div>
                  </div>
-              </div>
-              <div className="mt-6 text-[8px] italic font-bold text-slate-500 uppercase border-t border-slate-200 pt-2 text-center">
-                 Term: Subjects to Surat Jurisdiction Only. Payment within 30 days. No responsibility for transit damages.
+                 <div className="text-right space-y-1 border-t-2 border-black pt-4">
+                    <div className="flex justify-between font-bold text-[11pt] uppercase"><span>Sub Total:</span> <span>{formData.taxableValue.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-[11pt] uppercase"><span>Total GST:</span> <span>{formData.taxAmount.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-black text-2xl border-t-2 border-black pt-2 mt-2 bg-slate-100 p-2"><span>NET BILL:</span> <span>₹ {formData.grandTotal.toFixed(2)}</span></div>
+                    
+                    <div className="mt-12 text-center flex flex-col items-end">
+                       <div className="font-black uppercase text-[10pt] mb-12">For {settings?.companyName}</div>
+                       <div className="text-[9pt] font-black uppercase inline-block border-t border-black pt-1 min-w-[200px]">Authorised Signatory</div>
+                    </div>
+                 </div>
               </div>
            </div>
         </div>

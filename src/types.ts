@@ -75,6 +75,7 @@ export interface AppSettings {
   companyName: string;
   gstin: string;
   address: string;
+  factoryAddress?: string;
   mobile: string;
   mobile2?: string;
   adminPassword?: string;
