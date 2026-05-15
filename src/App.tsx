@@ -8425,12 +8425,10 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             style={{ 
               transform: `scale(${scale})`,
               transformOrigin: 'top center',
-              width: '210mm',
-              height: '297mm',
-              minHeight: '297mm'
+              width: '210mm'
             }}
           >
-            <div className="border-2 border-black flex flex-col w-full h-full relative box-border overflow-hidden bg-white">
+            <div className="border-2 border-black flex flex-col w-full bg-white">
             
             {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
@@ -8489,8 +8487,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
               </div>
             </div>
 
-            {/* The Item Table */}
-            <div className="flex-1 min-h-[400px] mb-[230px]">
+            <div className="flex-1">
               <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
@@ -8517,25 +8514,12 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                       <td className="py-1 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {/* Grid lines placeholder - reduced to keep footer properly in frame on A4 */}
-                  {Array.from({ length: Math.max(0, 6 - (p.items?.length || 0)) }).map((_, i) => (
-                    <tr key={`empty-${i}`} className="h-8">
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td className="border-r-2 border-black"></td>
-                      <td></td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Fixed Footer (Page Bottom) */}
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[210px] print:fixed print:bottom-0">
+            {/* Footer Section (Immediately after table) */}
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[210px]">
               {/* Left Side: Bank Details & T&C */}
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full bg-white">
                 <div className="py-1 border-b border-black border-dashed">
@@ -11708,7 +11692,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
 
          {/* Hidden Print Area */}
          <div id="admin-print-area" className="hidden print:block print:w-full">
-            <div className="border-2 border-black flex flex-col w-full min-h-[297mm] relative box-border overflow-hidden bg-white">
+            <div className="border-2 border-black flex flex-col w-full relative box-border overflow-hidden bg-white">
              {/* Professional Header Section */}
              <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
                <div className="font-extrabold text-[10pt] uppercase mb-1 underline w-full text-center">|| HAR HAR MAHADEV ||</div>
@@ -11766,8 +11750,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                </div>
              </div>
 
-            {/* The Item Table */}
-            <div className="flex-1 min-h-[400px] mb-[230px]">
+            <div className="flex-1">
               <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
@@ -11794,18 +11777,12 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                       <td className="py-1.5 px-4 text-right font-black">{(parseFloat(item.amount?.toString()) || 0).toFixed(2)}</td>
                     </tr>
                   ))}
-                  {/* Grid lines placeholder - reduced to maintain proper layout on A4 */}
-                  {Array.from({ length: Math.max(0, 6 - (formData.items?.length || 0)) }).map((_, i) => (
-                    <tr key={`edit-empty-${i}`} className="h-8">
-                      <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Fixed Footer (Page Bottom) */}
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white absolute bottom-0 left-0 right-0 h-[210px] print:fixed print:bottom-0">
+            {/* Footer Section (Immediately after table) */}
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[210px]">
               {/* Left Side: Bank Details & T&C */}
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full bg-white">
                 <div className="py-1 border-b border-black border-dashed">
