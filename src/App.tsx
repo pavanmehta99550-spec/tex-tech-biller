@@ -8308,7 +8308,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
   );
 }
 
-function PrintPreview({ booking, settings, onClose }: { booking: any, settings: AppSettings | null, onClose: () => void }) {
+function PrintPreview({ booking, settings, payments = [], creditNotes = [], onClose }: { booking: any, settings: AppSettings | null, payments?: any[], creditNotes?: any[], onClose: () => void }) {
   const p = booking;
   const consignorName = settings?.companyName || "ANGAD SILK MILLS";
   const tr = parseFloat(p.taxRate?.toString()) || 5;
