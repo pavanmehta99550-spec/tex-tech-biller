@@ -8271,36 +8271,13 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
   useEffect(() => {
     const handleEvents = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-        e.preventDefault();
-        window.print();
-      }
     };
     window.addEventListener('keydown', handleEvents);
     return () => window.removeEventListener('keydown', handleEvents);
   }, [onClose]);
 
-  const handleDownloadPDF = async () => {
-    const { default: jsPDF } = await import('jspdf');
-    const { default: html2canvas } = await import('html2canvas');
-    const element = document.getElementById('print-area');
-    if (!element) return;
-
-    const canvas = await html2canvas(element, {
-      scale: 3,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff'
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`Bill_${p.billNumber}.pdf`);
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -8318,20 +8295,14 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
             </div>
             <h3 className="font-black text-slate-800 uppercase tracking-tighter">Tax Invoice Preview</h3>
           </div>
-          <div className="flex gap-4">
+
+            <div className="flex gap-4">
             <button 
-              onClick={handleDownloadPDF}
-              className="px-6 py-3 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:bg-red-700 transition-all shadow-xl shadow-red-200 active:scale-95"
-            >
-              <Download size={18} />
-              PDF
-            </button>
-            <button 
-              onClick={() => window.print()}
+              onClick={handlePrint}
               className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:bg-black transition-all shadow-xl shadow-slate-200 active:scale-95"
             >
               <Printer size={18} />
-              Print (Ctrl+P)
+              Print
             </button>
             <button 
               onClick={onClose} 
