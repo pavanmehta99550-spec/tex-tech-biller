@@ -1,0 +1,139 @@
+64:const calculateGstSplit = (taxTotal: number, consignorGstin: string, consigneeGstin: string) => {
+70:    cgst: isInterstate ? 0 : Math.round(taxTotal / 2),
+71:    sgst: isInterstate ? 0 : Math.round(taxTotal / 2),
+72:    igst: isInterstate ? Math.round(taxTotal) : 0,
+796:    const split = calculateGstSplit(data.taxAmount || 0, data.consignorGstin || '', data.consigneeGstin || '');
+821:      taxRate: data.taxRate || 18,
+822:      taxAmount: data.taxAmount || 0,
+1020:    const split = calculateGstSplit(data.taxAmount || 0, settings?.gstin || '', data.partyGstin || '');
+1039:      taxRate: data.taxRate || 18,
+1040:      taxAmount: data.taxAmount || 0,
+1168:      taxRate: data.taxRate || 18,
+1169:      taxAmount: data.taxAmount || 0,
+1232:      taxRate: data.taxRate || 18,
+1233:      taxAmount: data.taxAmount || 0,
+2427:  const taxableValue = p.basicAmount - (p.globalDiscount || 0);
+2428:  const tr = p.taxRate || 5;
+2429:  const tax = taxableValue * (tr / 100);
+2430:  const cgst = p.cgstAmount ?? (isInterstate ? 0 : tax/2);
+2431:  const sgst = p.sgstAmount ?? (isInterstate ? 0 : tax/2);
+2432:  const igst = p.igstAmount ?? (isInterstate ? tax : 0);
+2554:              <div className="flex justify-between"><span className="font-bold uppercase text-[10px]">Tax Amount</span> <span className="font-bold">{Number(p.taxAmount).toFixed(2)}</span></div>
+3138:      taxRate: editingPurchase?.taxRate || 5,
+3169:        taxRate: currentEditingPurchase.taxRate || 5,
+3211:      let newTaxRate = prev.taxRate;
+3238:      return { ...prev, items: newItems, taxRate: newTaxRate };
+3265:    const taxableValue = Math.round(Math.max(0, grossAmount - effectiveGlobalDiscount));
+3268:    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
+3275:    const cgst = isInterstate ? 0 : Math.round(tax / 2);
+3276:    const sgst = isInterstate ? 0 : Math.round(tax / 2);
+3277:    const igst = isInterstate ? tax : 0;
+3281:      taxableValue, 
+3282:      tax, 
+3287:      total: Math.round(taxableValue + tax), 
+3290:  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.buyerGstin, formData.partyGstin]);
+3345:          onSave({ ...formData, globalDiscount: calc.effectiveGlobalDiscount, taxAmount: calc.tax, grandTotal: calc.total });
+3354:              value={formData.taxRate}
+3355:              onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+3782:          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
+3784:            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
+3787:              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.cgst).toFixed(2)}</span></div>
+3788:              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.sgst).toFixed(2)}</span></div>
+3823:          purchase={{...formData, taxAmount: calc.tax, grandTotal: calc.total}} 
+3902:      taxRate: editingDebitNote?.taxRate || 5,
+3928:        taxRate: purchase.taxRate || 5,
+3962:      let newTaxRate = prev.taxRate;
+3989:      return { ...prev, items: newItems, taxRate: newTaxRate };
+3995:    const taxableValue = Math.round(Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0)));
+3996:    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
+3997:    return { basicAmount, taxableValue, tax, total: Math.round(taxableValue + tax) };
+3998:  }, [formData.items, formData.globalDiscount, formData.taxRate]);
+4028:          onSave({...formData, taxAmount: calc.tax, grandTotal: calc.total});
+4036:              value={formData.taxRate}
+4037:              onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+4269:          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
+4270:          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.tax).toFixed(2)}</span></div>
+4296:          debitNote={{...formData, taxAmount: calc.tax, grandTotal: calc.total}} 
+4546:      taxRate: editingBooking?.taxRate || 5,
+4588:      let newTaxRate = prev.taxRate;
+4615:      return { ...prev, items: newItems, taxRate: newTaxRate };
+4642:    const taxableValue = Math.round(Math.max(0, grossAmount - effectiveGlobalDiscount));
+4645:    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
+4652:    const cgst = isInterstate ? 0 : Math.round(tax / 2);
+4653:    const sgst = isInterstate ? 0 : Math.round(tax / 2);
+4654:    const igst = isInterstate ? tax : 0;
+4658:      taxableValue, 
+4659:      tax, 
+4664:      total: Math.round(taxableValue + tax), 
+4667:  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.consignorGstin, formData.consigneeGstin]);
+4796:          onSave({ ...formData, globalDiscount: calc.effectiveGlobalDiscount, taxAmount: calc.tax, grandTotal: calc.total });
+4805:              value={formData.taxRate}
+4806:              onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+4821:              value={formData.taxRate}
+5362:          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
+5364:            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
+5367:              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.cgst).toFixed(2)}</span></div>
+5368:              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.sgst).toFixed(2)}</span></div>
+5435:              taxAmount: calc.tax,
+5516:      taxRate: editingCreditNote?.taxRate || 5,
+5540:        taxRate: booking.taxRate || 5,
+5576:      let newTaxRate = prev.taxRate;
+5603:      return { ...prev, items: newItems, taxRate: newTaxRate };
+5609:    const taxableValue = Math.round(Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0)));
+5610:    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
+5611:    return { basicAmount, taxableValue, tax, total: Math.round(taxableValue + tax) };
+5612:  }, [formData.items, formData.globalDiscount, formData.taxRate]);
+5642:          onSave({...formData, taxAmount: calc.tax, grandTotal: calc.total});
+5650:              value={formData.taxRate}
+5651:              onChange={(e) => setFormData({ ...formData, taxRate: parseInt(e.target.value) })}
+5923:          <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
+5924:          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.tax).toFixed(2)}</span></div>
+5950:          creditNote={{...formData, taxAmount: calc.tax, grandTotal: calc.total}} 
+6057:  const taxableValue = p.basicAmount - (p.globalDiscount || 0);
+6058:  const tr = p.taxRate || 5;
+6059:  const tax = taxableValue * (tr / 100);
+6061:  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
+6062:  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
+6063:  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
+8082:  const taxableValue = p.basicAmount - (p.globalDiscount || 0);
+8083:  const tr = p.taxRate || 5;
+8084:  const tax = taxableValue * (tr / 100);
+8086:  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
+8087:  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
+8088:  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
+8339:  const taxableValue = p.basicAmount - (p.globalDiscount || 0);
+8340:  const tr = p.taxRate || 5;
+8341:  const tax = taxableValue * (tr / 100);
+8343:  const cgst = p.cgstAmount ?? (p.isInterstate ? 0 : tax/2);
+8344:  const sgst = p.sgstAmount ?? (p.isInterstate ? 0 : tax/2);
+8345:  const igst = p.igstAmount ?? (p.isInterstate ? tax : 0);
+8602:  const taxableValue = p.basicAmount - (p.globalDiscount || 0);
+8603:  const tr = p.taxRate || 5;
+8604:  const tax = taxableValue * (tr / 100);
+8606:  const cgst = p.cgstAmount ?? (isInterstate ? 0 : tax/2);
+8607:  const sgst = p.sgstAmount ?? (isInterstate ? 0 : tax/2);
+8608:  const igst = p.igstAmount ?? (isInterstate ? tax : 0);
+8863:      const taxable = b.basicAmount - (b.globalDiscount || 0);
+8870:        taxableValue: taxable,
+8871:        taxRate: b.taxRate,
+8875:        totalTax: b.taxAmount,
+8884:      const taxable = p.basicAmount - (p.globalDiscount || 0);
+8891:        taxableValue: taxable,
+8892:        taxRate: p.taxRate,
+8896:        totalTax: p.taxAmount,
+8908:      acc.total += b.taxAmount;
+8909:      acc.taxable += (b.basicAmount - (b.globalDiscount || 0));
+8911:    }, { cgst: 0, sgst: 0, igst: 0, total: 0, taxable: 0 });
+8917:      acc.total += cn.taxAmount;
+8925:      acc.total += p.taxAmount;
+8926:      acc.taxable += (p.basicAmount - (p.globalDiscount || 0));
+8928:    }, { cgst: 0, sgst: 0, igst: 0, total: 0, taxable: 0 });
+8934:      acc.total += dn.taxAmount;
+8958:        taxable: purchaseTax.taxable + (expenseTax.amount - expenseTax.total)
+8979:      ["Taxable/Expense Value", summary.output.taxable, summary.input.taxable, ""],
+9021:        ["Taxable Value", Number(summary.output.taxable).toFixed(2), Number(summary.input.taxable).toFixed(2), "-"],
+9036:        Number(d.taxableValue).toFixed(2), d.taxRate + "%", Number(d.totalTax).toFixed(2), Number(d.grandTotal).toFixed(2)
+9136:                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.taxableValue.toLocaleString()}</td>
+9137:                      <td className="px-6 py-4 text-right font-bold text-slate-500 text-xs">{d.taxRate}%</td>
+9183:                      <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{d.taxableValue.toLocaleString()}</td>
+9184:                      <td className="px-6 py-4 text-right font-bold text-slate-500 text-xs">{d.taxRate}%</td>

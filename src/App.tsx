@@ -2426,9 +2426,9 @@ function BillTemplate({ booking, settings, payments = [], creditNotes = [] }: an
   
   const taxableValue = p.basicAmount - (p.globalDiscount || 0);
   const tr = p.taxRate || 5;
-  const tax = taxableValue * (tr / 100);
-  const cgst = p.cgstAmount ?? (isInterstate ? 0 : tax/2);
-  const sgst = p.sgstAmount ?? (isInterstate ? 0 : tax/2);
+  const tax = Math.round(taxableValue * (tr / 100));
+  const cgst = p.cgstAmount ?? (isInterstate ? 0 : Math.round(tax/2));
+  const sgst = p.sgstAmount ?? (isInterstate ? 0 : Math.round(tax/2));
   const igst = p.igstAmount ?? (isInterstate ? tax : 0);
 
   return (
@@ -8041,7 +8041,7 @@ function getBillPaymentInfo(billId: string, grandTotal: number, allPayments: Pay
     .reduce((sum, adj) => sum + (adj?.amount || 0), 0);
 
   const cnAmount = (allCreditNotes || [])
-    .filter(cn => cn?.salesBillNumber === billNumberStr && billNumberStr !== '')
+    .filter(cn => cn?.salesBillNumber?.toString() === billNumberStr.toString() && billNumberStr !== '')
     .reduce((sum, cn) => sum + (cn?.grandTotal || 0), 0);
   
   const balance = (grandTotal || 0) - paidAmount - cnAmount;
