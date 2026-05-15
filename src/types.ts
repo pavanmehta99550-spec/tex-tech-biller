@@ -23,6 +23,7 @@ export interface BillItem {
   taka: string;
   unit: 'MTR' | 'PCS';
   quantity: number;
+  grade?: string;
   rate: number;
   discount: number;
   amount: number;

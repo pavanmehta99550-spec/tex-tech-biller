@@ -4584,7 +4584,7 @@ function BookingView({
       consigneeMobile2: editingBooking?.consigneeMobile2 || '',
       brokerId: editingBooking?.brokerId || '',
       brokerCommissionRate: editingBooking?.brokerCommissionRate || 0,
-      items: (editingBooking?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
+      items: (editingBooking?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, grade: '', rate: 0, discount: 5, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
       basicAmount: editingBooking?.basicAmount || 0,
       globalDiscount: editingBooking?.globalDiscount || 0,
       taxRate: editingBooking?.taxRate || 5,
@@ -4615,7 +4615,7 @@ function BookingView({
       ...formData,
       items: [
         ...formData.items,
-        { id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }
+        { id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, grade: '', rate: 0, discount: 5, amount: 0 }
       ]
     });
   };
@@ -5120,7 +5120,11 @@ function BookingView({
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Color</label>
                   <input type="text" readOnly={isLocked} value={item.color} onChange={e => updateItem(item.id, 'color', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="Red" />
                 </div>
-                <div className="md:col-span-2 space-y-1">
+                <div className="md:col-span-1 space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Grade</label>
+                  <input type="text" readOnly={isLocked} value={item.grade || ''} onChange={e => updateItem(item.id, 'grade', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="A" />
+                </div>
+                <div className="md:col-span-1 space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Unit</label>
                   <select 
                     disabled={isLocked}
@@ -8289,12 +8293,39 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
   const sgst = !p.isInterstate ? p.taxAmount / 2 : 0;
 
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
+    const handleEvents = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        window.print();
+      }
     };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
+    window.addEventListener('keydown', handleEvents);
+    return () => window.removeEventListener('keydown', handleEvents);
   }, [onClose]);
+
+  const handleDownloadPDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
+    const { default: html2canvas } = await import('html2canvas');
+    const element = document.getElementById('print-area');
+    if (!element) return;
+
+    const canvas = await html2canvas(element, {
+      scale: 3,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`Bill_${p.billNumber}.pdf`);
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 overflow-y-auto no-scrollbar print:bg-white print:p-0 print:block">
@@ -8310,11 +8341,18 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
           </div>
           <div className="flex gap-4">
             <button 
+              onClick={handleDownloadPDF}
+              className="px-6 py-3 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:bg-red-700 transition-all shadow-xl shadow-red-200 active:scale-95"
+            >
+              <Download size={18} />
+              PDF
+            </button>
+            <button 
               onClick={() => window.print()}
               className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:bg-black transition-all shadow-xl shadow-slate-200 active:scale-95"
             >
               <Printer size={18} />
-              Print Invoice
+              Print (Ctrl+P)
             </button>
             <button 
               onClick={onClose} 
@@ -8330,7 +8368,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             
             {/* Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
-              <div className="font-bold text-[10pt] uppercase mb-1 underline">|| Shree Ganeshaya Namah ||</div>
+              <div className="font-bold text-[10pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
               <div className="flex flex-col items-center w-full">
                 <h1 className="text-5xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{consignorName}</h1>
                 <div className="flex justify-between w-full px-4 mt-2 font-bold text-[9pt] uppercase tracking-tight">
@@ -8347,7 +8385,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
 
             <div className="flex justify-between items-center px-4 py-1 border-b-2 border-black font-bold uppercase text-[10pt]">
               <div className="w-1/3">GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}</div>
-              <div className="w-1/3 text-center text-3xl font-black tracking-[0.2em] bg-black text-white px-6 py-1">TAX INVOICE</div>
+              <div className="w-1/3 text-center text-3xl font-black tracking-[0.1em] bg-black text-white px-6 py-1">TAX INVOICE</div>
               <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
             </div>
 
@@ -8362,7 +8400,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
               </div>
               
               {/* Consignee Box */}
-              <div className="border-r-2 border-black p-3 flex flex-col">
+              <div className="border-r-2 border-black p-3 flex flex-col border-r-2">
                 <div className="font-black text-[8pt] uppercase underline mb-1">Details of Consignee (Shipped To):</div>
                 <div className="font-black text-[12pt] uppercase leading-none mb-1 text-slate-900">{p.consigneeName || p.partyName || "-"}</div>
                 <div className="font-bold text-[9pt] uppercase flex-1 leading-tight text-slate-700">{p.consigneeAddress || p.partyAddress || "-"}</div>
@@ -8381,17 +8419,18 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             </div>
 
             {/* The Item Table */}
-            <div className="flex-1 min-h-[450px]">
+            <div className="flex-1 min-h-[480px]">
               <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="border-b-2 border-black font-black text-[9pt] uppercase bg-slate-50">
                     <th className="w-[40px] border-r-2 border-black py-2 text-center">No</th>
                     <th className="border-r-2 border-black py-2 text-left px-3">Description of Goods</th>
                     <th className="w-[80px] border-r-2 border-black py-2 text-center">HSN</th>
-                    <th className="w-[60px] border-r-2 border-black py-2 text-center">Unit</th>
-                    <th className="w-[100px] border-r-2 border-black py-2 text-right px-3">Qty</th>
+                    <th className="w-[50px] border-r-2 border-black py-2 text-center">UOM</th>
+                    <th className="w-[60px] border-r-2 border-black py-2 text-center">Grade</th>
+                    <th className="w-[80px] border-r-2 border-black py-2 text-right px-3">Qty</th>
                     <th className="w-[90px] border-r-2 border-black py-2 text-right px-3">Rate</th>
-                    <th className="w-[120px] py-2 text-right px-4">Amount</th>
+                    <th className="w-[110px] py-2 text-right px-4">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="font-bold text-[10pt] uppercase text-slate-800">
@@ -8401,6 +8440,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                       <td className="border-r-2 border-black py-1.5 px-3 truncate">{item.name} {item.color}</td>
                       <td className="border-r-2 border-black py-1.5 text-center">{item.hsnCode}</td>
                       <td className="border-r-2 border-black py-1.5 text-center">{item.unit || "MTR"}</td>
+                      <td className="border-r-2 border-black py-1.5 text-center">{item.grade || "-"}</td>
                       <td className="border-r-2 border-black py-1.5 px-3 text-right">{Number(item.quantity).toFixed(2)}</td>
                       <td className="border-r-2 border-black py-1.5 px-3 text-right">{Number(item.rate).toFixed(2)}</td>
                       <td className="py-1.5 px-4 text-right font-black">{Number(item.amount).toFixed(2)}</td>
@@ -8409,6 +8449,7 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                   {/* Grid lines placeholder to maintain table structure */}
                   {Array.from({ length: Math.max(0, 15 - (p.items?.length || 0)) }).map((_, i) => (
                     <tr key={`empty-${i}`} className="h-8">
+                      <td className="border-r-2 border-black"></td>
                       <td className="border-r-2 border-black"></td>
                       <td className="border-r-2 border-black"></td>
                       <td className="border-r-2 border-black"></td>
@@ -8429,19 +8470,21 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                 <div className="py-2 border-b border-black border-dashed">
                   <div className="font-black underline mb-1 uppercase text-[9pt] text-indigo-600">Bank Details (AXIS BANK)</div>
                   <div className="grid grid-cols-[80px_1fr] gap-y-0.5 text-[9.5pt] uppercase font-bold text-slate-800">
-                    <span>Bank:</span> <span className="font-black">{settings?.bankName || "AXIS BANK LTD"}</span>
-                    <span>A/c No:</span> <span className="font-black tracking-[0.1em]">{settings?.accountNumber || "921020000000000"}</span>
-                    <span>IFSC:</span> <span className="font-black">{settings?.ifscCode || "UTIB0000000"}</span>
+                    <span>Bank:</span> <span className="font-black">{settings?.bankName || "AXIS BANK"}</span>
+                    <span>A/c No:</span> <span className="font-black tracking-[0.1em]">{settings?.accountNumber || "924020074358147"}</span>
+                    <span>IFSC:</span> <span className="font-black">{settings?.ifscCode || "UTIB0001772"}</span>
                   </div>
+                  <div className="text-[7pt] font-black mt-1 text-red-600 uppercase">NOTICE: AFTER 45 DAYS INTEREST WILL BE CHARGED 18% PER ANNUM</div>
                 </div>
 
-                <div className="text-[8.5pt] leading-snug">
+                <div className="text-[8pt] leading-snug">
                   <div className="font-black underline mb-1 uppercase text-slate-500">Terms & Conditions:</div>
                   <ol className="list-decimal pl-4 space-y-0.5 font-bold uppercase text-slate-600 italic">
-                    <li>Subject to Surat Jurisdiction only.</li>
-                    <li>Interest @ 24% p.a. will be charged if not paid in 30 days.</li>
                     <li>Goods once sold will not be taken back or replaced.</li>
-                    <li>No responsibility for any damages in transit.</li>
+                    <li>No responsibility for any damages/losses in transit.</li>
+                    <li>Our responsibility ceases as soon as goods leave our premises.</li>
+                    <li>Interest @ 18% p.a. will be charged after 45 days.</li>
+                    <li>Subject to Surat Jurisdiction Only.</li>
                   </ol>
                 </div>
               </div>
@@ -8451,8 +8494,8 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
                 <div className="p-3 space-y-1 flex-1 font-bold text-[10pt] uppercase text-slate-700">
                    <div className="font-black text-[9pt] text-slate-500 mb-1 border-b border-black border-dashed italic">Amount in Words: {numberToWords(p.grandTotal)}</div>
                   <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{Number(p.taxableValue).toFixed(2)}</span></div>
-                  {Number(cgst) > 0 && <div className="flex justify-between"><span>CGST @ {(tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{cgst.toFixed(2)}</span></div>}
-                  {Number(sgst) > 0 && <div className="flex justify-between"><span>SGST @ {(tr/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{sgst.toFixed(2)}</span></div>}
+                  {Number(cgst) > 0 && <div className="flex justify-between"><span>CGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(tr === 5 ? 1 : 1)}%</span> <span className="font-black text-slate-900">{cgst.toFixed(2)}</span></div>}
+                  {Number(sgst) > 0 && <div className="flex justify-between"><span>SGST @ {(tr === 5 ? 2.5 : tr/2).toFixed(tr === 5 ? 1 : 1)}%</span> <span className="font-black text-slate-900">{sgst.toFixed(2)}</span></div>}
                   {Number(igst) > 0 && <div className="flex justify-between"><span>IGST @ {tr.toFixed(1)}%</span> <span className="font-black text-slate-900">{igst.toFixed(2)}</span></div>}
                 </div>
 
@@ -8469,6 +8512,24 @@ function PrintPreview({ booking, settings, onClose }: { booking: any, settings: 
             </div>
 
           </div>
+        </div>
+        
+        {/* Bottom Bar Buttons */}
+        <div className="flex justify-center gap-6 p-10 print:hidden bg-slate-50 border-t border-slate-100">
+           <button 
+              onClick={handleDownloadPDF}
+              className="px-10 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm flex items-center gap-3 hover:bg-red-700 transition-all shadow-2xl shadow-red-200 active:scale-95"
+            >
+              <Download size={20} />
+              Download PDF
+            </button>
+            <button 
+              onClick={() => window.print()}
+              className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-sm flex items-center gap-3 hover:bg-black transition-all shadow-2xl shadow-slate-200 active:scale-95"
+            >
+              <Printer size={20} />
+              Print Invoice
+            </button>
         </div>
       </div>
     </div>
@@ -11546,10 +11607,11 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
         </div>
 
         {/* Hidden Print Area */}
-        <div id="admin-print-area" className="hidden">
+        <div id="admin-print-area" className="hidden print:block print:w-full">
+           <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-[297mm] max-h-[297mm] relative box-border overflow-hidden bg-white">
             {/* Professional Header Section */}
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
-              <div className="font-bold text-[10pt] uppercase mb-1 underline">|| Shree Ganeshaya Namah ||</div>
+              <div className="font-bold text-[10pt] uppercase mb-1 underline">|| HAR HAR MAHADEV ||</div>
               <div className="flex flex-col items-center w-full">
                 <h1 className="text-5xl font-black uppercase tracking-tighter text-black" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
                 <div className="flex justify-between w-full px-4 mt-2 font-bold text-[9pt] uppercase tracking-tight">
@@ -11566,7 +11628,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
 
             <div className="flex justify-between items-center px-4 py-1 border-b-2 border-black font-bold uppercase text-[10pt]">
               <div className="w-1/3">GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}</div>
-              <div className="w-1/3 text-center text-3xl font-black tracking-[0.2em] bg-black text-white px-6 py-1">TAX INVOICE</div>
+              <div className="w-1/3 text-center text-3xl font-black tracking-[0.1em] bg-black text-white px-6 py-1">TAX INVOICE</div>
               <div className="w-1/3 text-right">Mo: {settings?.mobile || ""}</div>
             </div>
 
@@ -11607,10 +11669,11 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                     <th className="w-[40px] border-r-2 border-black py-2 text-center">No</th>
                     <th className="border-r-2 border-black py-2 text-left px-3">Description of Goods</th>
                     <th className="w-[80px] border-r-2 border-black py-2 text-center">HSN</th>
-                    <th className="w-[60px] border-r-2 border-black py-2 text-center">Unit</th>
-                    <th className="w-[100px] border-r-2 border-black py-2 text-right px-3">Qty</th>
+                    <th className="w-[50px] border-r-2 border-black py-2 text-center">UOM</th>
+                    <th className="w-[60px] border-r-2 border-black py-2 text-center">Grade</th>
+                    <th className="w-[80px] border-r-2 border-black py-2 text-right px-3">Qty</th>
                     <th className="w-[90px] border-r-2 border-black py-2 text-right px-3">Rate</th>
-                    <th className="w-[120px] py-2 text-right px-4">Amount</th>
+                    <th className="w-[110px] py-2 text-right px-4">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="font-bold text-[10pt] uppercase text-slate-800">
@@ -11620,6 +11683,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                       <td className="border-r-2 border-black py-1.5 px-3 truncate">{item.name} {item.color}</td>
                       <td className="border-r-2 border-black py-1.5 text-center">{item.hsnCode}</td>
                       <td className="border-r-2 border-black py-1.5 text-center">{item.unit || "MTR"}</td>
+                      <td className="border-r-2 border-black py-1.5 text-center">{item.grade || "-"}</td>
                       <td className="border-r-2 border-black py-1.5 px-3 text-right">{Number(item.quantity).toFixed(2)}</td>
                       <td className="border-r-2 border-black py-1.5 px-3 text-right font-black">{Number(item.rate).toFixed(2)}</td>
                       <td className="py-1.5 px-4 text-right font-black">{Number(item.amount).toFixed(2)}</td>
@@ -11628,7 +11692,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                   {/* Grid lines placeholder to maintain table structure */}
                   {Array.from({ length: Math.max(0, 15 - (formData.items?.length || 0)) }).map((_, i) => (
                     <tr key={`edit-empty-${i}`} className="h-8">
-                      <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
+                      <td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td className="border-r-2 border-black"></td><td></td>
                     </tr>
                   ))}
                 </tbody>
@@ -11642,19 +11706,21 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                 <div className="py-2 border-b border-black border-dashed">
                   <div className="font-black underline mb-1 uppercase text-[9pt] text-indigo-600">Bank Details (AXIS BANK)</div>
                   <div className="grid grid-cols-[80px_1fr] gap-y-0.5 text-[9.5pt] uppercase font-bold text-slate-800">
-                    <span>Bank:</span> <span className="font-black">{settings?.bankName || "AXIS BANK LTD"}</span>
-                    <span>A/c No:</span> <span className="font-black tracking-[0.1em]">{settings?.accountNumber || "921020000000000"}</span>
-                    <span>IFSC:</span> <span className="font-black">{settings?.ifscCode || "UTIB0000000"}</span>
+                    <span>Bank:</span> <span className="font-black">{settings?.bankName || "AXIS BANK"}</span>
+                    <span>A/c No:</span> <span className="font-black tracking-[0.1em]">{settings?.accountNumber || "924020074358147"}</span>
+                    <span>IFSC:</span> <span className="font-black">{settings?.ifscCode || "UTIB0001772"}</span>
                   </div>
+                  <div className="text-[7pt] font-black mt-1 text-red-600 uppercase">NOTICE: AFTER 45 DAYS INTEREST WILL BE CHARGED 18% PER ANNUM</div>
                 </div>
 
-                <div className="text-[8.5pt] leading-snug">
+                <div className="text-[8pt] leading-snug">
                   <div className="font-black underline mb-1 uppercase text-slate-500">Terms & Conditions:</div>
                   <ol className="list-decimal pl-4 space-y-0.5 font-bold uppercase text-slate-600 italic">
-                    <li>Subject to Surat Jurisdiction only.</li>
-                    <li>Interest @ 24% p.a. will be charged if not paid in 30 days.</li>
                     <li>Goods once sold will not be taken back or replaced.</li>
-                    <li>No responsibility for any damages in transit.</li>
+                    <li>No responsibility for any damages/losses in transit.</li>
+                    <li>Our responsibility ceases as soon as goods leave our premises.</li>
+                    <li>Interest @ 18% p.a. will be charged after 45 days.</li>
+                    <li>Subject to Surat Jurisdiction Only.</li>
                   </ol>
                 </div>
               </div>
@@ -11664,8 +11730,8 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                 <div className="p-3 space-y-1 flex-1 font-bold text-[10pt] uppercase text-slate-700">
                    <div className="font-black text-[9pt] text-slate-500 mb-1 border-b border-black border-dashed italic">Amount in Words: {formData.numberToWords}</div>
                   <div className="flex justify-between"><span>Taxable Value</span> <span className="font-black text-slate-900">{formData.taxableValue.toFixed(2)}</span></div>
-                  {Number(formData.cgstAmount) > 0 && <div className="flex justify-between"><span>CGST @ {(Number(formData.taxRate)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{formData.cgstAmount.toFixed(2)}</span></div>}
-                  {Number(formData.sgstAmount) > 0 && <div className="flex justify-between"><span>SGST @ {(Number(formData.taxRate)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{formData.sgstAmount.toFixed(2)}</span></div>}
+                  {Number(formData.cgstAmount) > 0 && <div className="flex justify-between"><span>CGST @ {(Number(formData.taxRate) === 5 ? 2.5 : Number(formData.taxRate)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{formData.cgstAmount.toFixed(2)}</span></div>}
+                  {Number(formData.sgstAmount) > 0 && <div className="flex justify-between"><span>SGST @ {(Number(formData.taxRate) === 5 ? 2.5 : Number(formData.taxRate)/2).toFixed(1)}%</span> <span className="font-black text-slate-900">{formData.sgstAmount.toFixed(2)}</span></div>}
                   {Number(formData.igstAmount) > 0 && <div className="flex justify-between"><span>IGST @ {formData.taxRate}%</span> <span className="font-black text-slate-900">{formData.igstAmount.toFixed(2)}</span></div>}
                 </div>
 
@@ -11680,6 +11746,7 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
                 </div>
               </div>
             </div>
+           </div>
         </div>
       </motion.div>
     </div>
