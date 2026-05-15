@@ -3281,10 +3281,9 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       sgst, 
       igst, 
       isInterstate, 
-      total: Math.round(taxableValue + tax), 
-      effectiveGlobalDiscount 
+      total: Math.round(taxableValue + tax)
     };
-  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.buyerGstin, formData.partyGstin]);
+  }, [formData.items, formData.taxRate, hasItemDiscount, formData.buyerGstin, formData.partyGstin]);
 
   useEffect(() => {
     if (Math.abs(formData.basicAmount - calc.basicAmount) > 0.01) {
@@ -3339,7 +3338,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       <form 
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({ ...formData, globalDiscount: calc.effectiveGlobalDiscount, taxAmount: calc.tax, grandTotal: calc.total });
+          onSave({ ...formData, globalDiscount: 0, taxAmount: calc.tax, grandTotal: calc.total });
         }}
         className="p-8 lg:p-12 space-y-10"
       >
@@ -3773,9 +3772,6 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
         </div>
 
         <div className="bg-indigo-50/50 p-8 rounded-3xl border-2 border-dashed border-indigo-200 text-right space-y-2">
-          {calc.effectiveGlobalDiscount > 0 && (
-            <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{Number(calc.effectiveGlobalDiscount).toFixed(2)}</span></div>
-          )}
           <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
           {calc.isInterstate ? (
             <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
@@ -4632,13 +4628,10 @@ function BookingView({
     // 1. Gross Amount - Round each item amount first
     const grossAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
     
-    // 2. Discount Calculation
-    const effectiveGlobalDiscount = hasItemDiscount ? 0 : Math.round(Number(formData.globalDiscount) || 0);
+    // 2. Taxable Value
+    const taxableValue = grossAmount;
     
-    // 3. Taxable Value
-    const taxableValue = Math.round(Math.max(0, grossAmount - effectiveGlobalDiscount));
-    
-    // 4. GST Calculation
+    // 3. GST Calculation
     const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
     
     // Determine CGST/SGST vs IGST
@@ -4658,10 +4651,9 @@ function BookingView({
       sgst, 
       igst, 
       isInterstate, 
-      total: Math.round(taxableValue + tax), 
-      effectiveGlobalDiscount 
+      total: Math.round(taxableValue + tax)
     };
-  }, [formData.items, formData.globalDiscount, formData.taxRate, hasItemDiscount, formData.consignorGstin, formData.consigneeGstin]);
+  }, [formData.items, formData.taxRate, hasItemDiscount, formData.consignorGstin, formData.consigneeGstin]);
 
   useEffect(() => {
     if (Math.abs(formData.basicAmount - calc.basicAmount) > 0.01) {
@@ -4790,7 +4782,7 @@ function BookingView({
       <form 
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({ ...formData, globalDiscount: calc.effectiveGlobalDiscount, taxAmount: calc.tax, grandTotal: calc.total });
+          onSave({ ...formData, globalDiscount: 0, taxAmount: calc.tax, grandTotal: calc.total });
         }}
         className="p-8 lg:p-12 space-y-10"
       >
@@ -5353,9 +5345,6 @@ function BookingView({
         </div>
 
         <div className="bg-[#e0f7f7] p-8 rounded-3xl border-2 border-dashed border-[#00cec9]/30 text-right space-y-2">
-          {calc.effectiveGlobalDiscount > 0 && (
-            <div className="text-pink-500 font-bold text-sm">Global Discount: <span className="text-pink-600">- ₹{Number(calc.effectiveGlobalDiscount).toFixed(2)}</span></div>
-          )}
           <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
           {calc.isInterstate ? (
             <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
@@ -5428,7 +5417,7 @@ function BookingView({
               ...formData,
               id: 'PREVIEW',
               date: new Date().toISOString(),
-              globalDiscount: calc.effectiveGlobalDiscount,
+              globalDiscount: 0,
               taxAmount: calc.tax,
               grandTotal: calc.total
             }} 
