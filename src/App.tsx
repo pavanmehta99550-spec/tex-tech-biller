@@ -8060,7 +8060,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
         </div>
 
         <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
-          <div className="border-2 border-black flex flex-col w-full relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+          <div className="border-2 border-black flex flex-col w-full h-auto relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
             
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
@@ -8198,7 +8198,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
         </div>
 
         <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight">
-          <div className="border-2 border-black flex flex-col w-full relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
+          <div className="border-2 border-black flex flex-col w-full h-auto relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
             <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
               <div className="flex items-center gap-6 justify-center w-full mb-1">
