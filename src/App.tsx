@@ -6143,8 +6143,8 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
         </div>
 
         <div id="print-container" className="print-container bg-white p-4 sm:p-10 print:p-0 text-[10px] sm:text-[11px] leading-tight text-black">
-          <div className="border-2 border-black flex flex-col w-full relative box-border overflow-hidden bg-white shadow-sm print:shadow-none">
-            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
+          <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-auto bg-white shadow-sm print:shadow-none print:flex print:h-auto print:min-h-[280mm] print:border-0">
+            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white flex-none">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
               <div className="flex items-center gap-6 justify-center w-full mb-1">
                 {settings?.logoUrl && <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain bg-transparent" referrerPolicy="no-referrer" />}
@@ -8066,7 +8066,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
         <div id="print-container" className="print-container bg-white w-full print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
           <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-auto bg-white shadow-sm print:shadow-none print:flex print:h-auto print:min-h-[280mm] print:border-0">
             
-            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
+            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white flex-none">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
               <div className="flex items-center gap-6 justify-center w-full mb-1">
                 {settings?.logoUrl && <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain bg-transparent" referrerPolicy="no-referrer" />}
@@ -8127,7 +8127,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: an
               </table>
             </div>
 
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[180px] mt-auto">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[180px] mt-auto flex-none">
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full text-black">
                 <div>
                   <div className="font-black underline mb-1 uppercase text-[10px]">Amount in Words:</div>
@@ -8203,7 +8203,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
 
         <div id="print-container" className="print-container bg-white w-full print:p-0 text-[10px] sm:text-[11px] leading-tight flex justify-center">
           <div className="border-2 border-black flex flex-col w-full min-h-[297mm] h-auto bg-white shadow-sm print:shadow-none print:flex print:h-auto print:min-h-[280mm] print:border-0">
-            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white">
+            <div className="text-center p-3 border-b-2 border-black flex flex-col items-center bg-white flex-none">
               <div className="font-bold text-[9px] uppercase mb-1">||| SHREE GANESHAY NAMAH |||</div>
               <div className="flex items-center gap-6 justify-center w-full mb-1">
                 {settings?.logoUrl && <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain bg-transparent" referrerPolicy="no-referrer" />}
@@ -8261,7 +8261,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
               </table>
             </div>
 
-            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[220px] mt-auto">
+            <div className="grid grid-cols-[60%_40%] border-t-2 border-black bg-white h-[220px] mt-auto flex-none">
               <div className="border-r-2 border-black p-3 flex flex-col justify-between h-full">
                 <div>
                   <div className="font-black underline mb-1 uppercase text-[10px] tracking-widest">Amount in Words:</div>
