@@ -6105,7 +6105,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
               </div>
             </div>
 
-            <table className="w-full text-[11px] font-bold text-center border-collapse">
+            <table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black">
               <thead>
                 <tr className="border-b border-black uppercase">
                   <th className="border-r border-black p-2 w-[40px]">NO</th>
@@ -6130,11 +6130,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
                     <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
                   </tr>
                 ))}
-                {Array.from({ length: Math.max(0, 12 - (data.items?.length || 0)) }).map((_, i) => (
-                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
-                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-                  </tr>
-                ))}
+                
               </tbody>
             </table>
           </div>
@@ -8028,11 +8024,12 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
                 <div className="flex justify-between"><span>VOUCHER NO:</span> <span># {data.billNumber}</span></div>
                 <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
                 <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
+                {data.parcels ? <div className="flex justify-between"><span>PARCELS:</span> <span>{data.parcels}</span></div> : null}
               </div>
             </div>
 
             {/* Table */}
-            <table className="w-full text-[11px] font-bold text-center border-collapse">
+            <table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black">
               <thead>
                 <tr className="border-b border-black uppercase">
                   <th className="border-r border-black p-2 w-[40px]">NO</th>
@@ -8058,11 +8055,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
                   </tr>
                 ))}
                 {/* Dynamic Placeholder Rows */}
-                {Array.from({ length: Math.max(0, 12 - (data.items?.length || 0)) }).map((_, i) => (
-                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
-                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-                  </tr>
-                ))}
+                
               </tbody>
             </table>
           </div>
@@ -8174,7 +8167,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
               </div>
             </div>
 
-            <table className="w-full text-[11px] font-bold text-center border-collapse">
+            <table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black">
               <thead>
                 <tr className="border-b border-black uppercase">
                   <th className="border-r border-black p-2 w-[40px]">NO</th>
@@ -8199,11 +8192,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                     <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
                   </tr>
                 ))}
-                {Array.from({ length: Math.max(0, 12 - (data.items?.length || 0)) }).map((_, i) => (
-                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
-                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-                  </tr>
-                ))}
+                
               </tbody>
             </table>
           </div>
@@ -8318,11 +8307,12 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                 <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
                 <div className="flex justify-between"><span>EWB NO:</span> <span>{data.ewayBill || data.ewbNumber || "-"}</span></div>
                 <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
+                {data.parcels ? <div className="flex justify-between"><span>PARCELS:</span> <span>{data.parcels}</span></div> : null}
               </div>
             </div>
 
             {/* Table */}
-            <table className="w-full text-[11px] font-bold text-center border-collapse">
+            <table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black">
               <thead>
                 <tr className="border-b border-black uppercase">
                   <th className="border-r border-black p-2 w-[40px]">NO</th>
@@ -8348,11 +8338,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                   </tr>
                 ))}
                 {/* Dynamic Placeholder Rows */}
-                {Array.from({ length: Math.max(0, 12 - (data.items?.length || 0)) }).map((_, i) => (
-                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
-                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
-                  </tr>
-                ))}
+                
               </tbody>
             </table>
           </div>
