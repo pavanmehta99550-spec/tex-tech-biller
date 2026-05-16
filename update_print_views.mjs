@@ -1,0 +1,624 @@
+import fs from 'fs';
+
+let content = fs.readFileSync('src/App.tsx', 'utf8');
+
+const printPreviewContent = `
+function PrintPreview({ booking, settings, payments = [], onClose }: { booking: any, settings: any | null, payments?: any[], onClose: () => void }) {
+  const data = booking;
+  const printRef = React.useRef<HTMLDivElement>(null);
+  const { paidAmount, balance } = React.useMemo(() => 
+    getBillPaymentInfo(data.id, data.grandTotal, payments),
+    [data.id, data.grandTotal, payments]
+  );
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'Enter') window.print();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const consigneeName = data.consigneeName || data.partyName || '';
+  const consigneeAddress = data.consigneeAddress || data.partyAddress || '';
+  const isInterstate = data.isInterstate || false;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }} 
+      className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
+    >
+      {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
+      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black">
+        
+        {/* Buttons */}
+        <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
+          <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
+          <button onClick={onClose} className="bg-gray-200 text-black p-2 font-bold rounded">Close (Esc)</button>
+        </div>
+
+        {/* Content Wrapper */}
+        <div className="flex-grow flex flex-col justify-between">
+          <div className="flex flex-col">
+            {/* Header */}
+            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1">
+              || SHREE GANESHAY NAMAH ||
+            </div>
+            
+            <div className="flex flex-col items-center justify-center py-4 border-b border-black">
+              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+                {settings?.companyName || "ANGAD SILK MILLS"}
+              </h1>
+              <div className="text-[11px] font-bold uppercase mt-1">
+                {settings?.address || "SURAT, GUJARAT"}
+              </div>
+              <div className="text-[11px] font-bold uppercase mt-1">
+                MO: {settings?.mobile || "9988776655"} | GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}
+              </div>
+            </div>
+
+            <div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
+              TAX INVOICE
+            </div>
+
+            {/* Buyer & Invoice Meta */}
+            <div className="grid grid-cols-[60%_40%] border-b border-black">
+              <div className="p-2 border-r border-black font-bold text-[11px] uppercase flex flex-col">
+                <span className="text-slate-500 italic underline text-[10px] mb-1">BILLED TO (Buyer):</span>
+                <span className="text-[13px] font-black">{consigneeName}</span>
+                <span>{consigneeAddress}</span>
+                <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.consigneeGstin || data.partyGstin || "-"}</span></span>
+              </div>
+              <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
+                <div className="flex justify-between"><span>INVOICE NO:</span> <span># {data.billNumber}</span></div>
+                <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
+                <div className="flex justify-between"><span>EWB NO:</span> <span>{data.ewayBill || data.ewbNumber || "-"}</span></div>
+                <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <table className="w-full text-[11px] font-bold text-center border-collapse">
+              <thead>
+                <tr className="border-b border-black uppercase">
+                  <th className="border-r border-black p-2 w-[40px]">NO</th>
+                  <th className="border-r border-black p-2 text-left">DESCRIPTION OF GOODS</th>
+                  <th className="border-r border-black p-2 w-[60px]">HSN</th>
+                  <th className="border-r border-black p-2 w-[70px]">QTY</th>
+                  <th className="border-r border-black p-2 w-[70px]">RATE</th>
+                  <th className="p-2 w-[90px] text-right">AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.items || []).map((item: any, idx: number) => (
+                  <tr key={idx} className="border-b border-black/20">
+                    <td className="border-r border-black p-2 align-top">{idx + 1}</td>
+                    <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
+                      <span>{item.name}</span>
+                      {item.color && <span className="text-[10px]">({item.color})</span>}
+                    </td>
+                    <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
+                    <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
+                    <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
+                    <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
+                  </tr>
+                ))}
+                {/* Dynamic Placeholder Rows */}
+                {Array.from({ length: Math.max(0, 12 - (data.items?.length || 0)) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
+                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-auto border-t border-black">
+            <div className="grid grid-cols-[60%_40%]">
+              {/* Left Side: Bank Details */}
+              <div className="p-2 border-r border-black flex flex-col justify-between font-bold text-[11px] uppercase">
+                <div className="mb-2">
+                  <div className="underline italic text-slate-500 text-[10px] mb-1">BANK TRANSFER DETAILS:</div>
+                  <div className="grid grid-cols-[60px_1fr] gap-x-2">
+                    <span>BANK:</span> <span>{settings?.bankName || "-"}</span>
+                    <span>A/C NO:</span> <span className="tracking-widest">{settings?.accountNumber || "-"}</span>
+                    <span>IFSC:</span> <span>{settings?.ifscCode || settings?.ifsc || "-"}</span>
+                  </div>
+                </div>
+                <div>
+                   <span className="underline italic text-slate-500 text-[10px]">AMOUNT IN WORDS:</span>
+                   <div className="mt-0.5 leading-tight">{numberToWords(parseFloat(data.grandTotal?.toString() || "0"))} RUPEES ONLY</div>
+                </div>
+              </div>
+              
+              {/* Right Side: Totals */}
+              <div className="flex flex-col font-bold text-[11px] uppercase">
+                <div className="p-2 space-y-1 flex-grow">
+                  <div className="flex justify-between"><span>TAXABLE VALUE:</span><span>{parseFloat(data.taxableValue?.toString() || data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
+                  {isInterstate ? (
+                    <div className="flex justify-between"><span>IGST:</span><span>{parseFloat(data.igstAmount?.toString() || data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
+                  ) : (
+                    <>
+                      <div className="flex justify-between"><span>CGST:</span><span>{parseFloat(data.cgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span>SGST:</span><span>{parseFloat(data.sgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                    </>
+                  )}
+                  {parseFloat(data.globalDiscount?.toString() || "0") > 0 && (
+                    <div className="flex justify-between text-red-600"><span>DISCOUNT:</span><span>-{parseFloat(data.globalDiscount?.toString() || "0").toFixed(2)}</span></div>
+                  )}
+                </div>
+                <div className="border-t border-black p-2 bg-black text-white flex justify-between font-black text-lg">
+                  <span>NET AMOUNT</span>
+                  <span>₹ {parseFloat(data.grandTotal?.toString() || "0").toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Signatory Footer */}
+            <div className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
+              <div className="flex flex-col justify-end h-full">
+                <div className="text-[9px] italic text-slate-500">TERMS & CONDITIONS:</div>
+                <div className="text-[9px]">1. GOODS ONCE SOLD WILL NOT BE TAKEN BACK.</div>
+                <div className="text-[9px]">2. SUBJECT TO SURAT JURISDICTION.</div>
+              </div>
+              <div className="text-center w-[180px] flex flex-col justify-between h-full">
+                <div className="text-[10px] font-black">FOR {settings?.companyName || "ANGAD SILK MILLS"}</div>
+                <div className="border-t border-black pt-1 mt-auto">AUTHORISED SIGNATORY</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+`;
+
+const purchasePrintPreviewContent = `
+function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { purchase: any, settings: any | null, payments?: any[], onClose: () => void }) {
+  const data = purchase;
+  const printRef = React.useRef<HTMLDivElement>(null);
+  const { paidAmount, balance } = React.useMemo(() => 
+    getBillPaymentInfo(data.id, data.grandTotal, payments),
+    [data.id, data.grandTotal, payments]
+  );
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'Enter') window.print();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const consigneeName = data.partyName || '';
+  const consigneeAddress = data.partyAddress || '';
+  const isInterstate = data.isInterstate || false;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }} 
+      className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
+    >
+      {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
+      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black">
+        
+        {/* Buttons */}
+        <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
+          <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
+          <button onClick={onClose} className="bg-gray-200 text-black p-2 font-bold rounded">Close (Esc)</button>
+        </div>
+
+        {/* Content Wrapper */}
+        <div className="flex-grow flex flex-col justify-between">
+          <div className="flex flex-col">
+            {/* Header */}
+            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1">
+              || SHREE GANESHAY NAMAH ||
+            </div>
+            
+            <div className="flex flex-col items-center justify-center py-4 border-b border-black">
+              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+                {settings?.companyName || "ANGAD SILK MILLS"}
+              </h1>
+              <div className="text-[11px] font-bold uppercase mt-1">
+                {settings?.address || "SURAT, GUJARAT"}
+              </div>
+              <div className="text-[11px] font-bold uppercase mt-1">
+                MO: {settings?.mobile || "9988776655"} | GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}
+              </div>
+            </div>
+
+            <div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
+              PURCHASE VOUCHER
+            </div>
+
+            {/* Buyer & Invoice Meta */}
+            <div className="grid grid-cols-[60%_40%] border-b border-black">
+              <div className="p-2 border-r border-black font-bold text-[11px] uppercase flex flex-col">
+                <span className="text-slate-500 italic underline text-[10px] mb-1">RECEIVED FROM (SELLER):</span>
+                <span className="text-[13px] font-black">{consigneeName}</span>
+                <span>{consigneeAddress}</span>
+                <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.partyGstin || "-"}</span></span>
+              </div>
+              <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
+                <div className="flex justify-between"><span>VOUCHER NO:</span> <span># {data.billNumber}</span></div>
+                <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
+                <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <table className="w-full text-[11px] font-bold text-center border-collapse">
+              <thead>
+                <tr className="border-b border-black uppercase">
+                  <th className="border-r border-black p-2 w-[40px]">NO</th>
+                  <th className="border-r border-black p-2 text-left">DESCRIPTION OF GOODS</th>
+                  <th className="border-r border-black p-2 w-[60px]">HSN</th>
+                  <th className="border-r border-black p-2 w-[70px]">QTY</th>
+                  <th className="border-r border-black p-2 w-[70px]">RATE</th>
+                  <th className="p-2 w-[90px] text-right">AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.items || []).map((item: any, idx: number) => (
+                  <tr key={idx} className="border-b border-black/20">
+                    <td className="border-r border-black p-2 align-top">{idx + 1}</td>
+                    <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
+                      <span>{item.name}</span>
+                      {item.color && <span className="text-[10px]">({item.color})</span>}
+                    </td>
+                    <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
+                    <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
+                    <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
+                    <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
+                  </tr>
+                ))}
+                {/* Dynamic Placeholder Rows */}
+                {Array.from({ length: Math.max(0, 12 - (data.items?.length || 0)) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
+                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-auto border-t border-black">
+            <div className="grid grid-cols-[60%_40%]">
+              {/* Left Side: Empty/Verification Copy */}
+              <div className="p-2 border-r border-black flex flex-col justify-center items-center font-bold text-[11px] uppercase">
+                <div className="text-slate-500 italic">VERIFICATION COPY FOR ACCOUNTS</div>
+              </div>
+              
+              {/* Right Side: Totals */}
+              <div className="flex flex-col font-bold text-[11px] uppercase">
+                <div className="p-2 space-y-1 flex-grow">
+                  <div className="flex justify-between"><span>BASE VALUE:</span><span>{parseFloat(data.taxableValue?.toString() || data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>TAX TOTAL:</span><span>{parseFloat(data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
+                  {parseFloat(data.globalDiscount?.toString() || "0") > 0 && (
+                    <div className="flex justify-between text-red-600"><span>DISCOUNT:</span><span>-{parseFloat(data.globalDiscount?.toString() || "0").toFixed(2)}</span></div>
+                  )}
+                </div>
+                <div className="border-t border-black p-2 bg-black text-white flex justify-between font-black text-lg">
+                  <span>GRAND TOTAL</span>
+                  <span>₹ {parseFloat(data.grandTotal?.toString() || "0").toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Signatory Footer */}
+            <div className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
+              <div className="flex flex-col justify-end h-full">
+                <div className="text-[9px] italic text-slate-500">INPUT TAX CREDIT VERIFIED</div>
+              </div>
+              <div className="text-center w-[180px] flex flex-col justify-between h-full">
+                <div className="h-4"></div>
+                <div className="border-t border-black pt-1 mt-auto">AUTHORISED RECEIVER</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+`;
+
+
+const debitNotePrintPreviewContent = `
+function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: any) {
+  const data = debitNote;
+  const printRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'Enter') window.print();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const consigneeName = data.partyName || '';
+  const consigneeAddress = data.partyAddress || '';
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }} 
+      className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
+    >
+      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black">
+        
+        <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
+          <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
+          <button onClick={onClose} className="bg-gray-200 text-black p-2 font-bold rounded">Close (Esc)</button>
+        </div>
+
+        <div className="flex-grow flex flex-col justify-between">
+          <div className="flex flex-col">
+            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1">
+              || SHREE GANESHAY NAMAH ||
+            </div>
+            
+            <div className="flex flex-col items-center justify-center py-4 border-b border-black">
+              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+                {settings?.companyName || "ANGAD SILK MILLS"}
+              </h1>
+              <div className="text-[11px] font-bold uppercase mt-1">
+                {settings?.address || "SURAT, GUJARAT"}
+              </div>
+              <div className="text-[11px] font-bold uppercase mt-1">
+                MO: {settings?.mobile || "9988776655"} | GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}
+              </div>
+            </div>
+
+            <div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
+              DEBIT NOTE
+            </div>
+
+            <div className="grid grid-cols-[60%_40%] border-b border-black">
+              <div className="p-2 border-r border-black font-bold text-[11px] uppercase flex flex-col">
+                <span className="text-slate-500 italic underline text-[10px] mb-1">PARTY DETAILS:</span>
+                <span className="text-[13px] font-black">{consigneeName}</span>
+                <span>{consigneeAddress}</span>
+                <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.partyGstin || "-"}</span></span>
+              </div>
+              <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
+                <div className="flex justify-between"><span>DN NO:</span> <span># {data.billNumber}</span></div>
+                <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
+              </div>
+            </div>
+
+            <table className="w-full text-[11px] font-bold text-center border-collapse">
+              <thead>
+                <tr className="border-b border-black uppercase">
+                  <th className="border-r border-black p-2 w-[40px]">NO</th>
+                  <th className="border-r border-black p-2 text-left">DESCRIPTION OF GOODS</th>
+                  <th className="border-r border-black p-2 w-[60px]">HSN</th>
+                  <th className="border-r border-black p-2 w-[70px]">QTY</th>
+                  <th className="border-r border-black p-2 w-[70px]">RATE</th>
+                  <th className="p-2 w-[90px] text-right">AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.items || []).map((item: any, idx: number) => (
+                  <tr key={idx} className="border-b border-black/20">
+                    <td className="border-r border-black p-2 align-top">{idx + 1}</td>
+                    <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
+                      <span>{item.name}</span>
+                      {item.color && <span className="text-[10px]">({item.color})</span>}
+                    </td>
+                    <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
+                    <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
+                    <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
+                    <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
+                  </tr>
+                ))}
+                {Array.from({ length: Math.max(0, 12 - (data.items?.length || 0)) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
+                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-auto border-t border-black">
+            <div className="grid grid-cols-[60%_40%]">
+              <div className="p-2 border-r border-black flex flex-col justify-between font-bold text-[11px] uppercase">
+                <div className="mb-2">
+                  <div className="underline italic text-slate-500 text-[10px] mb-1">REASON:</div>
+                  <div>SALES RETURN / DIFFERENCE IN VALUE</div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col font-bold text-[11px] uppercase">
+                <div className="p-2 space-y-1 flex-grow">
+                  <div className="flex justify-between"><span>TAXABLE VALUE:</span><span>{parseFloat(data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>TAX AMOUNT:</span><span>{parseFloat(data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
+                </div>
+                <div className="border-t border-black p-2 bg-black text-white flex justify-between font-black text-lg">
+                  <span>NET AMOUNT</span>
+                  <span>₹ {parseFloat(data.grandTotal?.toString() || "0").toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
+              <div className="flex flex-col justify-end h-full">
+              </div>
+              <div className="text-center w-[180px] flex flex-col justify-between h-full">
+                <div className="text-[10px] font-black">FOR {settings?.companyName || "ANGAD SILK MILLS"}</div>
+                <div className="border-t border-black pt-1 mt-auto">AUTHORISED SIGNATORY</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+`;
+
+
+const creditNotePrintPreviewContent = `
+function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }: any) {
+  const data = creditNote;
+  const printRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      else if (e.key === 'Enter') window.print();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const consigneeName = data.partyName || '';
+  const consigneeAddress = data.partyAddress || '';
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }} 
+      className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
+    >
+      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black">
+        
+        <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
+          <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
+          <button onClick={onClose} className="bg-gray-200 text-black p-2 font-bold rounded">Close (Esc)</button>
+        </div>
+
+        <div className="flex-grow flex flex-col justify-between">
+          <div className="flex flex-col">
+            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1">
+              || SHREE GANESHAY NAMAH ||
+            </div>
+            
+            <div className="flex flex-col items-center justify-center py-4 border-b border-black">
+              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+                {settings?.companyName || "ANGAD SILK MILLS"}
+              </h1>
+              <div className="text-[11px] font-bold uppercase mt-1">
+                {settings?.address || "SURAT, GUJARAT"}
+              </div>
+              <div className="text-[11px] font-bold uppercase mt-1">
+                MO: {settings?.mobile || "9988776655"} | GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}
+              </div>
+            </div>
+
+            <div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
+              CREDIT NOTE
+            </div>
+
+            <div className="grid grid-cols-[60%_40%] border-b border-black">
+              <div className="p-2 border-r border-black font-bold text-[11px] uppercase flex flex-col">
+                <span className="text-slate-500 italic underline text-[10px] mb-1">PARTY DETAILS:</span>
+                <span className="text-[13px] font-black">{consigneeName}</span>
+                <span>{consigneeAddress}</span>
+                <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.partyGstin || "-"}</span></span>
+              </div>
+              <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
+                <div className="flex justify-between"><span>CN NO:</span> <span># {data.billNumber}</span></div>
+                <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
+              </div>
+            </div>
+
+            <table className="w-full text-[11px] font-bold text-center border-collapse">
+              <thead>
+                <tr className="border-b border-black uppercase">
+                  <th className="border-r border-black p-2 w-[40px]">NO</th>
+                  <th className="border-r border-black p-2 text-left">DESCRIPTION OF GOODS</th>
+                  <th className="border-r border-black p-2 w-[60px]">HSN</th>
+                  <th className="border-r border-black p-2 w-[70px]">QTY</th>
+                  <th className="border-r border-black p-2 w-[70px]">RATE</th>
+                  <th className="p-2 w-[90px] text-right">AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.items || []).map((item: any, idx: number) => (
+                  <tr key={idx} className="border-b border-black/20">
+                    <td className="border-r border-black p-2 align-top">{idx + 1}</td>
+                    <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
+                      <span>{item.name}</span>
+                      {item.color && <span className="text-[10px]">({item.color})</span>}
+                    </td>
+                    <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
+                    <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
+                    <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
+                    <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
+                  </tr>
+                ))}
+                {Array.from({ length: Math.max(0, 12 - (data.items?.length || 0)) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
+                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-auto border-t border-black">
+            <div className="grid grid-cols-[60%_40%]">
+              <div className="p-2 border-r border-black flex flex-col justify-between font-bold text-[11px] uppercase">
+                <div className="mb-2">
+                  <div className="underline italic text-slate-500 text-[10px] mb-1">REASON:</div>
+                  <div>PURCHASE RETURN / DIFFERENCE IN VALUE</div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col font-bold text-[11px] uppercase">
+                <div className="p-2 space-y-1 flex-grow">
+                  <div className="flex justify-between"><span>TAXABLE VALUE:</span><span>{parseFloat(data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>TAX AMOUNT:</span><span>{parseFloat(data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
+                </div>
+                <div className="border-t border-black p-2 bg-black text-white flex justify-between font-black text-lg">
+                  <span>NET AMOUNT</span>
+                  <span>₹ {parseFloat(data.grandTotal?.toString() || "0").toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
+              <div className="flex flex-col justify-end h-full">
+              </div>
+              <div className="text-center w-[180px] flex flex-col justify-between h-full">
+                <div className="text-[10px] font-black">FOR {settings?.companyName || "ANGAD SILK MILLS"}</div>
+                <div className="border-t border-black pt-1 mt-auto">AUTHORISED SIGNATORY</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+`;
+
+
+const printPreviewRegex = /^function PrintPreview\([\s\S]*?(?=^function \w+|^export)/m;
+const purchasePrintPreviewRegex = /^function PurchasePrintPreview\([\s\S]*?(?=^function \w+|^export)/m;
+const debitNotePrintPreviewRegex = /^function DebitNotePrintPreview\([\s\S]*?(?=^function \w+|^export)/m;
+const creditNotePrintPreviewRegex = /^function CreditNotePrintPreview\([\s\S]*?(?=^function \w+|^export)/m;
+
+content = content.replace(printPreviewRegex, printPreviewContent + "\n");
+content = content.replace(purchasePrintPreviewRegex, purchasePrintPreviewContent + "\n");
+content = content.replace(debitNotePrintPreviewRegex, debitNotePrintPreviewContent + "\n");
+content = content.replace(creditNotePrintPreviewRegex, creditNotePrintPreviewContent + "\n");
+
+fs.writeFileSync('src/App.tsx', content);
+console.log('updated content');
