@@ -808,6 +808,11 @@ export default function App() {
       sgstAmount: split.sgst,
       igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
+      taxableValue: data.taxableValue || 0,
+      cgstAmount: data.cgstAmount || 0,
+      sgstAmount: data.sgstAmount || 0,
+      igstAmount: data.igstAmount || 0,
+      isInterstate: data.isInterstate || false,
       date: data.date || new Date().toISOString(),
       notes: data.notes || '',
       brokerId: data.brokerId || ''
@@ -1025,6 +1030,11 @@ setPreviewBooking(newBooking);
       sgstAmount: split.sgst,
       igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
+      taxableValue: data.taxableValue || 0,
+      cgstAmount: data.cgstAmount || 0,
+      sgstAmount: data.sgstAmount || 0,
+      igstAmount: data.igstAmount || 0,
+      isInterstate: data.isInterstate || false,
       date: data.date || new Date().toISOString(),
       notes: data.notes || '',
       brokerId: data.brokerId || ''
@@ -1151,6 +1161,11 @@ setPreviewBooking(newBooking);
       taxRate: data.taxRate || 18,
       taxAmount: data.taxAmount || 0,
       grandTotal: data.grandTotal || 0,
+      taxableValue: data.taxableValue || 0,
+      cgstAmount: data.cgstAmount || 0,
+      sgstAmount: data.sgstAmount || 0,
+      igstAmount: data.igstAmount || 0,
+      isInterstate: data.isInterstate || false,
       date: data.date || new Date().toISOString(),
       reason: data.reason || '',
       notes: data.notes || ''
@@ -1215,6 +1230,11 @@ setPreviewBooking(newBooking);
       taxRate: data.taxRate || 18,
       taxAmount: data.taxAmount || 0,
       grandTotal: data.grandTotal || 0,
+      taxableValue: data.taxableValue || 0,
+      cgstAmount: data.cgstAmount || 0,
+      sgstAmount: data.sgstAmount || 0,
+      igstAmount: data.igstAmount || 0,
+      isInterstate: data.isInterstate || false,
       date: data.date || new Date().toISOString(),
       reason: data.reason || '',
       notes: data.notes || ''
@@ -3321,7 +3341,16 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       <form 
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({ ...formData, taxAmount: calc.tax, grandTotal: calc.total });
+          onSave({ 
+            ...formData, 
+            taxAmount: calc.tax, 
+            grandTotal: calc.total,
+            taxableValue: calc.taxableValue,
+            cgstAmount: calc.cgst,
+            sgstAmount: calc.sgst,
+            igstAmount: calc.igst,
+            isInterstate: calc.isInterstate
+          });
         }}
         className="p-8 lg:p-12 space-y-10"
       >
@@ -3964,9 +3993,28 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
   const calc = useMemo(() => {
     const basicAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
     const taxableValue = Math.round(Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0)));
-    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
-    return { basicAmount, taxableValue, tax, total: Math.round(taxableValue + tax) };
-  }, [formData.items, formData.globalDiscount, formData.taxRate]);
+    const tax = taxableValue * (Number(formData.taxRate) / 100);
+    
+    // Determine CGST/SGST vs IGST
+    const buyerStateCode = settings?.gstin?.substring(0, 2) || formData.consigneeGstin?.substring(0, 2);
+    const supplierStateCode = formData.partyGstin?.substring(0, 2);
+    const isInterstate = buyerStateCode && supplierStateCode && buyerStateCode !== supplierStateCode;
+    
+    const cgst = isInterstate ? 0 : tax / 2;
+    const sgst = isInterstate ? 0 : tax / 2;
+    const igst = isInterstate ? tax : 0;
+    
+    return { 
+        basicAmount, 
+        taxableValue, 
+        tax, 
+        total: Math.round(taxableValue + tax),
+        cgst,
+        sgst,
+        igst,
+        isInterstate
+    };
+  }, [formData.items, formData.globalDiscount, formData.taxRate, formData.partyGstin, settings?.gstin, formData.consigneeGstin]);
 
   useEffect(() => {
     const searchGst = formData.partyGstin.trim().toUpperCase();
@@ -3996,7 +4044,16 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
       <form 
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({...formData, taxAmount: calc.tax, grandTotal: calc.total});
+          onSave({ 
+            ...formData, 
+            taxAmount: calc.tax, 
+            grandTotal: calc.total,
+            taxableValue: calc.taxableValue,
+            cgstAmount: calc.cgst,
+            sgstAmount: calc.sgst,
+            igstAmount: calc.igst,
+            isInterstate: calc.isInterstate
+          });
         }}
         className="p-8 lg:p-12 space-y-10"
       >
@@ -4238,7 +4295,14 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
 
         <div className="bg-red-50/50 p-8 rounded-3xl border-2 border-dashed border-red-200 text-right space-y-2">
           <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
-          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.tax).toFixed(2)}</span></div>
+          {calc.isInterstate ? (
+            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
+          ) : (
+            <>
+              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.cgst).toFixed(2)}</span></div>
+              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.sgst).toFixed(2)}</span></div>
+            </>
+          )}
           <div className="text-4xl font-black text-slate-900 tracking-tighter">Debit Amount: <span className="text-red-700">₹{Number(calc.total).toFixed(2)}</span></div>
         </div>
 
@@ -5612,9 +5676,28 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
   const calc = useMemo(() => {
     const basicAmount = Math.round(formData.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0));
     const taxableValue = Math.round(Math.max(0, basicAmount - (Number(formData.globalDiscount) || 0)));
-    const tax = Math.round(taxableValue * (Number(formData.taxRate) / 100));
-    return { basicAmount, taxableValue, tax, total: Math.round(taxableValue + tax) };
-  }, [formData.items, formData.globalDiscount, formData.taxRate]);
+    const tax = taxableValue * (Number(formData.taxRate) / 100);
+    
+    // Determine CGST/SGST vs IGST
+    const buyerStateCode = settings?.gstin?.substring(0, 2) || formData.consigneeGstin?.substring(0, 2);
+    const supplierStateCode = formData.partyGstin?.substring(0, 2);
+    const isInterstate = buyerStateCode && supplierStateCode && buyerStateCode !== supplierStateCode;
+    
+    const cgst = isInterstate ? 0 : tax / 2;
+    const sgst = isInterstate ? 0 : tax / 2;
+    const igst = isInterstate ? tax : 0;
+    
+    return { 
+        basicAmount, 
+        taxableValue, 
+        tax, 
+        total: Math.round(taxableValue + tax),
+        cgst,
+        sgst,
+        igst,
+        isInterstate
+    };
+  }, [formData.items, formData.globalDiscount, formData.taxRate, formData.partyGstin, settings?.gstin, formData.consigneeGstin]);
 
   useEffect(() => {
     const searchGst = formData.partyGstin.trim().toUpperCase();
@@ -5644,7 +5727,16 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
       <form 
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({...formData, taxAmount: calc.tax, grandTotal: calc.total});
+          onSave({ 
+            ...formData, 
+            taxAmount: calc.tax, 
+            grandTotal: calc.total,
+            taxableValue: calc.taxableValue,
+            cgstAmount: calc.cgst,
+            sgstAmount: calc.sgst,
+            igstAmount: calc.igst,
+            isInterstate: calc.isInterstate
+          });
         }}
         className="p-8 lg:p-12 space-y-10"
       >
@@ -5926,7 +6018,14 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
 
         <div className="bg-green-50/50 p-8 rounded-3xl border-2 border-dashed border-green-200 text-right space-y-2">
           <div className="text-slate-500 font-bold text-sm">Taxable Value: <span className="text-slate-900">₹{Number(calc.taxableValue).toFixed(2)}</span></div>
-          <div className="text-slate-500 font-bold text-sm">GST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.tax).toFixed(2)}</span></div>
+          {calc.isInterstate ? (
+            <div className="text-slate-500 font-bold text-sm">IGST ({formData.taxRate}%): <span className="text-slate-900">₹{Number(calc.igst).toFixed(2)}</span></div>
+          ) : (
+            <>
+              <div className="text-slate-500 font-bold text-sm">CGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.cgst).toFixed(2)}</span></div>
+              <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.sgst).toFixed(2)}</span></div>
+            </>
+          )}
           <div className="text-4xl font-black text-slate-900 tracking-tighter">Credit Amount: <span className="text-green-700">₹{Number(calc.total).toFixed(2)}</span></div>
         </div>
 
@@ -6042,6 +6141,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
 
 function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }: any) {
   const data = creditNote;
+  const isInterstate = data.isInterstate || false;
   const printRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -8078,8 +8178,15 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
               {/* Right Side: Totals */}
               <div className="flex flex-col font-bold text-[11px] uppercase">
                 <div className="p-2 space-y-1 flex-grow">
-                  <div className="flex justify-between"><span>BASE VALUE:</span><span>{parseFloat(data.taxableValue?.toString() || data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>TAX TOTAL:</span><span>{parseFloat(data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>TAXABLE VALUE:</span><span>{parseFloat(data.taxableValue?.toString() || data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
+                  {isInterstate ? (
+                    <div className="flex justify-between"><span>IGST:</span><span>{parseFloat(data.igstAmount?.toString() || data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
+                  ) : (
+                    <>
+                      <div className="flex justify-between"><span>CGST:</span><span>{parseFloat(data.cgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span>SGST:</span><span>{parseFloat(data.sgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                    </>
+                  )}
                   {parseFloat(data.globalDiscount?.toString() || "0") > 0 && (
                     <div className="flex justify-between text-red-600"><span>DISCOUNT:</span><span>-{parseFloat(data.globalDiscount?.toString() || "0").toFixed(2)}</span></div>
                   )}
@@ -8111,6 +8218,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
 
 function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: any) {
   const data = debitNote;
+  const isInterstate = data.isInterstate || false;
   const printRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
