@@ -41,6 +41,52 @@ async function startServer() {
     app.get('/health', (req, res) => res.send('OK'));
     app.use(express.json({ limit: '50mb' }));
 
+    // --- API FOR VOICE ASSISTANT (GEMINI) ---
+    app.post('/api/voice-command', async (req, res) => {
+        try {
+            const { text } = req.body;
+            if (!text) return res.status(400).json({ error: 'No text provided' });
+            
+            const apiKey = process.env.GEMINI_API_KEY;
+            if (!apiKey) {
+                return res.status(500).json({ error: 'No Gemini API Key found in env' });
+            }
+
+            const { GoogleGenAI } = await import('@google/genai');
+            const ai = new GoogleGenAI({ apiKey });
+            
+            const prompt = `You are an AI Voice Assistant for a billing software. Your task is to process the user's speech and return ONLY a valid JSON object matching the requested action. 
+Do not wrap the response in markdown blocks. Do not include any other text.
+Actions:
+- "create_bill": { "action": "create_bill", "party": "Name", "amount": 1000 }
+- "delete_bill": { "action": "delete_bill", "party": "Name" }
+- "unknown": { "action": "unknown", "response": "Main samajh nahi payi, kripya dobara kahein." }
+
+User Speech: "${text}"`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+
+            const responseText = response.text || "{}";
+            const cleanText = responseText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+            const jsonObject = JSON.parse(cleanText);
+            
+            // Also generate a spoken response if not unknown
+            if (jsonObject.action === 'create_bill') {
+                jsonObject.response = \`Ji, Maine \${jsonObject.party} ka \${jsonObject.amount} rupay ka bill bana diya hai.\`;
+            } else if (jsonObject.action === 'delete_bill') {
+                jsonObject.response = \`Ji, Maine \${jsonObject.party} ka bill delete kar diya hai.\`;
+            }
+
+            res.json(jsonObject);
+        } catch (error) {
+            console.error('Gemini Voice Command Error:', error);
+            res.status(500).json({ error: 'Failed to process voice command' });
+        }
+    });
+
     // --- API TO GET DATA FROM CLOUD ---
     app.get('/api/get-entries', async (req, res) => {
         try {
