@@ -87,6 +87,15 @@ export interface AppSettings {
   ifscCode?: string;
   branchName?: string;
   logoUrl?: string;
+  layoutSettings?: {
+    styles: {
+      tableRowsCount: number;
+      paddingTop: number;
+      paddingBottom: number;
+      headerFontSize: number;
+    };
+    sectionOrder: string[];
+  };
 }
 
 export interface Payment {

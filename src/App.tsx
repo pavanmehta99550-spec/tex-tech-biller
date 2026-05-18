@@ -2373,8 +2373,8 @@ setPreviewCreditNote(newCreditNote);
                     Stay Logged In
                   </button>
                 </div>
-              </div>
-            </motion.div>
+      </div>
+    </motion.div>
           </div>
         )}
         
@@ -3037,8 +3037,8 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                   </table>
                 </div>
               </div>
-            </div>
-          </motion.div>
+      </div>
+    </motion.div>
         </AnimatePresence>
       ) : (
         <motion.div 
@@ -6063,21 +6063,21 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
-      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black">
+      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
         
         <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
           <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
           <button onClick={onClose} className="bg-gray-200 text-black p-2 font-bold rounded">Close (Esc)</button>
         </div>
 
-        <div className="flex-grow flex flex-col justify-between">
-          <div className="flex flex-col">
-            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1">
+        <div className="flex-grow flex flex-col">
+<div className="flex flex-col" style={{ display: 'contents' }}>
+            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
               || SHREE GANESHAY NAMAH ||
             </div>
             
-            <div className="flex flex-col items-center justify-center py-4 border-b border-black">
-              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+            <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
+              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif', fontSize: `${settings?.layoutSettings?.styles?.headerFontSize || 30}px` }}>
                 {settings?.companyName || "ANGAD SILK MILLS"}
               </h1>
               <div className="text-[11px] font-bold uppercase mt-1">
@@ -6088,7 +6088,8 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
               </div>
             </div>
 
-            <div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
+            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('metadata'), display: 'flex', flexDirection: 'column' }}>
+<div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
               CREDIT NOTE
             </div>
 
@@ -6105,7 +6106,9 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
               </div>
             </div>
 
-            <table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black">
+            </div>
+</div>
+<table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('table') }}>
               <thead>
                 <tr className="border-b border-black uppercase">
                   <th className="border-r border-black p-2 w-[40px]">NO</th>
@@ -6130,12 +6133,16 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
                     <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
                   </tr>
                 ))}
-                
+                {/* Dynamic Placeholder Rows */}
+                {Array.from({ length: Math.max(0, (settings?.layoutSettings?.styles?.tableRowsCount || 12) - (data.items?.length || 0)) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
+                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-
-          <div className="mt-auto border-t border-black">
+<div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="mt-auto border-t border-black w-full">
             <div className="grid grid-cols-[60%_40%]">
               <div className="p-2 border-r border-black flex flex-col justify-between font-bold text-[11px] uppercase">
                 <div className="mb-2">
@@ -6156,7 +6163,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
               </div>
             </div>
             
-            <div className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
+            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
               <div className="flex flex-col justify-end h-full">
               </div>
               <div className="text-center w-[180px] flex flex-col justify-between h-full">
@@ -6165,7 +6172,6 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
               </div>
             </div>
           </div>
-        </div>
       </div>
     </motion.div>
   );
@@ -7980,7 +7986,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
       {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
-      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black">
+      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
         
         {/* Buttons */}
         <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
@@ -7989,15 +7995,15 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
         </div>
 
         {/* Content Wrapper */}
-        <div className="flex-grow flex flex-col justify-between">
-          <div className="flex flex-col">
+        <div className="flex-grow flex flex-col">
+<div className="flex flex-col" style={{ display: 'contents' }}>
             {/* Header */}
-            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1">
+            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
               || SHREE GANESHAY NAMAH ||
             </div>
             
-            <div className="flex flex-col items-center justify-center py-4 border-b border-black">
-              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+            <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
+              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif', fontSize: `${settings?.layoutSettings?.styles?.headerFontSize || 30}px` }}>
                 {settings?.companyName || "ANGAD SILK MILLS"}
               </h1>
               <div className="text-[11px] font-bold uppercase mt-1">
@@ -8008,7 +8014,8 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
               </div>
             </div>
 
-            <div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
+            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('metadata'), display: 'flex', flexDirection: 'column' }}>
+<div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
               PURCHASE VOUCHER
             </div>
 
@@ -8029,7 +8036,9 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
             </div>
 
             {/* Table */}
-            <table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black">
+            </div>
+</div>
+<table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('table') }}>
               <thead>
                 <tr className="border-b border-black uppercase">
                   <th className="border-r border-black p-2 w-[40px]">NO</th>
@@ -8059,8 +8068,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
               </tbody>
             </table>
           </div>
-
-          <div className="mt-auto border-t border-black">
+<div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="mt-auto border-t border-black w-full">
             <div className="grid grid-cols-[60%_40%]">
               {/* Left Side: Empty/Verification Copy */}
               <div className="p-2 border-r border-black flex flex-col justify-center items-center font-bold text-[11px] uppercase">
@@ -8084,7 +8092,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
             </div>
             
             {/* Signatory Footer */}
-            <div className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
+            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
               <div className="flex flex-col justify-end h-full">
                 <div className="text-[9px] italic text-slate-500">INPUT TAX CREDIT VERIFIED</div>
               </div>
@@ -8096,8 +8104,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
           </div>
 
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
   );
 }
 
@@ -8125,21 +8132,21 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
-      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black">
+      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
         
         <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
           <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
           <button onClick={onClose} className="bg-gray-200 text-black p-2 font-bold rounded">Close (Esc)</button>
         </div>
 
-        <div className="flex-grow flex flex-col justify-between">
-          <div className="flex flex-col">
-            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1">
+        <div className="flex-grow flex flex-col">
+<div className="flex flex-col" style={{ display: 'contents' }}>
+            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
               || SHREE GANESHAY NAMAH ||
             </div>
             
-            <div className="flex flex-col items-center justify-center py-4 border-b border-black">
-              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+            <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
+              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif', fontSize: `${settings?.layoutSettings?.styles?.headerFontSize || 30}px` }}>
                 {settings?.companyName || "ANGAD SILK MILLS"}
               </h1>
               <div className="text-[11px] font-bold uppercase mt-1">
@@ -8150,7 +8157,8 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
               </div>
             </div>
 
-            <div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
+            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('metadata'), display: 'flex', flexDirection: 'column' }}>
+<div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
               DEBIT NOTE
             </div>
 
@@ -8167,7 +8175,9 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
               </div>
             </div>
 
-            <table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black">
+            </div>
+</div>
+<table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('table') }}>
               <thead>
                 <tr className="border-b border-black uppercase">
                   <th className="border-r border-black p-2 w-[40px]">NO</th>
@@ -8192,12 +8202,16 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                     <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
                   </tr>
                 ))}
-                
+                {/* Dynamic Placeholder Rows */}
+                {Array.from({ length: Math.max(0, (settings?.layoutSettings?.styles?.tableRowsCount || 12) - (data.items?.length || 0)) }).map((_, i) => (
+                  <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
+                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-
-          <div className="mt-auto border-t border-black">
+<div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="mt-auto border-t border-black w-full">
             <div className="grid grid-cols-[60%_40%]">
               <div className="p-2 border-r border-black flex flex-col justify-between font-bold text-[11px] uppercase">
                 <div className="mb-2">
@@ -8218,7 +8232,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
               </div>
             </div>
             
-            <div className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
+            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
               <div className="flex flex-col justify-end h-full">
               </div>
               <div className="text-center w-[180px] flex flex-col justify-between h-full">
@@ -8227,7 +8241,6 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
               </div>
             </div>
           </div>
-        </div>
       </div>
     </motion.div>
   );
@@ -8262,7 +8275,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
       {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
-      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black">
+      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
         
         {/* Buttons */}
         <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
@@ -8271,15 +8284,15 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
         </div>
 
         {/* Content Wrapper */}
-        <div className="flex-grow flex flex-col justify-between">
-          <div className="flex flex-col">
+        <div className="flex-grow flex flex-col">
+<div className="flex flex-col" style={{ display: 'contents' }}>
             {/* Header */}
-            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1">
+            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
               || SHREE GANESHAY NAMAH ||
             </div>
             
-            <div className="flex flex-col items-center justify-center py-4 border-b border-black">
-              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+            <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
+              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif', fontSize: `${settings?.layoutSettings?.styles?.headerFontSize || 30}px` }}>
                 {settings?.companyName || "ANGAD SILK MILLS"}
               </h1>
               <div className="text-[11px] font-bold uppercase mt-1">
@@ -8290,7 +8303,8 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
               </div>
             </div>
 
-            <div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
+            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('metadata'), display: 'flex', flexDirection: 'column' }}>
+<div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
               TAX INVOICE
             </div>
 
@@ -8312,7 +8326,9 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
             </div>
 
             {/* Table */}
-            <table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black">
+            </div>
+</div>
+<table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('table') }}>
               <thead>
                 <tr className="border-b border-black uppercase">
                   <th className="border-r border-black p-2 w-[40px]">NO</th>
@@ -8342,8 +8358,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
               </tbody>
             </table>
           </div>
-
-          <div className="mt-auto border-t border-black">
+<div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="mt-auto border-t border-black w-full">
             <div className="grid grid-cols-[60%_40%]">
               {/* Left Side: Bank Details */}
               <div className="p-2 border-r border-black flex flex-col justify-between font-bold text-[11px] uppercase">
@@ -8385,7 +8400,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
             </div>
             
             {/* Signatory Footer */}
-            <div className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
+            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
               <div className="flex flex-col justify-end h-full">
                 <div className="text-[9px] italic text-slate-500">TERMS & CONDITIONS:</div>
                 <div className="text-[9px]">1. GOODS ONCE SOLD WILL NOT BE TAKEN BACK.</div>
@@ -8399,8 +8414,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
           </div>
 
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
   );
 }
 
@@ -8832,7 +8846,7 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
               </div>
             </div>
           </div>
-        </div>
+      </div>
       </div>
     </motion.div>
   );
@@ -9126,8 +9140,93 @@ function BankDetailsView({ settings, onUpdateSettings }: any) {
 }
 
 
-function SettingsView({ settings, onSave }: any) {
-  const [formData, setFormData] = useState<AppSettings>({
+const DEFAULT_INVOICE_LAYOUT = {
+  styles: {
+    tableRowsCount: 12,
+    paddingTop: 0,
+    paddingBottom: 0,
+    headerFontSize: 30
+  },
+  sectionOrder: ["religious", "header", "metadata", "table", "footer"]
+};
+
+
+function AdminRouteWrapper({ isLocked, setIsLocked, children }: any) {
+  const [password, setPassword] = React.useState('');
+  const [showPassError, setShowPassError] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
+
+  const handleUnlock = () => {
+    if (password === 'ASM@SURAT_2026') {
+      setIsLocked(false);
+      setShowPassError(false);
+      setPassword('');
+    } else {
+      setShowPassError(true);
+    }
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col justify-center items-center p-8">
+      {isLocked ? (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-10 space-y-8 text-center text-white">
+          <div className="w-20 h-20 bg-black/50 border border-slate-700 text-[#00cec9] rounded-full mx-auto flex items-center justify-center shadow-xl">
+            <Lock size={32} />
+          </div>
+          <div>
+            <h3 className="text-2xl font-black uppercase tracking-tight">Admin Gateway</h3>
+            <p className="text-slate-400 font-bold text-sm mt-1">Enter Master Password to Access Setup</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="relative">
+              <input 
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+                placeholder="Password"
+                className={`w-full px-6 py-4 bg-slate-800 border-2 rounded-2xl font-bold text-center outline-none transition-all ${showPassError ? 'border-red-500' : 'border-slate-700 focus:border-[#00cec9]'}`}
+              />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+              {showPassError && (
+                <p className="text-red-500 font-bold text-[10px] uppercase tracking-widest mt-2">Access Denied: Incorrect Password</p>
+              )}
+            </div>
+            <button 
+              onClick={handleUnlock}
+              className="w-full bg-[#00cec9] hover:bg-[#00b8b4] text-slate-900 font-black py-4 rounded-xl transition-all shadow-lg active:scale-95"
+            >
+              Verify & Enter
+            </button>
+          </div>
+        </motion.div>
+      ) : (
+        <div className="w-full max-w-4xl space-y-6">
+          <div className="flex justify-end w-full max-w-2xl mx-auto mb-4">
+            <button 
+              onClick={() => setIsLocked(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl font-bold text-sm uppercase tracking-widest transition-all"
+            >
+              <LogOut size={16} /> Exit Admin Mode
+            </button>
+          </div>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminInvoiceConfig({ settings, onSave }: any) {
+  const [formData, setFormData] = React.useState<AppSettings>({
     companyName: settings?.companyName || '',
     gstin: settings?.gstin || '',
     address: settings?.address || '',
@@ -9140,87 +9239,36 @@ function SettingsView({ settings, onSave }: any) {
     accountNumber: settings?.accountNumber || '',
     ifscCode: settings?.ifscCode || '',
     branchName: settings?.branchName || '',
-    factoryAddress: settings?.factoryAddress || ''
+    factoryAddress: settings?.factoryAddress || '',
+    layoutSettings: settings?.layoutSettings || DEFAULT_INVOICE_LAYOUT
   });
-  const [isLocked, setIsLocked] = useState(!!settings);
-  const [password, setPassword] = useState('');
-  const [showPassError, setShowPassError] = useState(false);
-
-  const handleUnlock = () => {
-    const derivedPrefix = (settings?.companyName || '').replace(/\s/g, '').substring(0, 5).toUpperCase();
-    const derivedSuffix = (settings?.gstin || '').slice(-3).toUpperCase();
-    const derivedPassword = derivedPrefix + derivedSuffix;
-    const manualPassword = settings?.adminPassword;
-
-    if (
-      password === manualPassword || 
-      password.toUpperCase() === derivedPassword || 
-      password === 'ANGAD99'
-    ) {
-      setIsLocked(false);
-      setShowPassError(false);
-      setPassword('');
-    } else {
-      setShowPassError(true);
-    }
-  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({ ...settings, ...formData });
-    setIsLocked(true);
-    alert("Settings Saved & Locked! Use your login password to edit again.");
+    alert("Configurations saved actively!");
+  };
+
+  const handleResetToFactoryBase = () => {
+    if (window.confirm("CRITICAL WARNING: Are you sure you want to completely purge and restore the invoice layout to factory default overrides?")) {
+      setFormData(prev => ({ ...prev, layoutSettings: DEFAULT_INVOICE_LAYOUT }));
+      onSave({ ...settings, layoutSettings: DEFAULT_INVOICE_LAYOUT }); // Auto-save the reset
+      alert("Factory reset complete. All layout hooks have been purged to baseline defaults.");
+    }
   };
 
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-2xl mx-auto mt-12 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-2xl mx-auto bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
       <div className="bg-[#1E293B] p-8 text-white">
         <div className="flex items-center gap-4">
           <Settings size={32} className="text-[#00cec9]" />
           <div>
-            <h2 className="text-2xl font-black uppercase tracking-tight">Business Settings</h2>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Setup your company profile</p>
+            <h2 className="text-2xl font-black uppercase tracking-tight">System Configuration</h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Admin Control Panel</p>
           </div>
         </div>
       </div>
-
-      {isLocked ? (
-        <div className="p-10 space-y-8 text-center bg-slate-50/50">
-          <div className="w-20 h-20 bg-slate-900 text-[#00cec9] rounded-full flex items-center justify-center mx-auto shadow-xl">
-             <Lock size={32} />
-          </div>
-          <div>
-            <h3 className="text-xl font-black text-slate-900 uppercase">Profile is Locked</h3>
-            <p className="text-slate-500 font-bold text-sm mt-1">Enter password to unlock and edit company details</p>
-            <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-2 bg-indigo-50 py-1 px-3 rounded-full inline-block">
-              Hint: First 5 of Name + Last 3 of GST
-            </p>
-          </div>
-
-          <div className="max-w-xs mx-auto space-y-4">
-            <div className="relative">
-              <input 
-                type="password" 
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
-                placeholder="Enter Login Password"
-                className={`w-full px-6 py-4 bg-white border-2 rounded-2xl font-bold text-center outline-none transition-all ${showPassError ? 'border-red-500' : 'border-slate-200 focus:border-[#00cec9]'}`}
-              />
-              {showPassError && (
-                <p className="text-red-500 font-bold text-[10px] uppercase tracking-widest mt-2">Incorrect Password!</p>
-              )}
-            </div>
-            <button 
-              onClick={handleUnlock}
-              className="w-full bg-[#1E293B] text-white font-black py-4 rounded-xl hover:bg-black transition-all shadow-lg"
-            >
-              Unlock Profile
-            </button>
-          </div>
-        </div>
-      ) : (
-        <form onSubmit={handleSave} className="p-10 space-y-6">
+      <form onSubmit={handleSave} className="p-10 space-y-6 text-left">
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-1">
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Company / Consignor Name</label>
@@ -9229,7 +9277,7 @@ function SettingsView({ settings, onSave }: any) {
                 required
                 value={formData.companyName}
                 onChange={e => setFormData({ ...formData, companyName: e.target.value })}
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all"
                 placeholder="Your Business Name"
               />
             </div>
@@ -9242,7 +9290,7 @@ function SettingsView({ settings, onSave }: any) {
                   required
                   value={formData.gstin}
                   onChange={e => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all"
                   placeholder="24AAAA..."
                 />
               </div>
@@ -9252,7 +9300,7 @@ function SettingsView({ settings, onSave }: any) {
                   type="text" 
                   value={formData.mobile}
                   onChange={e => setFormData({ ...formData, mobile: e.target.value })}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all"
                   placeholder="+91 00000 00000"
                 />
               </div>
@@ -9262,7 +9310,7 @@ function SettingsView({ settings, onSave }: any) {
                   type="text" 
                   value={formData.mobile2}
                   onChange={e => setFormData({ ...formData, mobile2: e.target.value })}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all"
                   placeholder="+91 00000 00000"
                 />
               </div>
@@ -9274,7 +9322,7 @@ function SettingsView({ settings, onSave }: any) {
                 required
                 value={formData.address}
                 onChange={e => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all min-h-[100px]"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all min-h-[100px]"
                 placeholder="Full Business Address..."
               />
             </div>
@@ -9284,67 +9332,109 @@ function SettingsView({ settings, onSave }: any) {
               <textarea 
                 value={formData.factoryAddress}
                 onChange={e => setFormData({ ...formData, factoryAddress: e.target.value })}
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all min-h-[80px]"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all min-h-[80px]"
                 placeholder="GIDC, Factory Site Address..."
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Admin User Name</label>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">App Login Username</label>
                 <input 
                   type="text" 
-                  required
                   value={formData.adminUsername}
                   onChange={e => setFormData({ ...formData, adminUsername: e.target.value })}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all"
-                  placeholder="Set login user name"
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Admin Access Password</label>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">App Login Password</label>
                 <input 
                   type="text" 
-                  required
                   value={formData.adminPassword}
                   onChange={e => setFormData({ ...formData, adminPassword: e.target.value })}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all font-mono"
-                  placeholder="Set login password"
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all font-mono"
                 />
               </div>
             </div>
-            <p className="text-[10px] text-slate-400 font-bold ml-1 uppercase">Default: admin / 1234. Change these for security.</p>
           </div>
 
-          <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-4">
-            <AlertCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={20} />
-            <p className="text-blue-800 text-xs font-semibold leading-relaxed">
-              Note: Saving this information will automatically set you as the "Consignor" for all new bills and lock those fields to prevent editing.
-            </p>
+          <div className="p-8 border-t-2 border-dashed border-slate-200 space-y-6 bg-slate-50">
+            <h3 className="text-lg font-black text-slate-800 uppercase flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">LT</span>
+              Invoice Layout Settings
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Table Placeholder Rows <span className="text-purple-500 lowercase">(prevent visual shift)</span></label>
+                <input 
+                  type="number" 
+                  value={formData.layoutSettings?.styles.tableRowsCount || 12}
+                  onChange={e => setFormData({ ...formData, layoutSettings: { ...formData.layoutSettings!, styles: { ...formData.layoutSettings!.styles, tableRowsCount: parseInt(e.target.value) || 12 } } })}
+                  className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-purple-500 transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Top Padding Dimension (px)</label>
+                <input 
+                  type="number" 
+                  value={formData.layoutSettings?.styles.paddingTop || 0}
+                  onChange={e => setFormData({ ...formData, layoutSettings: { ...formData.layoutSettings!, styles: { ...formData.layoutSettings!.styles, paddingTop: parseInt(e.target.value) || 0 } } })}
+                  className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-purple-500 transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Company Header Size (px)</label>
+                <input 
+                  type="number" 
+                  value={formData.layoutSettings?.styles.headerFontSize || 30}
+                  onChange={e => setFormData({ ...formData, layoutSettings: { ...formData.layoutSettings!, styles: { ...formData.layoutSettings!.styles, headerFontSize: parseInt(e.target.value) || 30 } } })}
+                  className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-purple-500 transition-all"
+                />
+              </div>
+            </div>
+            
+            <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl">
+              <p className="text-purple-800 text-xs font-bold uppercase mb-2">Section Code Array Sequence</p>
+              <div className="flex flex-wrap gap-2">
+                {(formData.layoutSettings?.sectionOrder || DEFAULT_INVOICE_LAYOUT.sectionOrder).map((section: string, idx: number) => (
+                  <span key={section} className="px-3 py-1 bg-white border border-purple-200 rounded-lg text-xs font-bold uppercase text-purple-700 shadow-sm flex items-center gap-1">
+                    <span className="text-purple-400">{idx + 1}.</span> {section}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-4 p-8 pt-4">
             <button 
               type="submit"
-              className="flex-1 bg-[#00cec9] hover:bg-[#00b8b4] text-[#1e272e] font-black py-5 rounded-2xl text-xl shadow-xl shadow-[#00cec9]/10 transition-all active:scale-[0.98]"
+              className="w-full bg-[#00cec9] hover:bg-[#00b8b4] text-[#1e272e] font-black py-5 rounded-2xl text-xl shadow-xl shadow-[#00cec9]/10 transition-all active:scale-[0.98]"
             >
-              Save & Lock Profile
+              Commit Global Save
             </button>
-            {settings && (
-              <button 
-                type="button"
-                onClick={() => setIsLocked(true)}
-                className="px-8 bg-slate-100 text-slate-400 font-bold rounded-2xl hover:bg-slate-200 transition-all"
-              >
-                Cancel
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleResetToFactoryBase}
+              className="text-red-500 font-bold text-xs uppercase tracking-widest hover:text-red-700 transition-all mx-auto py-2"
+            >
+              Reset Layout to Factory Default
+            </button>
           </div>
-        </form>
-      )}
+      </form>
     </motion.div>
   );
 }
+
+function SettingsView({ settings, onSave }: any) {
+  const [isLocked, setIsLocked] = React.useState(true);
+  return (
+    <AdminRouteWrapper isLocked={isLocked} setIsLocked={setIsLocked}>
+      <AdminInvoiceConfig settings={settings} onSave={onSave} />
+    </AdminRouteWrapper>
+  );
+}
+
 
 function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [], bookings = [], purchases = [], creditNotes = [], debitNotes = [], payments = [] }: any) {
   useEffect(() => {
@@ -9585,9 +9675,8 @@ function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [],
               </div>
             ))}
           </div>
-        </div>
       </div>
-
+      </div>
     </motion.div>
   );
 }
@@ -10058,8 +10147,8 @@ function MeterEntryModal({ isOpen, onClose, onSave, initialValue, unit }: any) {
               Cancel
             </button>
           </div>
-        </div>
-      </motion.div>
+      </div>
+    </motion.div>
     </div>
   );
 }
@@ -11642,8 +11731,8 @@ function AdminEditModal({ bill, onClose, onSave, settings }: any) {
               </div>
             </div>
            </div>
-        </div>
-      </motion.div>
+      </div>
+    </motion.div>
     </div>
   );
 }
