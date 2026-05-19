@@ -49,12 +49,14 @@
 
   /* Layout for Bill Area */
   #bill-print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 210mm; 
-    margin: 0;
-    padding: 0;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: white !important;
+    border: 1px solid black !important;
+    box-sizing: border-box !important;
   }
 
   /* Force print colors */
@@ -67,6 +69,7 @@
   .item-table {
     min-height: 180mm !important;
     border: 1px solid black !important;
+    width: 100% !important;
   }
 
   /* Page setup */

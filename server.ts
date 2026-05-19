@@ -8,9 +8,6 @@ import fs from 'fs';
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, getDoc } from "firebase/firestore";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // --- FIREBASE CONFIG (Aapki Chabi) ---
 const firebaseConfig = {
   apiKey: "AIzaSyAAylk4kI5has8jdwX0ef29vcRkLPoSoNw",
@@ -55,29 +52,28 @@ async function startServer() {
             const { GoogleGenAI } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey });
             
-            const prompt = `You are an AI Voice Assistant for a billing software. Your task is to process the user's speech and return ONLY a valid JSON object matching the requested action. 
-Do not wrap the response in markdown blocks. Do not include any other text.
-Actions:
-- "create_bill": { "action": "create_bill", "party": "Name", "amount": 1000 }
-- "delete_bill": { "action": "delete_bill", "party": "Name" }
-- "unknown": { "action": "unknown", "response": "Main samajh nahi payi, kripya dobara kahein." }
-
-User Speech: "${text}"`;
+            const prompt = "You are an AI Voice Assistant for a billing software. Your task is to process the user's speech and return ONLY a valid JSON object matching the requested action. \n" +
+"Do not wrap the response in markdown blocks. Do not include any other text.\n" +
+"Actions:\n" +
+"- \"create_bill\": { \"action\": \"create_bill\", \"party\": \"Name\", \"amount\": 1000 }\n" +
+"- \"delete_bill\": { \"action\": \"delete_bill\", \"party\": \"Name\" }\n" +
+"- \"unknown\": { \"action\": \"unknown\", \"response\": \"Main samajh nahi payi, kripya dobara kahein.\" }\n\n" +
+"User Speech: \"" + text + "\"";
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-1.5-flash-latest',
                 contents: prompt,
             });
 
             const responseText = response.text || "{}";
-            const cleanText = responseText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+            const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
             const jsonObject = JSON.parse(cleanText);
             
             // Also generate a spoken response if not unknown
             if (jsonObject.action === 'create_bill') {
-                jsonObject.response = \`Ji, Maine \${jsonObject.party} ka \${jsonObject.amount} rupay ka bill bana diya hai.\`;
+                jsonObject.response = "Ji, Maine " + jsonObject.party + " ka " + (jsonObject.amount || "0") + " rupay ka bill bana diya hai.";
             } else if (jsonObject.action === 'delete_bill') {
-                jsonObject.response = \`Ji, Maine \${jsonObject.party} ka bill delete kar diya hai.\`;
+                jsonObject.response = "Ji, Maine " + jsonObject.party + " ka bill delete kar diya hai.";
             }
 
             res.json(jsonObject);

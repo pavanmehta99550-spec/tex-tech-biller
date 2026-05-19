@@ -61,6 +61,7 @@ import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem, Broker, BrokerCommission, BrokerPayment } from './types';
 import Login from './components/Login';
+import { VoiceAssistant } from './components/VoiceAssistant';
 
 // Initial Party Database
 const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
@@ -261,6 +262,27 @@ export default function App() {
     }
     alert('Entry not found (Checked Bills, LR, Challans)');
   }
+
+  const handleVoiceAction = (data: any) => {
+    if (data.action === 'create_bill') {
+      const party = saleParties.find(p => p.name.toLowerCase().includes(data.party?.toLowerCase()));
+      handleSaveBooking({
+        consigneeName: party?.name || data.party,
+        consigneeGstin: party?.gstin || '',
+        consigneeAddress: party?.address || '',
+        basicAmount: data.amount,
+        grandTotal: data.amount,
+        items: [{ id: '1', name: 'Voice Bill Item', quantity: 1, unit: 'PCS', rate: data.amount, amount: data.amount }]
+      });
+    } else if (data.action === 'delete_bill') {
+      const booking = bookings.find(b => b.billNumber?.toString() === data.bill_number?.toString());
+      if (booking) {
+        handleDeleteBooking(booking.id);
+      } else {
+        alert("Bill " + data.bill_number + " nahi mila.");
+      }
+    }
+  };
 
   // Calculate current entry payment status for watermark
   const currentStatus = useMemo(() => {
@@ -809,9 +831,6 @@ export default function App() {
       igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
       taxableValue: data.taxableValue || 0,
-      cgstAmount: data.cgstAmount || 0,
-      sgstAmount: data.sgstAmount || 0,
-      igstAmount: data.igstAmount || 0,
       isInterstate: data.isInterstate || false,
       date: data.date || new Date().toISOString(),
       notes: data.notes || '',
@@ -1031,9 +1050,6 @@ setPreviewBooking(newBooking);
       igstAmount: split.igst,
       grandTotal: data.grandTotal || 0,
       taxableValue: data.taxableValue || 0,
-      cgstAmount: data.cgstAmount || 0,
-      sgstAmount: data.sgstAmount || 0,
-      igstAmount: data.igstAmount || 0,
       isInterstate: data.isInterstate || false,
       date: data.date || new Date().toISOString(),
       notes: data.notes || '',
@@ -2412,6 +2428,7 @@ setPreviewCreditNote(newCreditNote);
 
 
       </AnimatePresence>
+      <VoiceAssistant onAction={handleVoiceAction} />
     </div>
   );
 }
@@ -2444,7 +2461,7 @@ function BillTemplate({ booking, settings, payments = [], creditNotes = [] }: an
     <div id="bill-template-root" className="bg-white p-10 text-black font-sans box-border text-[11px]" style={{ fontFamily: 'Arial, sans-serif', width: '800px' }}>
       <div className="border border-black">
         <div className="text-center p-2 border-b border-black">
-          <div className="font-bold text-xs" style={{ fontFamily: 'Georgia, serif' }}>||| SHREE GANESHAY NAMAH |||</div>
+          <div className="font-bold text-xs" style={{ fontFamily: 'Georgia, serif' }}>|| HAR HAR MAHADEV ||</div>
           <h1 className="text-3xl font-black mt-1 uppercase tracking-tighter" style={{ fontFamily: 'Georgia, serif' }}>{settings?.companyName || "ANGAD SILK MILLS"}</h1>
           <div className="font-bold uppercase mt-1 tracking-wide">{settings?.address || "SURAT, GUJARAT"}</div>
         </div>
@@ -6173,7 +6190,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
         <div className="flex-grow flex flex-col">
 <div className="flex flex-col" style={{ display: 'contents' }}>
             <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
-              || SHREE GANESHAY NAMAH ||
+              || HAR HAR MAHADEV ||
             </div>
             
             <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
@@ -8099,7 +8116,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
 <div className="flex flex-col" style={{ display: 'contents' }}>
             {/* Header */}
             <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
-              || SHREE GANESHAY NAMAH ||
+              || HAR HAR MAHADEV ||
             </div>
             
             <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
@@ -8131,6 +8148,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
                 <div className="flex justify-between"><span>VOUCHER NO:</span> <span># {data.billNumber}</span></div>
                 <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
                 <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
+                {data.transportGstin && <div className="flex justify-between"><span>TRANSPORT GST:</span> <span>{data.transportGstin}</span></div>}
                 {data.parcels ? <div className="flex justify-between"><span>PARCELS:</span> <span>{data.parcels}</span></div> : null}
               </div>
             </div>
@@ -8250,7 +8268,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
         <div className="flex-grow flex flex-col">
 <div className="flex flex-col" style={{ display: 'contents' }}>
             <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
-              || SHREE GANESHAY NAMAH ||
+              || HAR HAR MAHADEV ||
             </div>
             
             <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
@@ -8396,7 +8414,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
 <div className="flex flex-col" style={{ display: 'contents' }}>
             {/* Header */}
             <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
-              || SHREE GANESHAY NAMAH ||
+              || HAR HAR MAHADEV ||
             </div>
             
             <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
@@ -8429,6 +8447,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                 <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
                 <div className="flex justify-between"><span>EWB NO:</span> <span>{data.ewayBill || data.ewbNumber || "-"}</span></div>
                 <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
+                {data.transportGstin && <div className="flex justify-between"><span>TRANSPORT GST:</span> <span>{data.transportGstin}</span></div>}
                 {data.parcels ? <div className="flex justify-between"><span>PARCELS:</span> <span>{data.parcels}</span></div> : null}
               </div>
             </div>
