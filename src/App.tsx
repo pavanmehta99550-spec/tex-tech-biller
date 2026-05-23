@@ -7372,6 +7372,11 @@ function ItemMasterView({ items, bookings = [], purchases = [], debitNotes = [],
 
 function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  const registeredEmail = data.settings?.backupEmail || 'pavanmehta99550@gmail.com';
+  const senderEmail = data.settings?.smtpEmail || '';
+  const senderPass = data.settings?.smtpPassword || '';
 
   const downloadBackup = () => {
     const jsonString = `data:text/json;chatset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
@@ -7382,12 +7387,52 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
     onBackup();
   };
 
+  const sendAutoEmailBackup = async () => {
+    if (!confirm(`Kya aap auto-backup file registered email (${registeredEmail}) par bhejna chahte hain?\n\nKripya "OK" dabba kar confirm karein.`)) {
+      return;
+    }
+
+    if (!senderEmail || !senderPass) {
+      alert("SMTP Configurations Missing!\n\nEmail automatically bhejne ke liye, kripya pehle Settings tab mein jaakar 'SENDER GMAIL ADDRESS' aur Google Account se banaaya gaya 16-character 'GMAIL APP PASSWORD' configure karke save karein.");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const response = await fetch('/api/send-email-backup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          backupData: data,
+          backupEmail: registeredEmail,
+          smtpEmail: senderEmail,
+          smtpPassword: senderPass
+        })
+      });
+
+      const resJson = await response.json();
+      if (!response.ok) {
+        throw new Error(resJson.error || 'Server error occurred while sending email.');
+      }
+
+      alert(`Adbhut! Backup file safaltapoorvak registered email (${registeredEmail}) par bhej di gayi hai.\n\n|| HAR HAR MAHADEV ||`);
+      onBackup();
+    } catch (error: any) {
+      console.error('Auto Email Error:', error);
+      alert(`Auto-Backup Fail: ${error.message || 'SMTP connect nahi ho paaya'}\n\nKripya check karein ki aapka Sender Gmail sahi hai aur App Password 100% active hai.`);
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   const sendToGmail = () => {
     const subject = encodeURIComponent(`Tax Billing Backup - ${new Date().toLocaleDateString()}`);
     const body = encodeURIComponent(
       `Hello,\n\nPlease find the data backup attached from the Smart GST Biller Application. \n\nIMPORTANT: Copy this data and save it in a safe place.\n\nEXPORT DATE: ${new Date().toLocaleString()}\n\n---\nDATA CONTENT START\n\n${JSON.stringify(data, null, 2)}\n\nDATA CONTENT END`
     );
-    window.open(`mailto:?subject=${subject}&body=${body}`);
+    window.open(`mailto:${registeredEmail}?subject=${subject}&body=${body}`);
     onBackup();
   };
 
@@ -7482,20 +7527,46 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
         </div>
       </div>
 
-      <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm flex flex-col items-center text-center group hover:border-rose-500 transition-all max-w-md mx-auto">
-          <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mb-6 text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all">
+      <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-sm flex flex-col items-center text-center group hover:border-rose-500 transition-all max-w-xl mx-auto space-y-6">
+          <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all">
             <Mail size={32} />
           </div>
-          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Send to Email</h3>
-          <p className="text-slate-500 text-sm font-bold mb-8">
-            Opens your Gmail with the backup data in the body for cloud storage.
+          <div>
+            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-1">Registered Email Backup</h3>
+            <div className="inline-block px-4 py-1.5 bg-rose-50 rounded-full text-xs font-bold text-rose-600">
+              {registeredEmail}
+            </div>
+          </div>
+          <p className="text-slate-500 text-xs font-bold max-w-md">
+            Ok button dabba kar complete cloud system data directly is registered email address par automatic bhejien (Gmail App Password SMTP configure hona chahiye).
           </p>
-          <button 
-            onClick={sendToGmail}
-            className="w-full py-5 bg-rose-500 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-100 hover:bg-black transition-all active:scale-95"
-          >
-            Open Mail Client
-          </button>
+          
+          <div className="w-full flex flex-col sm:flex-row gap-4 pt-2">
+            <button 
+              onClick={sendAutoEmailBackup}
+              disabled={isSendingEmail}
+              className={`flex-1 py-5 rounded-3xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-rose-100 hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2 ${isSendingEmail ? 'bg-slate-400 cursor-not-allowed shadow-none' : 'bg-rose-500 hover:bg-rose-600'}`}
+            >
+              {isSendingEmail ? (
+                <>
+                  <RefreshCw className="animate-spin" size={16} />
+                  BHEJ RAHE HAI...
+                </>
+              ) : (
+                <>
+                  <Mail size={16} />
+                  AUTO EMAIL SEND BACKUP (OK)
+                </>
+              )}
+            </button>
+            
+            <button 
+              onClick={sendToGmail}
+              className="py-5 px-6 border border-slate-200 text-slate-700 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95"
+            >
+              Manual Mail Client
+            </button>
+          </div>
       </div>
 
       <div className="bg-slate-900 rounded-[40px] p-10 text-white flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden relative">
@@ -9367,6 +9438,9 @@ function AdminInvoiceConfig({ settings, onSave }: any) {
     ifscCode: settings?.ifscCode || '',
     branchName: settings?.branchName || '',
     factoryAddress: settings?.factoryAddress || '',
+    backupEmail: settings?.backupEmail || 'pavanmehta99550@gmail.com',
+    smtpEmail: settings?.smtpEmail || '',
+    smtpPassword: settings?.smtpPassword || '',
     layoutSettings: settings?.layoutSettings || DEFAULT_INVOICE_LAYOUT
   });
 
@@ -9482,6 +9556,56 @@ function AdminInvoiceConfig({ settings, onSave }: any) {
                   onChange={e => setFormData({ ...formData, adminPassword: e.target.value })}
                   className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all font-mono"
                 />
+              </div>
+            </div>
+
+            {/* AUTOMATED EMAIL BACKUP CONFIG */}
+            <div className="p-6 bg-rose-50/50 border border-rose-100 rounded-3xl space-y-4">
+              <h4 className="text-sm font-black text-rose-800 uppercase tracking-wide flex items-center gap-2">
+                <Mail size={18} className="text-rose-600" />
+                AUTOMATED EMAIL BACKUP SYSTEM
+              </h4>
+              <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                Configure SMTP to automatically send updated business backups to your register email. 
+                <br />
+                <span className="text-rose-600">Tip:</span> Use Gmail SMTP by typing your Gmail address as Sender and generating a 16-character <strong className="underline">App Password</strong> from your Google Account settings.
+              </p>
+              
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">REGISTERED RECEIVER BACKUP EMAIL</label>
+                  <input 
+                    type="email" 
+                    value={formData.backupEmail}
+                    onChange={e => setFormData({ ...formData, backupEmail: e.target.value })}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-800 outline-none focus:border-rose-500 transition-all"
+                    placeholder="example@gmail.com"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">SENDER GMAIL ADDRESS</label>
+                    <input 
+                      type="email" 
+                      value={formData.smtpEmail}
+                      onChange={e => setFormData({ ...formData, smtpEmail: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-800 outline-none focus:border-rose-500 transition-all"
+                      placeholder="mysender@gmail.com"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">GMAIL APP PASSWORD (16-CHAR)</label>
+                    <input 
+                      type="password" 
+                      value={formData.smtpPassword}
+                      onChange={e => setFormData({ ...formData, smtpPassword: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-800 outline-none focus:border-rose-500 transition-all font-mono"
+                      placeholder="xxxx xxxx xxxx xxxx"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

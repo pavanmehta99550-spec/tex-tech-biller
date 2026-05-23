@@ -87,6 +87,9 @@ export interface AppSettings {
   ifscCode?: string;
   branchName?: string;
   logoUrl?: string;
+  backupEmail?: string;
+  smtpEmail?: string;
+  smtpPassword?: string;
   layoutSettings?: {
     styles: {
       tableRowsCount: number;
