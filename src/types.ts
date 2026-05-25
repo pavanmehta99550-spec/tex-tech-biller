@@ -57,6 +57,8 @@ export interface Booking {
   sgstAmount?: number;
   igstAmount?: number;
   grandTotal: number;
+  taxableValue?: number;
+  isInterstate?: boolean;
   date: string;
   billNumber: number;
   notes?: string;
@@ -133,6 +135,8 @@ export interface Purchase {
   sgstAmount?: number;
   igstAmount?: number;
   grandTotal: number;
+  taxableValue?: number;
+  isInterstate?: boolean;
   notes?: string;
   partyBillNumber?: string;
   brokerId?: string;
@@ -154,7 +158,12 @@ export interface DebitNote {
   globalDiscount: number;
   taxRate: number;
   taxAmount: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   grandTotal: number;
+  taxableValue?: number;
+  isInterstate?: boolean;
   reason?: string;
   notes?: string;
 }
@@ -174,7 +183,12 @@ export interface CreditNote {
   globalDiscount: number;
   taxRate: number;
   taxAmount: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   grandTotal: number;
+  taxableValue?: number;
+  isInterstate?: boolean;
   reason?: string;
   notes?: string;
 }

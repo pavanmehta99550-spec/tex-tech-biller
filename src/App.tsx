@@ -272,7 +272,7 @@ export default function App() {
         consigneeAddress: party?.address || '',
         basicAmount: data.amount,
         grandTotal: data.amount,
-        items: [{ id: '1', name: 'Voice Bill Item', quantity: 1, unit: 'PCS', rate: data.amount, amount: data.amount }]
+        items: [{ id: '1', name: 'Voice Bill Item', color: '', hsnCode: '', taka: '', unit: 'PCS', quantity: 1, rate: data.amount, discount: 0, amount: data.amount }]
       });
     } else if (data.action === 'delete_bill') {
       const booking = bookings.find(b => b.billNumber?.toString() === data.bill_number?.toString());
@@ -555,10 +555,14 @@ export default function App() {
         setIsAuthenticated(true);
         // Check for admin role
         getDoc(doc(db, 'admins', u.uid)).then(docSnap => {
-          setIsAdmin(docSnap.exists());
+          setIsAdmin(docSnap.exists() || u.email === 'pavanmehta99550@gmail.com');
         }).catch(err => {
           console.error("Admin check failed", err);
-          setIsAdmin(false);
+          if (u.email === 'pavanmehta99550@gmail.com') {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+          }
         });
       } else {
         setIsAdmin(false);
@@ -4013,7 +4017,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
     const tax = taxableValue * (Number(formData.taxRate) / 100);
     
     // Determine CGST/SGST vs IGST
-    const buyerStateCode = settings?.gstin?.substring(0, 2) || formData.consigneeGstin?.substring(0, 2);
+    const buyerStateCode = settings?.gstin?.substring(0, 2);
     const supplierStateCode = formData.partyGstin?.substring(0, 2);
     const isInterstate = buyerStateCode && supplierStateCode && buyerStateCode !== supplierStateCode;
     
@@ -4031,7 +4035,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
         igst,
         isInterstate
     };
-  }, [formData.items, formData.globalDiscount, formData.taxRate, formData.partyGstin, settings?.gstin, formData.consigneeGstin]);
+  }, [formData.items, formData.globalDiscount, formData.taxRate, formData.partyGstin, settings?.gstin]);
 
   useEffect(() => {
     const searchGst = formData.partyGstin.trim().toUpperCase();
@@ -5696,7 +5700,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
     const tax = taxableValue * (Number(formData.taxRate) / 100);
     
     // Determine CGST/SGST vs IGST
-    const buyerStateCode = settings?.gstin?.substring(0, 2) || formData.consigneeGstin?.substring(0, 2);
+    const buyerStateCode = settings?.gstin?.substring(0, 2);
     const supplierStateCode = formData.partyGstin?.substring(0, 2);
     const isInterstate = buyerStateCode && supplierStateCode && buyerStateCode !== supplierStateCode;
     
@@ -5714,7 +5718,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
         igst,
         isInterstate
     };
-  }, [formData.items, formData.globalDiscount, formData.taxRate, formData.partyGstin, settings?.gstin, formData.consigneeGstin]);
+  }, [formData.items, formData.globalDiscount, formData.taxRate, formData.partyGstin, settings?.gstin]);
 
   useEffect(() => {
     const searchGst = formData.partyGstin.trim().toUpperCase();
@@ -9444,6 +9448,30 @@ function AdminInvoiceConfig({ settings, onSave }: any) {
     layoutSettings: settings?.layoutSettings || DEFAULT_INVOICE_LAYOUT
   });
 
+  React.useEffect(() => {
+    if (settings) {
+      setFormData({
+        companyName: settings.companyName || '',
+        gstin: settings.gstin || '',
+        address: settings.address || '',
+        mobile: settings.mobile || '',
+        mobile2: settings.mobile2 || '',
+        adminUsername: settings.adminUsername || 'admin',
+        adminPassword: settings.adminPassword || '1234',
+        signature: settings.signature || '',
+        bankName: settings.bankName || '',
+        accountNumber: settings.accountNumber || '',
+        ifscCode: settings.ifscCode || '',
+        branchName: settings.branchName || '',
+        factoryAddress: settings.factoryAddress || '',
+        backupEmail: settings.backupEmail || 'pavanmehta99550@gmail.com',
+        smtpEmail: settings.smtpEmail || '',
+        smtpPassword: settings.smtpPassword || '',
+        layoutSettings: settings.layoutSettings || DEFAULT_INVOICE_LAYOUT
+      });
+    }
+  }, [settings]);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({ ...settings, ...formData });
@@ -9811,7 +9839,7 @@ function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [],
                 type="button"
                 onClick={() => {
                   setEditingId(null);
-                  setPartyForm({ name: '', gstin: '', address: '', mobile: '' });
+                  setPartyForm({ name: '', gstin: '', address: '', mobile: '', mobile2: '' });
                 }}
                 className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:underline"
               >

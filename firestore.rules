@@ -20,10 +20,19 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == "pavanmehta99550@gmail.com" && request.auth.token.email_verified == true)
+      );
     }
 
     // Admin access
+    match /admins/{adminId} {
+      // Allow any signed-in user to check if they specifically are an admin without permissions-denied crash
+      allow get: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow list, write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if isAdmin();
     }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Lock, User, ShieldCheck, Building2, Hash, Key, CheckCircle2, Mail, RefreshCw, Eye, EyeOff } from 'lucide-react';
-import { auth, db, signInWithGoogle } from '../lib/firebase';
+import { auth, db, signInWithGoogle, signInWithGoogleRedirect } from '../lib/firebase';
 import { FcGoogle } from 'react-icons/fc';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -81,13 +81,27 @@ export default function Login({
       console.error("Google Sign-In Detailed Error:", err);
       let msg = err.message || 'Unknown error';
       if (err.code === 'auth/popup-blocked') {
-        msg = 'Sign-in popup was blocked by your browser. Please allow popups for this site and try again.';
+        msg = 'Sign-in popup was blocked by your browser (auth/popup-blocked). Please allow popups or try the Redirect login below.';
       } else if (err.code === 'auth/operation-not-allowed') {
         msg = 'Google Sign-in is not enabled in the Firebase Console. Please enable it in Auth -> Sign-in method.';
       } else if (err.code === 'auth/unauthorized-domain') {
         msg = 'This domain is not authorized for Google Sign-in. Please add it in Firebase Console -> Auth -> Settings -> Authorized domains.';
       }
       setError(`Google Sign-In Failed: ${msg} (Code: ${err.code || 'N/A'})`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleRedirectLogin = async () => {
+    setLoading(true);
+    setError('');
+    console.log("Initiating Google Redirect Sign-In...");
+    try {
+      await signInWithGoogleRedirect();
+    } catch (err: any) {
+      console.error("Google Redirect Detailed Error:", err);
+      setError(`Google Redirect Sign-In Failed: ${err.message || 'Unknown error'} (Code: ${err.code || 'N/A'})`);
     } finally {
       setLoading(false);
     }
@@ -329,6 +343,21 @@ export default function Login({
           {error && (
             <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-[10px] font-bold border-dashed text-center space-y-1">
               <p>{error}</p>
+              {error.includes('popup-blocked') && (
+                <div className="pt-2 border-t border-red-100 mt-2 space-y-2">
+                  <p className="text-[9px] uppercase font-black text-red-700">Sandbox/Iframe Bypass options:</p>
+                  <p className="text-[9px] font-medium leading-relaxed text-red-500">
+                    If popups are disabled or blocked in your browser, try Redirect Login below, or open this application in a <strong>New Tab</strong> using the top-right button in the Preview Frame.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleGoogleRedirectLogin}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 rounded-xl text-[9px] uppercase tracking-widest transition-all mt-1 shadow-lg shadow-blue-100 flex items-center justify-center gap-1.5"
+                  >
+                    <FcGoogle size={14} className="bg-white rounded-full p-0.5" /> Sign-In via Redirect Method
+                  </button>
+                </div>
+              )}
               {error.includes('auth/unauthorized-domain') && (
                 <div className="pt-1 border-t border-red-100 mt-1 space-y-1">
                   <p className="text-[9px] uppercase font-black">Helpful Hint:</p>
