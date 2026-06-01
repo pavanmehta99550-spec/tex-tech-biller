@@ -1916,8 +1916,8 @@ setPreviewCreditNote(newCreditNote);
                 purchases={purchases}
                 millChallans={millChallans}
                 settings={settings}
-                onSavePayment={(p: any) => setBrokerPayments(prev => [p, ...prev])}
-                onSaveCommission={(c: BrokerCommission) => setCommissions(prev => [c, ...prev])}
+                onSavePayment={(p: any) => setBrokerPayments(prev => prev.some(item => item.id === p.id) ? prev.map(item => item.id === p.id ? p : item) : [p, ...prev])}
+                onSaveCommission={(c: BrokerCommission) => setCommissions(prev => prev.some(item => item.id === c.id) ? prev.map(item => item.id === c.id ? c : item) : [c, ...prev])}
                 onDeletePayment={(id: string) => setBrokerPayments(prev => prev.filter(p => p.id !== id))}
                 onDeleteCommission={(id: string) => setCommissions(prev => prev.filter(c => c.id !== id))}
                 onBack={() => setCurrentView('dash')}
@@ -3463,8 +3463,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 placeholder="24AAAA..."
               />
               <datalist id="purchase-party-gstin-list">
-                {parties.map((p: any) => (
-                  <option key={p.id} value={p.gstin}>{p.name}</option>
+                {parties.map((p: any, idx: number) => (
+                  <option key={`${p.id || ''}-${idx}`} value={p.gstin}>{p.name}</option>
                 ))}
               </datalist>
             </div>
@@ -3496,8 +3496,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 placeholder="Enter Supplier Name"
               />
               <datalist id="purchase-party-name-list">
-                {parties.map((p: any) => (
-                  <option key={p.id} value={p.name}>{p.gstin}</option>
+                {parties.map((p: any, idx: number) => (
+                  <option key={`${p.id || ''}-${idx}`} value={p.name}>{p.gstin}</option>
                 ))}
               </datalist>
             </div>
@@ -4930,8 +4930,8 @@ function BookingView({
                     placeholder="24BBBB..."
                   />
                   <datalist id="party-gstins">
-                    {parties.map((p: any) => (
-                      <option key={`gstin-${p.id || p.gstin}`} value={p.gstin}>{p.name}</option>
+                    {parties.map((p: any, idx: number) => (
+                      <option key={`gstin-${p.id || p.gstin || idx}-${idx}`} value={p.gstin}>{p.name}</option>
                     ))}
                   </datalist>
                 </div>
@@ -4951,8 +4951,8 @@ function BookingView({
                     placeholder="Enter Party Name"
                   />
                   <datalist id="party-names">
-                    {parties.map((p: any) => (
-                      <option key={`name-${p.id || p.name}`} value={p.name}>{p.gstin}</option>
+                    {parties.map((p: any, idx: number) => (
+                      <option key={`name-${p.id || p.name || idx}-${idx}`} value={p.name}>{p.gstin}</option>
                     ))}
                   </datalist>
                 </div>
@@ -9839,8 +9839,8 @@ function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [],
                 placeholder="Party Name"
               />
               <datalist id="party-master-suggestions">
-                {suggestParties.map((p: any) => (
-                  <option key={p.id} value={p.name}>{p.gstin}</option>
+                {suggestParties.map((p: any, idx: number) => (
+                  <option key={`${p.id || ''}-${idx}`} value={p.name}>{p.gstin}</option>
                 ))}
               </datalist>
             </div>
@@ -10737,7 +10737,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                     placeholder="Search or Enter Name"
                   />
                   <datalist id="party-list-challan">
-                    {parties.map((p: any) => <option key={p.id} value={p.name} />)}
+                    {parties.map((p: any, idx: number) => <option key={`${p.id || ''}-${idx}`} value={p.name} />)}
                   </datalist>
                 </div>
               </div>
@@ -12016,6 +12016,8 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
   const [previewBooking, setPreviewBooking] = useState<any>(null);
   const [previewPurchase, setPreviewPurchase] = useState<any>(null);
   const [previewPayment, setPreviewPayment] = useState<any>(null);
+  const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [editingCommission, setEditingCommission] = useState<any>(null);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -12070,6 +12072,40 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
       onDeletePayment(t.id);
     } else {
       onDeleteCommission(t.id);
+    }
+  };
+
+  const canEditTransaction = (t: any) => {
+    if (t.type === 'PAYMENT') return true;
+    if (t.original && t.original.partyId === 'MANUAL') return true;
+    return false;
+  };
+
+  const handleEditEntry = (t: any) => {
+    if (t.type === 'PAYMENT') {
+      setEditingPayment(t.original);
+      setPaymentForm({
+        amount: t.original.amount,
+        date: t.original.date,
+        notes: t.original.notes || ''
+      });
+      const element = document.getElementById('record-payment-section');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      setEditingCommission(t.original);
+      setCommForm({
+        billNumber: t.original.billNumber?.toString() || '',
+        date: t.original.billDate || t.original.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        partyName: t.original.partyName || '',
+        billAmount: t.original.billAmount || 0,
+        rate: t.original.commissionRate || 0,
+        type: t.original.commissionType || 'percentage',
+        amount: t.original.commissionAmount || 0,
+        totalMtrs: t.original.totalMtrs || 0
+      });
+      setShowCommModal(true);
     }
   };
 
@@ -12129,15 +12165,26 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
 
   const handleAddPayment = () => {
     if (!paymentForm.amount || paymentForm.amount <= 0) return alert("Amount must be greater than 0");
-    const p = {
-      id: Math.random().toString(36).substr(2, 9),
-      brokerId: selectedBroker.id,
-      amount: paymentForm.amount,
-      date: paymentForm.date,
-      notes: paymentForm.notes,
-      paymentMode: 'Cash'
-    };
-    onSavePayment(p);
+    if (editingPayment) {
+      const p = {
+        ...editingPayment,
+        amount: paymentForm.amount,
+        date: paymentForm.date,
+        notes: paymentForm.notes
+      };
+      onSavePayment(p);
+      setEditingPayment(null);
+    } else {
+      const p = {
+        id: Math.random().toString(36).substr(2, 9),
+        brokerId: selectedBroker.id,
+        amount: paymentForm.amount,
+        date: paymentForm.date,
+        notes: paymentForm.notes,
+        paymentMode: 'Cash'
+      };
+      onSavePayment(p);
+    }
     setPaymentForm({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
   };
 
@@ -12172,37 +12219,53 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
   const handleSaveManualComm = () => {
     if (!commForm.billNumber) return alert("Bill/Challan Number is required");
     
-    // Duplicate Check
-    const isDuplicate = commissions.some(c => 
-      c.brokerId === selectedBroker.id && 
-      c.billNumber === commForm.billNumber && 
-      c.partyName === commForm.partyName
-    );
+    if (editingCommission) {
+      const updated: BrokerCommission = {
+        ...editingCommission,
+        partyName: commForm.partyName,
+        billNumber: commForm.billNumber as any,
+        billDate: commForm.date,
+        billAmount: commForm.billAmount,
+        commissionRate: commForm.rate,
+        commissionType: commForm.type,
+        commissionAmount: commForm.amount,
+      };
+      onSaveCommission(updated);
+      setEditingCommission(null);
+    } else {
+      // Duplicate Check
+      const isDuplicate = commissions.some(c => 
+        c.brokerId === selectedBroker.id && 
+        c.billNumber === commForm.billNumber && 
+        c.partyName === commForm.partyName
+      );
 
-    if (isDuplicate) {
-      if (!confirm("Commission for this Bill/Challan Number already exists for this broker. Do you want to proceed anyway?")) {
-        return;
+      if (isDuplicate) {
+        if (!confirm("Commission for this Bill/Challan Number already exists for this broker. Do you want to proceed anyway?")) {
+          return;
+        }
       }
-    }
 
-    const c: BrokerCommission = {
-      id: Math.random().toString(36).substr(2, 9),
-      brokerId: selectedBroker.id,
-      brokerName: selectedBroker.name,
-      partyId: 'MANUAL',
-      partyName: commForm.partyName,
-      billId: `MANUAL-${commForm.billNumber}`,
-      billNumber: commForm.billNumber as any,
-      billDate: commForm.date,
-      billAmount: commForm.billAmount,
-      commissionRate: commForm.rate,
-      commissionType: commForm.type,
-      commissionAmount: commForm.amount,
-      status: 'UNPAID',
-      paidAmount: 0,
-      date: new Date().toISOString()
-    };
-    onSaveCommission(c);
+      const c: BrokerCommission = {
+        id: Math.random().toString(36).substr(2, 9),
+        brokerId: selectedBroker.id,
+        brokerName: selectedBroker.name,
+        partyId: 'MANUAL',
+        partyName: commForm.partyName,
+        billId: `MANUAL-${commForm.billNumber}`,
+        billNumber: commForm.billNumber as any,
+        billDate: commForm.date,
+        billAmount: commForm.billAmount,
+        commissionRate: commForm.rate,
+        commissionType: commForm.type,
+        commissionAmount: commForm.amount,
+        status: 'UNPAID',
+        paidAmount: 0,
+        date: new Date().toISOString()
+      };
+      onSaveCommission(c);
+    }
+    
     setShowCommModal(false);
     setCommForm({
       billNumber: '',
@@ -12257,8 +12320,28 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
             <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
               <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
                 <div className="px-10 py-8 bg-slate-900 text-white flex justify-between items-center">
-                  <h3 className="text-2xl font-black uppercase tracking-tighter">Add Manual Commission</h3>
-                  <button onClick={() => setShowCommModal(false)} className="text-white/50 hover:text-white transition-colors"><X size={24}/></button>
+                  <h3 className="text-2xl font-black uppercase tracking-tighter">
+                    {editingCommission ? 'Edit Manual Commission' : 'Add Manual Commission'}
+                  </h3>
+                  <button 
+                    onClick={() => {
+                      setShowCommModal(false);
+                      setEditingCommission(null);
+                      setCommForm({
+                        billNumber: '',
+                        date: new Date().toISOString().split('T')[0],
+                        partyName: '',
+                        billAmount: 0,
+                        rate: 0,
+                        type: 'percentage',
+                        amount: 0,
+                        totalMtrs: 0
+                      });
+                    }} 
+                    className="text-white/50 hover:text-white transition-colors"
+                  >
+                    <X size={24}/>
+                  </button>
                 </div>
                 <div className="p-10 space-y-6">
                   <div className="grid grid-cols-2 gap-6">
@@ -12321,7 +12404,9 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
                       <div className="bg-indigo-50 border-2 border-indigo-100 rounded-2xl p-4 font-black text-indigo-600">₹ {commForm.amount}</div>
                     </div>
                   </div>
-                  <button onClick={handleSaveManualComm} className="w-full bg-slate-900 text-white rounded-3xl py-6 font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all">Save Manual Commission Entry</button>
+                  <button onClick={handleSaveManualComm} className="w-full bg-slate-900 text-white rounded-3xl py-6 font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all">
+                    {editingCommission ? 'Update Manual Commission Entry' : 'Save Manual Commission Entry'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -12344,12 +12429,14 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
           </div>
 
           <div className="flex flex-col lg:flex-row gap-8">
-            <div className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-100 flex-1">
-               <h3 className="text-xl font-black mb-6 uppercase tracking-tighter">Record Commission Payment</h3>
+            <div id="record-payment-section" className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-100 flex-1">
+               <h3 className="text-xl font-black mb-6 uppercase tracking-tighter">
+                 {editingPayment ? 'Edit Commission Payment' : 'Record Commission Payment'}
+               </h3>
                <div className="grid grid-cols-2 gap-4">
                  <div className="col-span-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Paid Amount (₹)</label>
-                   <input type="number" value={paymentForm.amount} onChange={e => setPaymentForm({...paymentForm, amount: parseFloat(e.target.value)})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+                   <input type="number" value={paymentForm.amount || ''} onChange={e => setPaymentForm({...paymentForm, amount: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
                  </div>
                  <div>
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Payment Date</label>
@@ -12359,7 +12446,20 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Notes / Description</label>
                    <input type="text" value={paymentForm.notes} onChange={e => setPaymentForm({...paymentForm, notes: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
                  </div>
-                 <button onClick={handleAddPayment} className="col-span-2 bg-emerald-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-emerald-700 transition-all">Save Payment</button>
+                 <button onClick={handleAddPayment} className="col-span-2 bg-emerald-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-emerald-700 transition-all">
+                   {editingPayment ? 'Update Payment' : 'Save Payment'}
+                 </button>
+                 {editingPayment && (
+                   <button 
+                     onClick={() => {
+                       setEditingPayment(null);
+                       setPaymentForm({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
+                     }}
+                     className="col-span-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all"
+                   >
+                     Cancel Edit
+                   </button>
+                 )}
                </div>
             </div>
 
@@ -12427,6 +12527,11 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
                            {t.type !== 'MILL' && (
                              <button onClick={() => handlePreviewEntry(t)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Preview">
                                <Eye size={16}/>
+                             </button>
+                           )}
+                           {canEditTransaction(t) && (
+                             <button onClick={() => handleEditEntry(t)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Edit">
+                               <Edit size={16}/>
                              </button>
                            )}
                            <button onClick={() => handleDeleteEntry(t)} className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Delete">
