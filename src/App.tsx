@@ -61,7 +61,6 @@ import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem, Broker, BrokerCommission, BrokerPayment } from './types';
 import Login from './components/Login';
-import { VoiceAssistant } from './components/VoiceAssistant';
 
 // Initial Party Database
 const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
@@ -225,7 +224,6 @@ export default function App() {
   const [editingDebitNote, setEditingDebitNote] = useState<DebitNote | null>(null);
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false); 
   const [globalSearch, setGlobalSearch] = useState('');
 
   const handleGlobalSearch = (query: string) => {
@@ -263,26 +261,7 @@ export default function App() {
     alert('Entry not found (Checked Bills, LR, Challans)');
   }
 
-  const handleVoiceAction = (data: any) => {
-    if (data.action === 'create_bill') {
-      const party = saleParties.find(p => p.name.toLowerCase().includes(data.party?.toLowerCase()));
-      handleSaveBooking({
-        consigneeName: party?.name || data.party,
-        consigneeGstin: party?.gstin || '',
-        consigneeAddress: party?.address || '',
-        basicAmount: data.amount,
-        grandTotal: data.amount,
-        items: [{ id: '1', name: 'Voice Bill Item', color: '', hsnCode: '', taka: '', unit: 'PCS', quantity: 1, rate: data.amount, discount: 0, amount: data.amount }]
-      });
-    } else if (data.action === 'delete_bill') {
-      const booking = bookings.find(b => b.billNumber?.toString() === data.bill_number?.toString());
-      if (booking) {
-        handleDeleteBooking(booking.id);
-      } else {
-        alert("Bill " + data.bill_number + " nahi mila.");
-      }
-    }
-  };
+
 
   // Calculate current entry payment status for watermark
   const currentStatus = useMemo(() => {
@@ -670,6 +649,7 @@ export default function App() {
       purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, 
       'debit-notes': debitNotes, 'credit-notes': creditNotes, payments, purchasePayments, 
       expenses, millChallans, partyChallans, weaverChallans, weaverParties,
+      brokers, commissions, brokerPayments,
       settings, lastBackupDate
     };
     
@@ -687,7 +667,7 @@ export default function App() {
     if (hasChanges) {
        setIsSyncing(true);
     }
-  }, [purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, expenses, millChallans, partyChallans, weaverChallans, weaverParties, settings, lastBackupDate]);
+  }, [purchaseParties, saleParties, itemsMaster, transports, bookings, purchases, debitNotes, creditNotes, payments, purchasePayments, expenses, millChallans, partyChallans, weaverChallans, weaverParties, brokers, commissions, brokerPayments, settings, lastBackupDate]);
 
   const forceSyncData = async () => {
     const activeId = auth.currentUser?.uid || storage.get('customLoginId', null);
@@ -2432,7 +2412,6 @@ setPreviewCreditNote(newCreditNote);
 
 
       </AnimatePresence>
-      <VoiceAssistant onAction={handleVoiceAction} />
     </div>
   );
 }
@@ -12082,8 +12061,12 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
   }, [selectedBroker, payments]);
 
   const handleDeleteEntry = (t: any) => {
-    if (!confirm("Are you sure you want to delete this entry?")) return;
-    if (t.type === 'PAYMENT') {
+    const isPayment = t.type === 'PAYMENT';
+    const msg = isPayment 
+      ? "Kya aap is broker payment entry ko delete karna chahte hain?" 
+      : "Kya aap is broker commission entry ko delete karna chahte hain?";
+    if (!confirm(msg)) return;
+    if (isPayment) {
       onDeletePayment(t.id);
     } else {
       onDeleteCommission(t.id);
