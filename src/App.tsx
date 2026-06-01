@@ -2215,7 +2215,7 @@ setPreviewCreditNote(newCreditNote);
               challans={weaverChallans}
               onSave={handleSaveChallan}
               onDelete={(id: string) => handleDeleteChallan(id, 'WEAVER')}
-              parties={weaverParties}
+              parties={[...weaverParties, ...purchaseParties.filter(pp => !weaverParties.some(wp => wp.name.toLowerCase() === pp.name.toLowerCase()))]}
               itemsMaster={itemsMaster}
               settings={settings}
               brokers={brokers}
