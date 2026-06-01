@@ -11437,6 +11437,21 @@ function BrokersView({ brokers, saleParties, purchaseParties, millChallans, onSa
             >
               Update Broker List
             </button>
+            {editingBroker && (
+              <button 
+                type="button"
+                onClick={() => {
+                  if (confirm(`Kya aap broker "${editingBroker.name}" ko sach me delete karna chahte hain?`)) {
+                    onSave(brokers.filter((x: any) => x.id !== editingBroker.id));
+                    setEditingBroker(null);
+                    setFormData({ name: '', mobile: '', pan: '', type: 'sale', defaultCommission: '', mappings: [] });
+                  }
+                }}
+                className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl mt-4 flex items-center justify-center gap-2"
+              >
+                <Trash2 size={16} /> Delete Broker
+              </button>
+            )}
           </div>
         </div>
 
@@ -11477,8 +11492,8 @@ function BrokersView({ brokers, saleParties, purchaseParties, millChallans, onSa
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex justify-end gap-2">
-                       <button onClick={() => { setEditingBroker(b); setFormData({ name: b.name, mobile: b.mobile || '', pan: b.pan || '', type: b.type || 'sale', defaultCommission: b.defaultCommission?.toString() || '', mappings: b.partyMappings || [] }); }} className="text-amber-500"><Edit size={18}/></button>
-                       <button onClick={() => { if(confirm("Delete Broker?")) onSave(brokers.filter((x: any) => x.id !== b.id)); }} className="text-rose-500"><Trash2 size={18}/></button>
+                       <button onClick={() => { setEditingBroker(b); setFormData({ name: b.name, mobile: b.mobile || '', pan: b.pan || '', type: b.type || 'sale', defaultCommission: b.defaultCommission?.toString() || '', mappings: b.partyMappings || [] }); }} className="text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 p-2.5 rounded-xl transition-all" title="Edit Broker"><Edit size={18}/></button>
+                       <button onClick={() => { if(confirm(`Kya aap is broker ("${b.name}") ko sach me delete karna chahte hain?`)) onSave(brokers.filter((x: any) => x.id !== b.id)); }} className="text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 p-2.5 rounded-xl transition-all" title="Delete Broker"><Trash2 size={18}/></button>
                     </div>
                   </td>
                 </tr>
