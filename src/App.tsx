@@ -8654,6 +8654,13 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
     return filteredSales.filter((b: any) => b.consigneeGstin && b.consigneeGstin.trim().length >= 15).map((b: any) => {
       const taxable = parseFloat((b.basicAmount || 0).toString()) - parseFloat((b.globalDiscount || 0).toString());
       const posCode = b.consigneeGstin.substring(0, 2);
+      
+      const uniqueHsns = Array.from(new Set((b.items || []).map((it: any) => it.hsnCode).filter(Boolean)));
+      const hsnCodeStr = uniqueHsns.length > 0 ? uniqueHsns.join(', ') : '5407';
+
+      const totalMtrs = (b.items || []).reduce((sum: number, it: any) => sum + parseFloat((it.quantity || 0).toString()), 0);
+      const mtrDetailStr = `${totalMtrs.toFixed(2)} MTR`;
+
       return {
         id: b.id,
         recipientGstin: b.consigneeGstin,
@@ -8666,7 +8673,10 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         gstRate: parseFloat((b.taxRate || 0).toString()),
         cgst: parseFloat((b.cgstAmount || 0).toString()),
         sgst: parseFloat((b.sgstAmount || 0).toString()),
-        igst: parseFloat((b.igstAmount || 0).toString())
+        igst: parseFloat((b.igstAmount || 0).toString()),
+        hsnCode: hsnCodeStr,
+        mtrDetail: mtrDetailStr,
+        ewayBill: b.ewayBill || b.ewbNumber || '-'
       };
     });
   }, [filteredSales]);
@@ -8681,6 +8691,13 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
     }).map((b: any) => {
       const taxable = parseFloat((b.basicAmount || 0).toString()) - parseFloat((b.globalDiscount || 0).toString());
       const posCode = b.consigneeGstin ? b.consigneeGstin.substring(0, 2) : "24";
+
+      const uniqueHsns = Array.from(new Set((b.items || []).map((it: any) => it.hsnCode).filter(Boolean)));
+      const hsnCodeStr = uniqueHsns.length > 0 ? uniqueHsns.join(', ') : '5407';
+
+      const totalMtrs = (b.items || []).reduce((sum: number, it: any) => sum + parseFloat((it.quantity || 0).toString()), 0);
+      const mtrDetailStr = `${totalMtrs.toFixed(2)} MTR`;
+
       return {
         id: b.id,
         invoiceNo: b.billNumber || 'N/A',
@@ -8689,7 +8706,10 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         pos: `${posCode}-${getStateNameFromCode(posCode).toUpperCase()}`,
         taxableValue: taxable,
         gstRate: parseFloat((b.taxRate || 0).toString()),
-        igst: parseFloat((b.igstAmount || 0).toString())
+        igst: parseFloat((b.igstAmount || 0).toString()),
+        hsnCode: hsnCodeStr,
+        mtrDetail: mtrDetailStr,
+        ewayBill: b.ewayBill || b.ewbNumber || '-'
       };
     });
   }, [filteredSales]);
@@ -8704,20 +8724,28 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
       return !hasGst && !isLarge;
     });
 
-    const groups: Record<string, { pos: string; rate: number; taxableValue: number; cgst: number; sgst: number; igst: number; totalValue: number }> = {};
+    const groups: Record<string, { pos: string; rate: number; taxableValue: number; cgst: number; sgst: number; igst: number; totalValue: number; hsns: Set<string>; totalQty: number; ewayBills: Set<string> }> = {};
     rawList.forEach((b: any) => {
       const posCode = b.consigneeGstin ? b.consigneeGstin.substring(0, 2) : "24";
       const rate = parseFloat((b.taxRate || 0).toString());
       const key = `${posCode}_${rate}`;
       const taxable = parseFloat((b.basicAmount || 0).toString()) - parseFloat((b.globalDiscount || 0).toString());
       if (!groups[key]) {
-        groups[key] = { pos: posCode, rate, taxableValue: 0, cgst: 0, sgst: 0, igst: 0, totalValue: 0 };
+        groups[key] = { pos: posCode, rate, taxableValue: 0, cgst: 0, sgst: 0, igst: 0, totalValue: 0, hsns: new Set(), totalQty: 0, ewayBills: new Set() };
       }
       groups[key].taxableValue += taxable;
       groups[key].cgst += parseFloat((b.cgstAmount || 0).toString());
       groups[key].sgst += parseFloat((b.sgstAmount || 0).toString());
       groups[key].igst += parseFloat((b.igstAmount || 0).toString());
       groups[key].totalValue += parseFloat((b.grandTotal || 0).toString());
+
+      const eb = b.ewayBill || b.ewbNumber;
+      if (eb) groups[key].ewayBills.add(eb.trim());
+
+      (b.items || []).forEach((it: any) => {
+        if (it.hsnCode) groups[key].hsns.add(it.hsnCode);
+        groups[key].totalQty += parseFloat((it.quantity || 0).toString());
+      });
     });
 
     return Object.values(groups).map((g, idx) => ({
@@ -8729,7 +8757,10 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
       cgst: g.cgst,
       sgst: g.sgst,
       igst: g.igst,
-      totalValue: g.totalValue
+      totalValue: g.totalValue,
+      hsnCode: Array.from(g.hsns).join(', ') || '5407',
+      mtrDetail: `${g.totalQty.toFixed(2)} MTR`,
+      ewayBill: Array.from(g.ewayBills).join(', ') || '-'
     }));
   }, [filteredSales]);
 
@@ -8745,6 +8776,13 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
       return inPeriod && isReg;
     }).map((n: any) => {
       const posCode = n.partyGstin.substring(0, 2);
+
+      const uniqueHsns = Array.from(new Set((n.items || []).map((it: any) => it.hsnCode).filter(Boolean)));
+      const hsnCodeStr = uniqueHsns.length > 0 ? uniqueHsns.join(', ') : '5407';
+
+      const totalMtrs = (n.items || []).reduce((sum: number, it: any) => sum + parseFloat((it.quantity || 0).toString()), 0);
+      const mtrDetailStr = `${totalMtrs.toFixed(2)} MTR`;
+
       return {
         id: n.id,
         recipientGstin: n.partyGstin,
@@ -8760,7 +8798,10 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         gstRate: parseFloat((n.taxRate || 0).toString()),
         cgst: parseFloat((n.cgstAmount || 0).toString()),
         sgst: parseFloat((n.sgstAmount || 0).toString()),
-        igst: parseFloat((n.igstAmount || 0).toString())
+        igst: parseFloat((n.igstAmount || 0).toString()),
+        hsnCode: hsnCodeStr,
+        mtrDetail: mtrDetailStr,
+        ewayBill: n.ewayBill || n.ewbNumber || '-'
       };
     });
   }, [creditNotes, debitNotes, startDate, endDate]);
@@ -8777,8 +8818,16 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
       return inPeriod && !isReg;
     }).map((n: any) => {
       const posCode = n.partyGstin ? n.partyGstin.substring(0, 2) : "24";
+
+      const uniqueHsns = Array.from(new Set((n.items || []).map((it: any) => it.hsnCode).filter(Boolean)));
+      const hsnCodeStr = uniqueHsns.length > 0 ? uniqueHsns.join(', ') : '5407';
+
+      const totalMtrs = (n.items || []).reduce((sum: number, it: any) => sum + parseFloat((it.quantity || 0).toString()), 0);
+      const mtrDetailStr = `${totalMtrs.toFixed(2)} MTR`;
+
       return {
         id: n.id,
+        recipientGstin: n.partyGstin || '',
         recipientName: n.partyName || 'Unregistered Customer',
         noteNo: n.noteNumber || 'N/A',
         noteDate: n.date?.split('T')[0] || '',
@@ -8791,7 +8840,10 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         gstRate: parseFloat((n.taxRate || 0).toString()),
         cgst: parseFloat((n.cgstAmount || 0).toString()),
         sgst: parseFloat((n.sgstAmount || 0).toString()),
-        igst: parseFloat((n.igstAmount || 0).toString())
+        igst: parseFloat((n.igstAmount || 0).toString()),
+        hsnCode: hsnCodeStr,
+        mtrDetail: mtrDetailStr,
+        ewayBill: n.ewayBill || n.ewbNumber || '-'
       };
     });
   }, [creditNotes, debitNotes, startDate, endDate]);
@@ -8918,6 +8970,10 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
   const gstr1Data = useMemo(() => {
     return filteredSales.map((b: any) => {
       const taxable = parseFloat((b.basicAmount || 0).toString()) - parseFloat((b.globalDiscount || 0).toString());
+      const uniqueHsns = Array.from(new Set((b.items || []).map((it: any) => it.hsnCode).filter(Boolean)));
+      const hsnCodeStr = uniqueHsns.length > 0 ? uniqueHsns.join(', ') : '5407';
+      const totalMtrs = (b.items || []).reduce((sum: number, it: any) => sum + parseFloat((it.quantity || 0).toString()), 0);
+      const mtrDetailStr = `${totalMtrs.toFixed(2)} MTR`;
       return {
         id: b.id,
         invoiceNo: b.billNumber,
@@ -8931,7 +8987,9 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         igst: parseFloat((b.igstAmount || 0).toString()),
         totalTax: parseFloat((b.taxAmount || 0).toString()),
         grandTotal: parseFloat((b.grandTotal || 0).toString()),
-        hsn: (b.items && b.items[0]?.hsnCode) || 'N/A'
+        hsn: hsnCodeStr,
+        mtrDetail: mtrDetailStr,
+        ewayBill: b.ewayBill || b.ewbNumber || '-'
       };
     });
   }, [filteredSales]);
@@ -8939,6 +8997,10 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
   const gstr2Data = useMemo(() => {
     return filteredPurchases.map((p: any) => {
       const taxable = parseFloat((p.basicAmount || 0).toString()) - parseFloat((p.globalDiscount || 0).toString());
+      const uniqueHsns = Array.from(new Set((p.items || []).map((it: any) => it.hsnCode).filter(Boolean)));
+      const hsnCodeStr = uniqueHsns.length > 0 ? uniqueHsns.join(', ') : '5407';
+      const totalMtrs = (p.items || []).reduce((sum: number, it: any) => sum + parseFloat((it.quantity || 0).toString()), 0);
+      const mtrDetailStr = `${totalMtrs.toFixed(2)} MTR`;
       return {
         id: p.id,
         invoiceNo: p.partyBillNumber || p.billNumber,
@@ -8952,7 +9014,9 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         igst: parseFloat((p.igstAmount || 0).toString()),
         totalTax: p.taxAmount,
         grandTotal: p.grandTotal,
-        hsn: (p.items && p.items[0]?.hsnCode) || 'N/A'
+        hsn: hsnCodeStr,
+        mtrDetail: mtrDetailStr,
+        ewayBill: p.ewayBill || p.ewbNumber || '-'
       };
     });
   }, [filteredPurchases]);
@@ -9045,22 +9109,112 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
     XLSX.utils.book_append_sheet(wb, wsSummary, "3B_SUMMARY");
 
     if (b2bList.length > 0) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(b2bList), "B2B_Sales");
+      const mappedB2B = b2bList.map(i => ({
+        "Recipient GSTIN": i.recipientGstin,
+        "Recipient Name": i.recipientName,
+        "Invoice No": i.invoiceNo,
+        "Invoice Date": i.date,
+        "HSN Code": i.hsnCode,
+        "MTR Details": i.mtrDetail,
+        "E-Way Bill": i.ewayBill,
+        "Invoice Value": i.invoiceValue,
+        "Place of Supply (POS)": i.pos,
+        "Taxable Value": i.taxableValue,
+        "GST Rate (%)": i.gstRate,
+        "CGST (₹)": i.cgst,
+        "SGST (₹)": i.sgst,
+        "IGST (₹)": i.igst
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mappedB2B), "B2B_Sales");
     }
     if (b2clList.length > 0) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(b2clList), "B2C_Large");
+      const mappedB2CL = b2clList.map(i => ({
+        "Invoice No": i.invoiceNo,
+        "Invoice Date": i.date,
+        "HSN Code": i.hsnCode,
+        "MTR Details": i.mtrDetail,
+        "E-Way Bill": i.ewayBill,
+        "Invoice Value": i.invoiceValue,
+        "Place of Supply (POS)": i.pos,
+        "Taxable Value": i.taxableValue,
+        "GST Rate (%)": i.gstRate,
+        "IGST (₹)": i.igst
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mappedB2CL), "B2C_Large");
     }
     if (b2csList.length > 0) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(b2csList), "B2C_Small");
+      const mappedB2CS = b2csList.map(i => ({
+        "Supply Type": i.type,
+        "Place of Supply (POS)": i.pos,
+        "HSN Code": i.hsnCode,
+        "MTR Details": i.mtrDetail,
+        "E-Way Bill(s)": i.ewayBill,
+        "GST Rate (%)": i.gstRate,
+        "Taxable Value": i.taxableValue,
+        "CGST (₹)": i.cgst,
+        "SGST (₹)": i.sgst,
+        "IGST (₹)": i.igst,
+        "Consolidated Total Value": i.totalValue
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mappedB2CS), "B2C_Small");
     }
-    if (cdnrList.length > 0) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cdnrList), "CDNR_Registered");
+
+    const combinedNotes = [...cdnrList, ...cdnurList];
+    if (combinedNotes.length > 0) {
+      const mappedCDNR = combinedNotes.map(i => ({
+        "Recipient Name": i.recipientName,
+        "Recipient GSTIN": i.recipientGstin,
+        "Note/Voucher No": i.noteNo,
+        "Note Date": i.noteDate,
+        "Note Type": i.noteType === 'C' ? "Credit Note" : "Debit Note",
+        "Original Invoice No": i.originalInvoiceNo,
+        "Original Invoice Date": i.originalInvoiceDate,
+        "HSN Code": i.hsnCode,
+        "MTR Details": i.mtrDetail,
+        "E-Way Bill": i.ewayBill,
+        "Note Value": i.noteValue,
+        "Place of Supply (POS)": i.pos,
+        "Taxable Value": i.taxableValue,
+        "GST Rate (%)": i.gstRate,
+        "CGST (₹)": i.cgst,
+        "SGST (₹)": i.sgst,
+        "IGST (₹)": i.igst
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mappedCDNR), "CDNR_Registered");
     }
     if (hsnTable12List.length > 0) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hsnTable12List), "Table12_HSN_Summary");
+      const mappedHSN = hsnTable12List.map(i => ({
+        "HSN Code": i.hsnCode,
+        "Description": i.description,
+        "UQC Code": i.uqc,
+        "Total Qty": i.totalQuantity,
+        "Total Gross Value": i.totalValue,
+        "Total Taxable Value": i.taxableValue,
+        "CGST (₹)": i.cgst,
+        "SGST (₹)": i.sgst,
+        "IGST (₹)": i.igst,
+        "Total Tax (₹)": i.totalTax
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mappedHSN), "Table12_HSN_Summary");
     }
     if (gstr2Data.length > 0) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gstr2Data), "Table8_GSTR2_Purchases");
+      const mappedGSTR2 = gstr2Data.map(i => ({
+        "Supplier GSTIN": i.gstin,
+        "Supplier Name": i.supplier,
+        "Invoice No": i.invoiceNo,
+        "Invoice Date": i.date,
+        "HSN Code": i.hsn,
+        "MTR Details": i.mtrDetail,
+        "E-Way Bill": i.ewayBill,
+        "Taxable Value (₹)": i.taxableValue,
+        "GST Rate (%)": i.taxRate,
+        "CGST (₹)": i.cgst,
+        "SGST (₹)": i.sgst,
+        "IGST (₹)": i.igst,
+        "Total Tax (₹)": i.totalTax,
+        "Grand Total (₹)": i.grandTotal
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mappedGSTR2), "Table8_GSTR2_Purchases");
     }
 
     XLSX.writeFile(wb, `GSTR_Comprehensive_Audit_${startDate}_to_${endDate}.xlsx`);
@@ -9234,12 +9388,58 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
     doc.text("GSTR-1 Outward Supplies Details", 14, 20);
     autoTable(doc, {
       startY: 28,
-      head: [["Inv No", "Date", "Customer Name", "Customer GSTIN", "Taxable Value (₹)", "GST %", "Tax (₹)", "Grand Total (₹)"]],
+      head: [["Inv No", "Date", "Customer Name", "Customer GSTIN", "HSN Code", "MTR Details", "E-Way Bill", "Taxable Value (₹)", "GST %", "Tax (₹)", "Grand Total (₹)"]],
       body: gstr1Data.map(d => [
         d.invoiceNo, d.date, d.customer, d.gstin || 'Unregistered',
+        d.hsn, d.mtrDetail, d.ewayBill,
         Number(d.taxableValue).toFixed(2), d.taxRate + "%", Number(d.totalTax).toFixed(2), Number(d.grandTotal).toFixed(2)
-      ])
+      ]),
+      headStyles: { fillColor: [40, 44, 52] },
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      columnStyles: {
+        0: { cellWidth: 12 }, // Inv No
+        1: { cellWidth: 15 }, // Date
+        2: { cellWidth: 20 }, // Customer Name
+        3: { cellWidth: 22 }, // Customer GSTIN
+        4: { cellWidth: 12 }, // HSN Code
+        5: { cellWidth: 14 }, // MTR Details
+        6: { cellWidth: 15 }, // E-Way Bill
+        7: { cellWidth: 18 }, // Taxable Value
+        8: { cellWidth: 10 }, // GST %
+        9: { cellWidth: 15 }, // Tax
+        10: { cellWidth: 18 } // Grand Total
+      }
     });
+
+    if (gstr2Data.length > 0) {
+      doc.addPage();
+      doc.setFontSize(14);
+      doc.text("GSTR-2 Inward Supplies (ITC Purchases) Details", 14, 20);
+      autoTable(doc, {
+        startY: 28,
+        head: [["Inv No", "Date", "Supplier Name", "Supplier GSTIN", "HSN Code", "MTR Details", "E-Way Bill", "Taxable Value (₹)", "GST %", "Tax (₹)", "Grand Total (₹)"]],
+        body: gstr2Data.map(d => [
+          d.invoiceNo, d.date, d.supplier, d.gstin || 'Unregistered',
+          d.hsn, d.mtrDetail, d.ewayBill,
+          Number(d.taxableValue).toFixed(2), d.taxRate + "%", Number(d.totalTax).toFixed(2), Number(d.grandTotal).toFixed(2)
+        ]),
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        columnStyles: {
+          0: { cellWidth: 12 }, // Inv No
+          1: { cellWidth: 15 }, // Date
+          2: { cellWidth: 20 }, // Supplier Name
+          3: { cellWidth: 22 }, // Supplier GSTIN
+          4: { cellWidth: 12 }, // HSN Code
+          5: { cellWidth: 14 }, // MTR Details
+          6: { cellWidth: 15 }, // E-Way Bill
+          7: { cellWidth: 18 }, // Taxable Value
+          8: { cellWidth: 10 }, // GST %
+          9: { cellWidth: 15 }, // Tax
+          10: { cellWidth: 18 } // Grand Total
+        }
+      });
+    }
 
     doc.save(`GST_Audit_Report_${startDate}_to_${endDate}.pdf`);
   };
@@ -9266,7 +9466,8 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         (item.invoiceNo && item.invoiceNo.toLowerCase().includes(term)) ||
         (item.hsnCode && item.hsnCode.toLowerCase().includes(term)) ||
         (item.description && item.description.toLowerCase().includes(term)) ||
-        (item.noteNo && item.noteNo.toLowerCase().includes(term))
+        (item.noteNo && item.noteNo.toLowerCase().includes(term)) ||
+        (item.ewayBill && item.ewayBill.toLowerCase().includes(term))
       );
     });
   }, [currentTabList, searchTerm]);
@@ -9279,6 +9480,9 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
           { header: "Recipient Name", accessor: "recipientName", className: "font-semibold" },
           { header: "Inv #", accessor: "invoiceNo", className: "font-black" },
           { header: "Inv Date", accessor: "date" },
+          { header: "HSN Code", accessor: "hsnCode", className: "font-mono font-bold text-xs text-slate-600" },
+          { header: "MTR Details", accessor: "mtrDetail", className: "font-black text-rose-600 text-xs" },
+          { header: "E-Way Bill", accessor: "ewayBill", className: "font-mono text-emerald-600 font-bold text-xs" },
           { header: "Inv Value", accessor: "invoiceValue", align: "right", format: (v: number) => `₹${v.toLocaleString()}` },
           { header: "POS", accessor: "pos" },
           { header: "Taxable Value", accessor: "taxableValue", align: "right", format: (v: number) => `₹${v.toLocaleString()}` },
@@ -9291,6 +9495,9 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         return [
           { header: "Inv #", accessor: "invoiceNo", className: "font-black" },
           { header: "Inv Date", accessor: "date" },
+          { header: "HSN Code", accessor: "hsnCode", className: "font-mono font-bold text-xs text-slate-600" },
+          { header: "MTR Details", accessor: "mtrDetail", className: "font-black text-rose-600 text-xs" },
+          { header: "E-Way Bill", accessor: "ewayBill", className: "font-mono text-emerald-600 font-bold text-xs" },
           { header: "Inv Value", accessor: "invoiceValue", align: "right", format: (v: number) => `₹${v.toLocaleString()}` },
           { header: "POS (State Name)", accessor: "pos" },
           { header: "Taxable Value", accessor: "taxableValue", align: "right", format: (v: number) => `₹${v.toLocaleString()}` },
@@ -9301,6 +9508,9 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
         return [
           { header: "Sply Type", accessor: "type" },
           { header: "POS (State Name)", accessor: "pos" },
+          { header: "HSN Code", accessor: "hsnCode", className: "font-mono font-bold text-xs text-slate-600" },
+          { header: "MTR Details", accessor: "mtrDetail", className: "font-black text-rose-600 text-xs" },
+          { header: "E-Way Bill(s)", accessor: "ewayBill", className: "font-mono text-emerald-600 font-bold text-xs" },
           { header: "Rate (%)", accessor: "gstRate", align: "center", format: (v: number) => `${v}%` },
           { header: "Taxable Value", accessor: "taxableValue", align: "right", format: (v: number) => `₹${v.toLocaleString()}` },
           { header: "CGST", accessor: "cgst", align: "right", format: (v: number) => `₹${v.toFixed(2)}` },
@@ -9314,6 +9524,9 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
           { header: "Recipient GSTIN", accessor: "recipientGstin", className: "font-mono text-xs text-indigo-600" },
           { header: "Note/Voucher #", accessor: "noteNo", className: "font-black" },
           { header: "Note Date", accessor: "noteDate" },
+          { header: "HSN Code", accessor: "hsnCode", className: "font-mono font-bold text-xs text-slate-600" },
+          { header: "MTR Details", accessor: "mtrDetail", className: "font-black text-rose-600 text-xs" },
+          { header: "E-Way Bill", accessor: "ewayBill", className: "font-mono text-emerald-600 font-bold text-xs" },
           { header: "Type", accessor: "noteType", align: "center", format: (v: string) => v === 'C' ? "Credit Note" : "Debit Note" },
           { header: "Original Inv #", accessor: "originalInvoiceNo" },
           { header: "Note Value", accessor: "noteValue", align: "right", format: (v: number) => `₹${v.toLocaleString()}` },
