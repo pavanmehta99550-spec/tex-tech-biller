@@ -8961,6 +8961,81 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
               </table>
             </div>
           </div>
+          
+           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden mt-8">
+             <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+               <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Receipt size={16} className="text-[#00cec9]" /> Business Expenses</h3>
+               <span className="text-[10px] font-bold bg-white/10 px-3 py-1 rounded-full">{filteredExpenses.length} Records</span>
+             </div>
+             <div className="overflow-x-auto">
+               <table className="w-full text-left">
+                 <thead className="bg-slate-50 border-b border-slate-200">
+                   <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                     <th className="px-6 py-4">Date</th>
+                     <th className="px-6 py-4">Category</th>
+                     <th className="px-6 py-4">Description</th>
+                     <th className="px-6 py-4 text-right">Amount</th>
+                     <th className="px-6 py-4 text-right">GST</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100">
+                   {filteredExpenses.map((e: any) => (
+                     <tr key={e.id} className="hover:bg-slate-50 transition-colors">
+                       <td className="px-6 py-4 font-bold text-slate-600 text-xs">{new Date(e.date).toLocaleDateString()}</td>
+                       <td className="px-6 py-4 font-bold text-slate-900 text-sm">{e.category}</td>
+                       <td className="px-6 py-4 text-slate-600 text-sm">{e.description}</td>
+                       <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{e.amount.toLocaleString()}</td>
+                       <td className="px-6 py-4 text-right font-bold text-slate-600 text-sm">₹{e.gstIncluded ? e.gstAmount.toFixed(2) : '0.00'}</td>
+                     </tr>
+                   ))}
+                   {filteredExpenses.length === 0 && (
+                     <tr>
+                       <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold italic">No expenses found for this period.</td>
+                     </tr>
+                   )}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+             <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+               <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Receipt size={16} className="text-[#00cec9]" /> Credit Notes</h3>
+               </div>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left">
+                   <tbody className="divide-y divide-slate-100">
+                     {(creditNotes || []).filter((cn: any) => { const d = cn.date.split('T')[0]; return d >= startDate && d <= endDate; }).map((cn: any) => (
+                       <tr key={cn.id} className="hover:bg-slate-50 transition-colors">
+                         <td className="px-6 py-4 font-black text-sm">#{cn.noteNumber}</td>
+                         <td className="px-6 py-4 font-bold text-slate-600 text-xs">{cn.date.split('T')[0]}</td>
+                         <td className="px-6 py-4 text-right font-black text-slate-900 text-sm">₹{cn.grandTotal.toLocaleString()}</td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+             </div>
+             <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+               <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Receipt size={16} className="text-[#00cec9]" /> Debit Notes</h3>
+               </div>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left">
+                   <tbody className="divide-y divide-slate-100">
+                     {(debitNotes || []).filter((dn: any) => { const d = dn.date.split('T')[0]; return d >= startDate && d <= endDate; }).map((dn: any) => (
+                       <tr key={dn.id} className="hover:bg-slate-50 transition-colors">
+                         <td className="px-6 py-4 font-black text-sm">#{dn.noteNumber}</td>
+                         <td className="px-6 py-4 font-bold text-slate-600 text-xs">{dn.date.split('T')[0]}</td>
+                         <td className="px-6 py-4 text-right font-black text-slate-900 text-sm">₹{dn.grandTotal.toLocaleString()}</td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+             </div>
+           </div>
         </div>
 
         <div className="space-y-8">
