@@ -6163,7 +6163,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
-      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
+      <div id="bill-print-area" className="single-page-invoice w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
         
         <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
           <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
@@ -8157,7 +8157,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
       {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
-      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
+      <div id="bill-print-area" className="single-page-invoice w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
         
         {/* Buttons */}
         <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
@@ -8312,7 +8312,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
-      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
+      <div id="bill-print-area" className="single-page-invoice w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
         
         <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
           <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
@@ -8455,7 +8455,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
       {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
-      <div id="bill-print-area" className="w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
+      <div id="bill-print-area" className="single-page-invoice w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
         
         {/* Buttons */}
         <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
