@@ -3106,10 +3106,23 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       const form = (e.currentTarget as any).form;
       if (form) {
-        e.preventDefault();
-        form.requestSubmit();
+        const submitBtn = form.querySelector('[type="submit"]') as HTMLElement;
+        if (submitBtn) {
+          submitBtn.click();
+        } else {
+          try {
+            if (typeof form.requestSubmit === 'function') {
+              form.requestSubmit();
+            } else {
+              form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -3860,10 +3873,23 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
 
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       const form = (e.currentTarget as any).form;
       if (form) {
-        e.preventDefault();
-        form.requestSubmit();
+        const submitBtn = form.querySelector('[type="submit"]') as HTMLElement;
+        if (submitBtn) {
+          submitBtn.click();
+        } else {
+          try {
+            if (typeof form.requestSubmit === 'function') {
+              form.requestSubmit();
+            } else {
+              form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -4798,10 +4824,23 @@ function BookingView({
 
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       const form = (e.currentTarget as any).form;
       if (form) {
-        e.preventDefault();
-        form.requestSubmit();
+        const submitBtn = form.querySelector('[type="submit"]') as HTMLElement;
+        if (submitBtn) {
+          submitBtn.click();
+        } else {
+          try {
+            if (typeof form.requestSubmit === 'function') {
+              form.requestSubmit();
+            } else {
+              form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -4841,10 +4880,23 @@ function BookingView({
       </div>
 
       <form 
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
+        onSubmit={(e) => {
+          e.preventDefault();
+          const isEmpty = formData.items.length === 0 || formData.items.every((item: any) => Number(item.quantity || 0) === 0 && Number(item.rate || 0) === 0);
+          if (isEmpty) {
+            alert("Bhai, pehle entry dalo, khali bill save nahi hoga");
+            return;
           }
+          onSave({ 
+            ...formData, 
+            taxAmount: calc.tax, 
+            grandTotal: calc.total,
+            taxableValue: calc.taxableValue,
+            cgstAmount: calc.cgst,
+            sgstAmount: calc.sgst,
+            igstAmount: calc.igst,
+            isInterstate: calc.isInterstate
+          });
         }}
         className="p-8 lg:p-12 space-y-10"
       >
@@ -5469,24 +5521,7 @@ function BookingView({
             </button>
           )}
           <button 
-            type="button"
-            onClick={() => {
-              const isEmpty = formData.items.length === 0 || formData.items.every((item: any) => Number(item.quantity || 0) === 0 && Number(item.rate || 0) === 0);
-              if (isEmpty) {
-                alert("Bhai, pehle entry dalo, khali bill save nahi hoga");
-                return;
-              }
-              onSave({ 
-                ...formData, 
-                taxAmount: calc.tax, 
-                grandTotal: calc.total,
-                taxableValue: calc.taxableValue,
-                cgstAmount: calc.cgst,
-                sgstAmount: calc.sgst,
-                igstAmount: calc.igst,
-                isInterstate: calc.isInterstate
-              });
-            }}
+            type="submit"
             className="flex-[2] bg-[#2d3436] hover:bg-[#1E272E] text-white font-black py-5 rounded-2xl text-xl shadow-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-3"
           >
             <Save size={24} />
@@ -5544,10 +5579,23 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
   }, [creditNotes, searchTerm]);
   const handleEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       const form = (e.currentTarget as any).form;
       if (form) {
-        e.preventDefault();
-        form.requestSubmit();
+        const submitBtn = form.querySelector('[type="submit"]') as HTMLElement;
+        if (submitBtn) {
+          submitBtn.click();
+        } else {
+          try {
+            if (typeof form.requestSubmit === 'function') {
+              form.requestSubmit();
+            } else {
+              form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
