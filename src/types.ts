@@ -141,6 +141,9 @@ export interface Purchase {
   partyBillNumber?: string;
   brokerId?: string;
   brokerCommissionRate?: number;
+  target_length?: number;
+  actual_grey_length?: number;
+  grey_shortage_perc?: number;
 }
 
 export interface DebitNote {
@@ -224,6 +227,16 @@ export interface Challan {
   brokerId?: string;
   brokerRate?: number;
   brokerAmount?: number;
+  target_length?: number;
+  actual_grey_length?: number;
+  grey_shortage_perc?: number;
+  grey_purchase_id?: string;
+  grey_received_length?: number;
+  party_shortage_perc?: number;
+  finished_length?: number;
+  folding_length?: number;
+  process_loss_perc?: number;
+  folding_variance_perc?: number;
 }
 
 export interface Expense {

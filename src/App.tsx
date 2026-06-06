@@ -1037,7 +1037,10 @@ setPreviewBooking(newBooking);
       isInterstate: data.isInterstate || false,
       date: data.date || new Date().toISOString(),
       notes: data.notes || '',
-      brokerId: data.brokerId || ''
+      brokerId: data.brokerId || '',
+      target_length: data.target_length ? parseFloat(data.target_length.toString()) : 0,
+      actual_grey_length: data.actual_grey_length ? parseFloat(data.actual_grey_length.toString()) : 0,
+      grey_shortage_perc: data.grey_shortage_perc ? parseFloat(data.grey_shortage_perc.toString()) : 0
     };
 
     // Commission Logic
@@ -1410,7 +1413,17 @@ setPreviewCreditNote(newCreditNote);
       weaverChallanNumber: data.weaverChallanNumber || '',
       brokerId: data.brokerId,
       brokerRate: data.brokerRate,
-      brokerAmount: brokerAmount
+      brokerAmount: brokerAmount,
+      target_length: data.target_length ? parseFloat(data.target_length.toString()) : 0,
+      actual_grey_length: data.actual_grey_length ? parseFloat(data.actual_grey_length.toString()) : 0,
+      grey_shortage_perc: data.grey_shortage_perc ? parseFloat(data.grey_shortage_perc.toString()) : 0,
+      grey_purchase_id: data.grey_purchase_id || '',
+      grey_received_length: data.grey_received_length ? parseFloat(data.grey_received_length.toString()) : 0,
+      party_shortage_perc: data.party_shortage_perc ? parseFloat(data.party_shortage_perc.toString()) : 0,
+      finished_length: data.finished_length ? parseFloat(data.finished_length.toString()) : 0,
+      folding_length: data.folding_length ? parseFloat(data.folding_length.toString()) : 0,
+      process_loss_perc: data.process_loss_perc ? parseFloat(data.process_loss_perc.toString()) : 0,
+      folding_variance_perc: data.folding_variance_perc ? parseFloat(data.folding_variance_perc.toString()) : 0
     };
 
     if (data.type === 'MILL') {
@@ -2176,6 +2189,7 @@ setPreviewCreditNote(newCreditNote);
               weaverChallans={weaverChallans}
               settings={settings}
               brokers={brokers}
+              purchases={purchases}
             />}
             {currentView === 'partychallan' && <ChallanEntryView 
               key="partychallan"
@@ -2188,6 +2202,7 @@ setPreviewCreditNote(newCreditNote);
               settings={settings}
               millChallans={millChallans}
               brokers={brokers}
+              purchases={purchases}
             />}
             {currentView === 'weaverchallan' && <ChallanEntryView 
               key="weaverchallan"
@@ -2199,6 +2214,7 @@ setPreviewCreditNote(newCreditNote);
               itemsMaster={itemsMaster}
               settings={settings}
               brokers={brokers}
+              purchases={purchases}
             />}
             {currentView === 'weaverparty' && (
               <PartyMasterView 
@@ -3162,7 +3178,10 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
       brokerId: editingPurchase?.brokerId || '',
       parcels: editingPurchase?.parcels || '',
       notes: editingPurchase?.notes || '',
-      brokerCommissionRate: editingPurchase?.brokerCommissionRate || 0
+      brokerCommissionRate: editingPurchase?.brokerCommissionRate || 0,
+      target_length: editingPurchase?.target_length || 0,
+      actual_grey_length: editingPurchase?.actual_grey_length || 0,
+      grey_shortage_perc: editingPurchase?.grey_shortage_perc || 0
     };
   });
 
@@ -3192,7 +3211,10 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
         brokerId: currentEditingPurchase.brokerId || '',
         parcels: currentEditingPurchase.parcels || '',
         notes: currentEditingPurchase.notes || '',
-        brokerCommissionRate: currentEditingPurchase.brokerCommissionRate || 0
+        brokerCommissionRate: currentEditingPurchase.brokerCommissionRate || 0,
+        target_length: currentEditingPurchase.target_length || 0,
+        actual_grey_length: currentEditingPurchase.actual_grey_length || 0,
+        grey_shortage_perc: currentEditingPurchase.grey_shortage_perc || 0
       });
       console.log("FormData updated to:", currentEditingPurchase.partyBillNumber);
     }
@@ -3630,6 +3652,64 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                 />
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Grey Cloth Entry Section */}
+        <div className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-[32px] space-y-4 shadow-sm">
+          <h3 className="text-xs font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-500/30 pb-2 inline-block mb-2">Purchase (Grey Cloth Details)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Target Length (MTR)</label>
+              <input 
+                type="number" 
+                step="any"
+                value={formData.target_length || ''} 
+                onChange={e => {
+                  const targetVal = parseFloat(e.target.value?.toString() || "0");
+                  const actualVal = parseFloat(formData.actual_grey_length?.toString() || "0");
+                  const shortagePerc = targetVal > 0 ? ((targetVal - actualVal) / targetVal) * 100 : 0;
+                  setFormData({ 
+                    ...formData, 
+                    target_length: targetVal,
+                    grey_shortage_perc: parseFloat(shortagePerc.toFixed(2))
+                  });
+                }}
+                onKeyDown={handleEnter}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm"
+                placeholder="Target Length (MTR)"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Actual Received Length (MTR)</label>
+              <input 
+                type="number" 
+                step="any"
+                value={formData.actual_grey_length || ''} 
+                onChange={e => {
+                  const actualVal = parseFloat(e.target.value?.toString() || "0");
+                  const targetVal = parseFloat(formData.target_length?.toString() || "0");
+                  const shortagePerc = targetVal > 0 ? ((targetVal - actualVal) / targetVal) * 100 : 0;
+                  setFormData({ 
+                    ...formData, 
+                    actual_grey_length: actualVal,
+                    grey_shortage_perc: parseFloat(shortagePerc.toFixed(2))
+                  });
+                }}
+                onKeyDown={handleEnter}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm"
+                placeholder="Actual Received Length (MTR)"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Grey Shortage (%)</label>
+              <input 
+                type="text" 
+                readOnly
+                value={formData.grey_shortage_perc ? `${formData.grey_shortage_perc}%` : '0%'} 
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-slate-100 outline-none shadow-sm text-slate-600 font-mono"
+              />
+            </div>
           </div>
         </div>
 
@@ -11377,7 +11457,7 @@ function MeterEntryModal({ isOpen, onClose, onSave, initialValue, unit }: any) {
   );
 }
 
-function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMaster = [], weaverChallans = [], settings, millChallans = [], brokers = [] }: any) {
+function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMaster = [], weaverChallans = [], settings, millChallans = [], brokers = [], purchases = [] }: any) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isMeterModalOpen, setIsMeterModalOpen] = useState(false);
@@ -11464,8 +11544,115 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
     weaverChallanNumber: '',
     brokerId: '',
     brokerRate: 0,
-    brokerAmount: 0
+    brokerAmount: 0,
+    target_length: 0,
+    actual_grey_length: 0,
+    grey_shortage_perc: 0,
+    grey_purchase_id: '',
+    grey_received_length: 0,
+    party_shortage_perc: 0,
+    finished_length: 0,
+    folding_length: 0,
+    process_loss_perc: 0,
+    folding_variance_perc: 0
   });
+
+  const greyReceiptOptions = useMemo(() => {
+    const list: Array<{ id: string; source: 'purchase' | 'weaver'; label: string; partyName: string; actualLength: number; shortagePerc: number; billNumber: string }> = [];
+    
+    (purchases || []).forEach(p => {
+      const actualVal = p.actual_grey_length || parseFloat(p.items?.reduce((sum, it) => sum + (it.unit === 'MTR' ? it.quantity || 0 : 0), 0)?.toString() || "0");
+      if (actualVal > 0) {
+        list.push({
+          id: p.id,
+          source: 'purchase',
+          label: `Bill #${p.partyBillNumber || p.billNumber} - ${p.partyName} (Actual Grey: ${actualVal} Mtr)`,
+          partyName: p.partyName,
+          actualLength: actualVal,
+          shortagePerc: p.grey_shortage_perc || 0,
+          billNumber: p.partyBillNumber || p.billNumber?.toString()
+        });
+      }
+    });
+
+    (challans || []).filter((c: any) => c.type === 'WEAVER').forEach(c => {
+      const actualVal = c.actual_grey_length || parseFloat(c.items?.reduce((sum: number, it: any) => sum + parseFloat(it.quantity?.toString() || "0"), 0)?.toString() || "0");
+      if (actualVal > 0) {
+        list.push({
+          id: c.id,
+          source: 'weaver',
+          label: `Weaver Challan #${c.challanNumber} - ${c.partyName} (Actual Grey: ${actualVal} Mtr)`,
+          partyName: c.partyName,
+          actualLength: actualVal,
+          shortagePerc: c.grey_shortage_perc || 0,
+          billNumber: c.challanNumber
+        });
+      }
+    });
+
+    return list;
+  }, [purchases, challans]);
+
+  const handleSelectGreyEntry = (id: string) => {
+    const option = greyReceiptOptions.find(o => o.id === id);
+    if (option) {
+      const actualGrey = option.actualLength;
+      const finished = parseFloat(formData.finished_length?.toString() || "0");
+      const folding = parseFloat(formData.folding_length?.toString() || "0");
+
+      const processLoss = actualGrey > 0 ? ((actualGrey - finished) / actualGrey) * 100 : 0;
+      const foldingVariance = folding > 0 ? ((folding - finished) / folding) * 100 : 0;
+
+      setFormData(prev => ({
+        ...prev,
+        grey_purchase_id: id,
+        grey_received_length: actualGrey,
+        party_shortage_perc: option.shortagePerc,
+        process_loss_perc: parseFloat(processLoss.toFixed(2)),
+        folding_variance_perc: parseFloat(foldingVariance.toFixed(2)),
+        weaverChallanNumber: option.billNumber,
+        partyName: option.partyName
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        grey_purchase_id: '',
+        grey_received_length: 0,
+        party_shortage_perc: 0,
+        process_loss_perc: 0,
+        folding_variance_perc: 0
+      }));
+    }
+  };
+
+  const handleFinishedLengthChange = (valStr: string) => {
+    const finished = parseFloat(valStr || "0");
+    const actualGrey = parseFloat(formData.grey_received_length?.toString() || "0");
+    const folding = parseFloat(formData.folding_length?.toString() || "0");
+
+    const processLoss = actualGrey > 0 ? ((actualGrey - finished) / actualGrey) * 100 : 0;
+    const foldingVariance = folding > 0 ? ((folding - finished) / folding) * 100 : 0;
+
+    setFormData(prev => ({
+      ...prev,
+      finished_length: finished,
+      process_loss_perc: parseFloat(processLoss.toFixed(2)),
+      folding_variance_perc: parseFloat(foldingVariance.toFixed(2))
+    }));
+  };
+
+  const handleFoldingLengthChange = (valStr: string) => {
+    const folding = parseFloat(valStr || "0");
+    const finished = parseFloat(formData.finished_length?.toString() || "0");
+    
+    const foldingVariance = folding > 0 ? ((folding - finished) / folding) * 100 : 0;
+
+    setFormData(prev => ({
+      ...prev,
+      folding_length: folding,
+      folding_variance_perc: parseFloat(foldingVariance.toFixed(2))
+    }));
+  };
 
   const autoComparison = useMemo(() => {
     if ((type !== 'PARTY' && type !== 'MILL') || !formData.challanNumber) return null;
@@ -11707,6 +11894,163 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                   </datalist>
                 </div>
               </div>
+
+              {/* Weaver Grey Cloth Entry Section */}
+              {type === 'WEAVER' && (
+                <div className="p-8 bg-emerald-50/50 border border-emerald-100 rounded-[32px] space-y-4 shadow-sm">
+                  <h3 className="text-xs font-black text-emerald-800 uppercase tracking-widest border-b border-emerald-500/30 pb-2 inline-block mb-2">Weaver (Grey Cloth Details)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1 block">Target Length (MTR)</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        value={formData.target_length || ''} 
+                        onChange={e => {
+                          const targetVal = parseFloat(e.target.value?.toString() || "0");
+                          const actualVal = parseFloat(formData.actual_grey_length?.toString() || "0");
+                          const shortagePerc = targetVal > 0 ? ((targetVal - actualVal) / targetVal) * 100 : 0;
+                          setFormData({ 
+                            ...formData, 
+                            target_length: targetVal,
+                            grey_shortage_perc: parseFloat(shortagePerc.toFixed(2))
+                          });
+                        }}
+                        className="w-full px-5 py-4 bg-white border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all shadow-sm"
+                        placeholder="Target Length (MTR)"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1 block">Actual Received Length (MTR)</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        value={formData.actual_grey_length || ''} 
+                        onChange={e => {
+                          const actualVal = parseFloat(e.target.value?.toString() || "0");
+                          const targetVal = parseFloat(formData.target_length?.toString() || "0");
+                          const shortagePerc = targetVal > 0 ? ((targetVal - actualVal) / targetVal) * 100 : 0;
+                          setFormData({ 
+                            ...formData, 
+                            actual_grey_length: actualVal,
+                            grey_shortage_perc: parseFloat(shortagePerc.toFixed(2))
+                          });
+                        }}
+                        className="w-full px-5 py-4 bg-white border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all shadow-sm"
+                        placeholder="Actual Received Length (MTR)"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider ml-1 block">Grey Shortage (%)</label>
+                      <input 
+                        type="text" 
+                        readOnly
+                        value={formData.grey_shortage_perc ? `${formData.grey_shortage_perc}%` : '0%'} 
+                        className="w-full px-5 py-4 bg-slate-20 border-2 border-transparent rounded-2xl font-bold outline-none shadow-sm text-slate-600 font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Mill Challan Entry / Process Loss Calculation Section */}
+              {type === 'MILL' && (
+                <div className="p-8 bg-indigo-50/50 border border-indigo-100 rounded-[32px] space-y-6 shadow-sm">
+                  <div>
+                    <h3 className="text-sm font-black text-indigo-900 uppercase tracking-tight">Mill / Process Loss Calculation Details</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Calculate shortage and folding variance seamlessly</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Select Purchase Challan */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest ml-1">Select Purchase / Weaver (Grey Entry)</label>
+                      <select
+                        value={formData.grey_purchase_id || ''}
+                        onChange={e => handleSelectGreyEntry(e.target.value)}
+                        className="w-full px-5 py-4 bg-white border-2 border-indigo-100 rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all shadow-sm"
+                      >
+                        <option value="">-- Choose Grey Entry --</option>
+                        {greyReceiptOptions.map(opt => (
+                          <option key={opt.id} value={opt.id}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Displays Auto-Data */}
+                    <div className="bg-white/75 p-5 border border-indigo-100 rounded-2xl flex gap-6 items-center">
+                      <div>
+                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Received Grey</div>
+                        <div className="text-lg font-mono font-black text-slate-800">
+                          {formData.grey_received_length ? `${formData.grey_received_length} Mtr` : '-'}
+                        </div>
+                      </div>
+                      <div className="border-l border-slate-200 h-10"></div>
+                      <div>
+                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Party Shortage</div>
+                        <div className="text-lg font-mono font-black text-indigo-600">
+                          {formData.party_shortage_perc ? `${formData.party_shortage_perc}%` : '0%'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
+                    {/* Finished Length */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Finished Length (MTR)</label>
+                      <input 
+                        type="number"
+                        step="any"
+                        value={formData.finished_length || ''}
+                        onChange={e => handleFinishedLengthChange(e.target.value)}
+                        className="w-full px-5 py-4 bg-white border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all"
+                        placeholder="e.g. 93.22"
+                      />
+                    </div>
+
+                    {/* Folding Length */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Folding Length (L)</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formData.folding_length || ''}
+                        onChange={e => handleFoldingLengthChange(e.target.value)}
+                        className="w-full px-5 py-4 bg-white border-2 border-transparent rounded-2xl font-bold outline-none focus:border-indigo-600 transition-all"
+                        placeholder="e.g. 98"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Calculations breakdown */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-indigo-100">
+                    <div className="bg-red-50/50 p-5 rounded-2xl border border-red-100 flex justify-between items-center">
+                      <div>
+                        <span className="text-[9px] font-black text-red-700 uppercase tracking-widest block leading-none mb-1">Mill Process Shortage (Loss)</span>
+                        <span className="text-xs font-bold text-slate-400">((Grey Received - Finished) / Grey Received) * 100</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-mono font-black text-red-600">
+                          {formData.process_loss_perc ? `${formData.process_loss_perc}%` : '0.00%'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-[#00cec9]/15 p-5 rounded-2xl border border-[#00cec9]/30 flex justify-between items-center">
+                      <div>
+                        <span className="text-[9px] font-black text-[#00a8a8] uppercase tracking-widest block leading-none mb-1">Folding Variance (L vs Finished)</span>
+                        <span className="text-xs font-bold text-slate-400">((Folding L - Finished) / Folding L) * 100</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-mono font-black text-[#008c8c]">
+                          {formData.folding_variance_perc ? `${formData.folding_variance_perc}%` : '0.00%'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {autoComparison && (
                 <motion.div 
@@ -11965,6 +12309,43 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                 <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest text-center pt-2">+{c.items.length - 3} more items</div>
               )}
             </div>
+
+            {/* Calculations summaries on card */}
+            {c.type === 'WEAVER' && c.actual_grey_length ? (
+              <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center text-[10px]">
+                <div>
+                  <span className="text-slate-400 font-bold block uppercase tracking-wider">Target / Actual</span>
+                  <span className="font-extrabold text-slate-700">{c.target_length || 0} / {c.actual_grey_length} Mtr</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-slate-400 font-bold block uppercase tracking-wider">Grey Shortage</span>
+                  <span className="font-extrabold text-emerald-600">{c.grey_shortage_perc || 0}%</span>
+                </div>
+              </div>
+            ) : null}
+
+            {c.type === 'MILL' && c.grey_received_length ? (
+              <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-2 text-[10px] bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/40">
+                <div>
+                  <span className="text-slate-500 font-bold block uppercase tracking-wider leading-none mb-1">Grey / Finished</span>
+                  <span className="font-black text-slate-800">{c.grey_received_length} / {c.finished_length || 0} Mtr</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-bold block uppercase tracking-wider leading-none mb-1">Folding Length</span>
+                  <span className="font-black text-slate-800">{c.folding_length || 0} Mtr</span>
+                </div>
+                <div className="col-span-2 pt-2 border-t border-slate-100/60 flex justify-between">
+                  <div>
+                    <span className="text-slate-500 font-bold block uppercase tracking-wider leading-none mb-1">Mill Shortage</span>
+                    <span className="font-black text-red-600">{c.process_loss_perc || 0}%</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-bold block uppercase tracking-wider leading-none mb-1">Field Variance</span>
+                    <span className="font-black text-[#008c8c]">{c.folding_variance_perc || 0}%</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                <button 
