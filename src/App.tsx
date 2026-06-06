@@ -61,6 +61,7 @@ import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem, Broker, BrokerCommission, BrokerPayment } from './types';
 import Login from './components/Login';
+import BillSearch from './components/BillSearch';
 
 // Initial Party Database
 const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
@@ -4667,34 +4668,148 @@ function BookingView({
 
   const [navigatedBillLocked, setNavigatedBillLocked] = useState(false);
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
-  const [formData, setFormData] = useState(() => {
+
+  const getEmptyBookingState = () => {
     const nextAutoNum = bookings.reduce((max: number, b: any) => Math.max(max, b.billNumber || 0), 0) + 1;
     return {
-      id: editingBooking?.id || '',
-      billNumber: editingBooking?.billNumber || nextAutoNum,
-      lrNumber: editingBooking?.lrNumber || '',
-      ewbNumber: editingBooking?.ewbNumber || '',
-      parcels: editingBooking?.parcels || '',
-      transportName: editingBooking?.transportName || '',
-      transportGstin: editingBooking?.transportGstin || '',
-      consignorGstin: editingBooking?.consignorGstin || settings?.gstin || '',
-      consignorName: editingBooking?.consignorName || settings?.companyName || '',
-      consignorAddress: editingBooking?.consignorAddress || settings?.address || '',
-      consigneeGstin: editingBooking?.consigneeGstin || '',
-      consigneeName: editingBooking?.consigneeName || '',
-      consigneeAddress: editingBooking?.consigneeAddress || '',
-      consigneeMobile: editingBooking?.consigneeMobile || '',
-      consigneeMobile2: editingBooking?.consigneeMobile2 || '',
-      brokerId: editingBooking?.brokerId || '',
-      brokerCommissionRate: editingBooking?.brokerCommissionRate || 0,
-      items: (editingBooking?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, grade: '', rate: 0, discount: 5, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
-      basicAmount: editingBooking?.basicAmount || 0,
-      globalDiscount: editingBooking?.globalDiscount || 0,
-      taxRate: editingBooking?.taxRate || 5,
-      date: editingBooking?.date || new Date().toISOString(),
-      notes: editingBooking?.notes || ''
+      id: '',
+      billNumber: nextAutoNum,
+      lrNumber: '',
+      ewbNumber: '',
+      parcels: '',
+      transportName: '',
+      transportGstin: '',
+      consignorGstin: settings?.gstin || '',
+      consignorName: settings?.companyName || '',
+      consignorAddress: settings?.address || '',
+      consigneeGstin: '',
+      consigneeName: '',
+      consigneeAddress: '',
+      consigneeMobile: '',
+      consigneeMobile2: '',
+      brokerId: '',
+      brokerCommissionRate: 0,
+      items: [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, grade: '', rate: 0, discount: 5, amount: 0 }],
+      basicAmount: 0,
+      globalDiscount: 0,
+      taxRate: 5,
+      date: new Date().toISOString(),
+      notes: ''
     };
+  };
+
+  const [formData, setFormData] = useState(() => {
+    if (editingBooking) {
+      return {
+        id: editingBooking.id || '',
+        billNumber: editingBooking.billNumber,
+        lrNumber: editingBooking.lrNumber || '',
+        ewbNumber: editingBooking.ewbNumber || '',
+        parcels: editingBooking.parcels || '',
+        transportName: editingBooking.transportName || '',
+        transportGstin: editingBooking.transportGstin || '',
+        consignorGstin: editingBooking.consignorGstin || settings?.gstin || '',
+        consignorName: editingBooking.consignorName || settings?.companyName || '',
+        consignorAddress: editingBooking.consignorAddress || settings?.address || '',
+        consigneeGstin: editingBooking.consigneeGstin || '',
+        consigneeName: editingBooking.consigneeName || '',
+        consigneeAddress: editingBooking.consigneeAddress || '',
+        consigneeMobile: editingBooking.consigneeMobile || '',
+        consigneeMobile2: editingBooking.consigneeMobile2 || '',
+        brokerId: editingBooking.brokerId || '',
+        brokerCommissionRate: editingBooking.brokerCommissionRate || 0,
+        items: (editingBooking.items || []).map((it: any) => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
+        basicAmount: editingBooking.basicAmount || 0,
+        globalDiscount: editingBooking.globalDiscount || 0,
+        taxRate: editingBooking.taxRate || 5,
+        date: editingBooking.date || new Date().toISOString(),
+        notes: editingBooking.notes || ''
+      };
+    }
+    return getEmptyBookingState();
   });
+
+  const handleBillSearch = async (billNo: string): Promise<boolean> => {
+    const cleanedSearch = billNo.trim();
+    if (!cleanedSearch) return false;
+
+    // 1. Search in local state bookings (sync ensures it is fast and up to date)
+    const localMatch = (bookings || []).find((b: any) => 
+      b.billNumber?.toString() === cleanedSearch || b.id === cleanedSearch
+    );
+    if (localMatch) {
+      setFormData({
+        ...localMatch,
+        items: (localMatch.items || []).map((it: any) => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) })
+      });
+      setNavigatedBillLocked(false);
+      return true;
+    }
+
+    // 2. Query Firestore collectionGroup fallback (direct checking in cloud documents)
+    try {
+      const qNum = query(collectionGroup(db, 'bookings'), where('billNumber', '==', parseInt(cleanedSearch)));
+      const querySnapshot = await getDocs(qNum);
+      if (!querySnapshot.empty) {
+        const docData = querySnapshot.docs[0].data() as any;
+        if (docData) {
+          if (Array.isArray(docData.value)) {
+            const match = docData.value.find((b: any) => b.billNumber?.toString() === cleanedSearch || b.id === cleanedSearch);
+            if (match) {
+              setFormData({
+                ...match,
+                items: (match.items || []).map((it: any) => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) })
+              });
+              setNavigatedBillLocked(false);
+              return true;
+            }
+          } else {
+            setFormData({
+              ...docData,
+              items: (docData.items || []).map((it: any) => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) })
+            } as any);
+            setNavigatedBillLocked(false);
+            return true;
+          }
+        }
+      }
+
+      const qStr = query(collectionGroup(db, 'bookings'), where('billNumber', '==', cleanedSearch));
+      const qs2 = await getDocs(qStr);
+      if (!qs2.empty) {
+        const docData = qs2.docs[0].data() as any;
+        if (docData) {
+          if (Array.isArray(docData.value)) {
+            const match = docData.value.find((b: any) => b.billNumber?.toString() === cleanedSearch || b.id === cleanedSearch);
+            if (match) {
+              setFormData({
+                ...match,
+                items: (match.items || []).map((it: any) => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) })
+              });
+              setNavigatedBillLocked(false);
+              return true;
+            }
+          } else {
+            setFormData({
+              ...docData,
+              items: (docData.items || []).map((it: any) => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) })
+            } as any);
+            setNavigatedBillLocked(false);
+            return true;
+          }
+        }
+      }
+    } catch (firebaseErr) {
+      console.error("Firestore bill search error:", firebaseErr);
+    }
+
+    return false;
+  };
+
+  const handleClearSearch = () => {
+    setFormData(getEmptyBookingState());
+    setNavigatedBillLocked(false);
+  };
 
   const hasItemDiscount = formData.items.some((item: any) => Number(item.discount || 0) > 0);
 
@@ -4957,6 +5072,15 @@ function BookingView({
           )}
           <Receipt size={48} className="opacity-10" />
         </div>
+      </div>
+
+      {/* Bill Search Utility (not visible in printouts) */}
+      <div className="px-8 pt-8 lg:px-12 lg:pt-8 no-print">
+        <BillSearch 
+          onSearch={handleBillSearch} 
+          onClear={handleClearSearch}
+          isLoaded={!!formData.id}
+        />
       </div>
 
       <form 
