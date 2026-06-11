@@ -1062,7 +1062,7 @@ setPreviewBooking(newBooking);
         ? commRate 
         : (commType === 'meter' 
             ? Math.round(totalMtrs * commRate)
-            : Math.round(newPurchase.basicAmount * (commRate / 100)));
+            : Math.round((parseFloat(newPurchase.taxableValue?.toString() || "0")) * (commRate / 100)));
         
       const newComm: BrokerCommission = {
         id: Math.random().toString(36).substr(2, 9),
@@ -1073,7 +1073,7 @@ setPreviewBooking(newBooking);
         billId: newPurchase.id,
         billNumber: newPurchase.billNumber,
         billDate: newPurchase.date,
-        billAmount: newPurchase.basicAmount,
+        billAmount: parseFloat(newPurchase.taxableValue?.toString() || "0"),
         commissionRate: commRate,
         commissionType: commType as any,
         commissionAmount: commAmount,
