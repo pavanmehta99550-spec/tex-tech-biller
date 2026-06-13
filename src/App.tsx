@@ -6531,6 +6531,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
 
 function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, onDelete, onCancel, payments = [], debitNotes = [], isSyncing = false }: any) {
   const [selectedId, setSelectedId] = useState(editingPayment?.partyId || '');
+  const [amount, setAmount] = useState(editingPayment?.amount?.toString() || '');
   const [chequeNumber, setChequeNumber] = useState(editingPayment?.chequeNumber || '');
   const [chequeDate, setChequeDate] = useState(editingPayment?.chequeDate || '');
   const [notes, setNotes] = useState(editingPayment?.notes || '');
@@ -6538,8 +6539,68 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
   const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
   const [partySearch, setPartySearch] = useState('');
 
+  const [adjustmentMode, setAdjustmentMode] = useState<'direct' | 'auto' | 'manual'>(() => {
+    if (editingPayment) {
+      if (editingPayment.billAdjustments && editingPayment.billAdjustments.length > 0) {
+        return 'manual';
+      }
+      return 'direct';
+    }
+    return 'direct';
+  });
+
+  const applyAutoAllocation = (amountStr: string, currentAdjustments: any[]) => {
+    const totalAmt = parseFloat(amountStr || '0');
+    if (totalAmt <= 0) {
+      return currentAdjustments.map(b => ({ ...b, paid: '' }));
+    }
+    let remaining = totalAmt;
+    return currentAdjustments.map(b => {
+      const bal = parseFloat(b.balance || b.grandTotal || '0');
+      if (bal <= 0 || remaining <= 0) {
+        return { ...b, paid: '' };
+      }
+      if (remaining >= bal) {
+        remaining -= bal;
+        return { ...b, paid: bal.toFixed(2) };
+      } else {
+        const allocated = remaining;
+        remaining = 0;
+        return { ...b, paid: allocated.toFixed(2) };
+      }
+    });
+  };
+
+  const handleAmountChange = (val: string) => {
+    setAmount(val);
+    if (adjustmentMode === 'auto') {
+      setBillAdjustments(prev => applyAutoAllocation(val, prev));
+    }
+  };
+
+  const handleModeChange = (mode: 'direct' | 'auto' | 'manual') => {
+    setAdjustmentMode(mode);
+    if (mode === 'direct') {
+      setBillAdjustments(prev => prev.map(b => ({ ...b, paid: '' })));
+    } else if (mode === 'auto') {
+      setBillAdjustments(prev => applyAutoAllocation(amount, prev));
+    }
+  };
+
+  const handleBillPaidChange = (idx: number, val: string) => {
+    const newAdjustments = [...billAdjustments];
+    newAdjustments[idx].paid = val;
+    setBillAdjustments(newAdjustments);
+
+    if (adjustmentMode === 'manual') {
+      const total = newAdjustments.reduce((sum, b) => sum + (parseFloat(b.paid) || 0), 0);
+      setAmount(total > 0 ? total.toFixed(2) : '');
+    }
+  };
+
   const resetForm = useCallback(() => {
     setSelectedId('');
+    setAmount('');
     setChequeNumber('');
     setChequeDate('');
     setNotes('');
@@ -6575,7 +6636,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
 
   useEffect(() => {
     if (selectedParty) {
-      setBillAdjustments(partyPurchases.map((p: any) => {
+      const baseAdjustments = partyPurchases.map((p: any) => {
         const otherPayments = (payments || []).filter((py: any) => py?.id !== editingPayment?.id);
         const info = getBillPaymentInfo(p.id, p.grandTotal, otherPayments, debitNotes, p.billNumber?.toString());
         const existingAdj = editingPayment?.billAdjustments?.find((adj: any) => adj.billId === p.id);
@@ -6589,13 +6650,24 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
           balance: info.balance,
           paid: paidAmount
         };
-      }).filter(Boolean));
+      }).filter(Boolean);
+
+      if (adjustmentMode === 'auto') {
+        setBillAdjustments(applyAutoAllocation(amount, baseAdjustments));
+      } else if (adjustmentMode === 'direct') {
+        setBillAdjustments(baseAdjustments.map(b => ({ ...b, paid: '' })));
+      } else {
+        setBillAdjustments(baseAdjustments);
+      }
     } else {
       setBillAdjustments([]);
     }
   }, [selectedParty, partyPurchases, payments, editingPayment]);
 
   const totalAdjusted = billAdjustments.reduce((sum, b) => sum + (parseFloat(b.paid) || 0), 0);
+  const displayAmount = adjustmentMode === 'direct' 
+    ? parseFloat(amount || "0") 
+    : (adjustmentMode === 'auto' ? parseFloat(amount || "0") : totalAdjusted);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto mt-12 mb-20 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
@@ -6606,7 +6678,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black text-red-100 uppercase tracking-widest">Total Sending</p>
-          <p className="text-2xl font-black text-white">₹ {(totalAdjusted || 0).toLocaleString()}</p>
+          <p className="text-2xl font-black text-white">₹ {(displayAmount || 0).toLocaleString()}</p>
         </div>
       </div>
       
@@ -6616,27 +6688,32 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
           alert("Please select a party");
           return;
         }
-        if (totalAdjusted <= 0) {
-          alert("Please enter adjustment amount against at least one purchase bill");
+        if (displayAmount <= 0) {
+          alert("Please enter a valid payment amount greater than zero");
           return;
         }
+
+        const finalAdjustments = (adjustmentMode === 'direct')
+          ? []
+          : billAdjustments.filter(b => (parseFloat(b.paid) || 0) > 0).map(b => ({
+              billId: b.billId,
+              billNumber: b.billNumber as string,
+              amount: parseFloat(b.paid)
+            }));
+
         onSave({ 
           id: editingPayment?.id,
           partyId: selectedId, 
-          amount: totalAdjusted,
+          amount: displayAmount,
           date: new Date(date).toISOString(),
           chequeNumber,
           chequeDate,
           notes,
-          billAdjustments: billAdjustments.filter(b => (parseFloat(b.paid) || 0) > 0).map(b => ({
-            billId: b.billId,
-            billNumber: b.billNumber as string,
-            amount: parseFloat(b.paid)
-          }))
+          billAdjustments: finalAdjustments
         });
       }} className="p-10 space-y-10">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Search & Select Purchase Party</label>
@@ -6675,27 +6752,82 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
               className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-red-500 transition-all"
             />
           </div>
-          
-          {selectedParty && (
-            <div className="p-4 bg-red-50 rounded-2xl border border-red-100 flex justify-between items-center">
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Payment Amount (₹)</label>
+            <input 
+              type="number"
+              step="any"
+              placeholder="0.00"
+              value={amount}
+              onChange={e => handleAmountChange(e.target.value)}
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-red-500 transition-all text-lg"
+            />
+          </div>
+        </div>
+
+        {selectedParty && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50 p-6 rounded-2xl border border-slate-200/60 shadow-sm animate-fadeIn">
+            {/* Mode Selector */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Adjustment / Settle Mode</label>
+              <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('direct')}
+                  className={`py-3 px-2 rounded-lg font-black text-[11px] uppercase tracking-wider transition-all cursor-pointer ${
+                    adjustmentMode === 'direct' 
+                      ? 'bg-red-600 text-white shadow-md' 
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  Direct Settle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('auto')}
+                  className={`py-3 px-2 rounded-lg font-black text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    adjustmentMode === 'auto' 
+                      ? 'bg-red-600 text-white shadow-md' 
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  ⚡ Auto-Adjust
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('manual')}
+                  className={`py-3 px-2 rounded-lg font-black text-[11px] uppercase tracking-wider transition-all cursor-pointer ${
+                    adjustmentMode === 'manual' 
+                      ? 'bg-red-600 text-white shadow-md' 
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  Manual Settle
+                </button>
+              </div>
+            </div>
+
+            {/* Balances Display */}
+            <div className="p-4 bg-red-50 rounded-xl border border-red-100/80 flex justify-between items-center h-full">
               <div>
                 <div className="text-[10px] font-black text-red-700 uppercase tracking-widest">To Be Paid</div>
-                <div className="text-xl font-black text-red-600">
+                <div className="text-2xl font-black text-red-600">
                   ₹ {((selectedParty.totalPurchases || 0) - (selectedParty.totalPaid || 0)).toLocaleString()}
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] font-black text-red-700 uppercase tracking-widest">Total Purchases</div>
-                <div className="text-sm font-bold text-slate-600">₹ {(selectedParty.totalPurchases || 0).toLocaleString()}</div>
+                <div className="text-lg font-bold text-slate-600">₹ {(selectedParty.totalPurchases || 0).toLocaleString()}</div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {selectedParty && (
+        {selectedParty && adjustmentMode !== 'direct' && (
           <div className="space-y-4">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2">Adjust Against Purchase Bills</h3>
-            <div className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
+            <div className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -6716,12 +6848,9 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
                           type="number"
                           step="any"
                           value={b.paid || ''}
-                          onChange={(e) => {
-                            const newAdjustments = [...billAdjustments];
-                            newAdjustments[idx].paid = e.target.value === '' ? '' : (parseFloat(e.target.value) || '') as any;
-                            setBillAdjustments(newAdjustments);
-                          }}
-                          className="w-full text-right px-4 py-2 border border-slate-100 rounded-lg font-black text-red-600 outline-none focus:border-red-500"
+                          disabled={adjustmentMode === 'auto'}
+                          onChange={(e) => handleBillPaidChange(idx, e.target.value)}
+                          className="w-full text-right px-4 py-2 border border-slate-150 rounded-lg font-black text-red-600 outline-none focus:border-red-500 disabled:bg-slate-50 disabled:text-slate-500"
                           placeholder="0.00"
                         />
                       </td>
@@ -6878,6 +7007,65 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
   const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
   const [partySearch, setPartySearch] = useState('');
 
+  const [adjustmentMode, setAdjustmentMode] = useState<'direct' | 'auto' | 'manual'>(() => {
+    if (editingPayment) {
+      if (editingPayment.billAdjustments && editingPayment.billAdjustments.length > 0) {
+        return 'manual';
+      }
+      return 'direct';
+    }
+    return 'direct';
+  });
+
+  const applyAutoAllocation = (amountStr: string, currentAdjustments: any[]) => {
+    const totalAmt = parseFloat(amountStr || '0');
+    if (totalAmt <= 0) {
+      return currentAdjustments.map(b => ({ ...b, paid: '' }));
+    }
+    let remaining = totalAmt;
+    return currentAdjustments.map(b => {
+      const bal = parseFloat(b.balance || b.grandTotal || '0');
+      if (bal <= 0 || remaining <= 0) {
+        return { ...b, paid: '' };
+      }
+      if (remaining >= bal) {
+        remaining -= bal;
+        return { ...b, paid: bal.toFixed(2) };
+      } else {
+        const allocated = remaining;
+        remaining = 0;
+        return { ...b, paid: allocated.toFixed(2) };
+      }
+    });
+  };
+
+  const handleAmountChange = (val: string) => {
+    setAmount(val);
+    if (adjustmentMode === 'auto') {
+      setBillAdjustments(prev => applyAutoAllocation(val, prev));
+    }
+  };
+
+  const handleModeChange = (mode: 'direct' | 'auto' | 'manual') => {
+    setAdjustmentMode(mode);
+    if (mode === 'direct') {
+      setBillAdjustments(prev => prev.map(b => ({ ...b, paid: '' })));
+    } else if (mode === 'auto') {
+      setBillAdjustments(prev => applyAutoAllocation(amount, prev));
+    }
+  };
+
+  const handleBillPaidChange = (idx: number, val: string) => {
+    const newAdjustments = [...billAdjustments];
+    newAdjustments[idx].paid = val;
+    setBillAdjustments(newAdjustments);
+
+    if (adjustmentMode === 'manual') {
+      const total = newAdjustments.reduce((sum, b) => sum + (parseFloat(b.paid) || 0), 0);
+      setAmount(total > 0 ? total.toFixed(2) : '');
+    }
+  };
+
   const resetForm = useCallback(() => {
     setSelectedId('');
     setAmount('');
@@ -6916,7 +7104,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
 
   useEffect(() => {
     if (selectedParty) {
-      setBillAdjustments(partyBookings.map((b: any) => {
+      const baseAdjustments = partyBookings.map((b: any) => {
         const otherPayments = (payments || []).filter((p: any) => p?.id !== editingPayment?.id);
         const info = getBillPaymentInfo(b.id, b.grandTotal, otherPayments, creditNotes, b.billNumber?.toString());
         const existingAdj = editingPayment?.billAdjustments?.find((adj: any) => adj.billId === b.id);
@@ -6930,24 +7118,35 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
           balance: info.balance,
           paid: paidAmount 
         };
-      }).filter(Boolean));
+      }).filter(Boolean);
+
+      if (adjustmentMode === 'auto') {
+        setBillAdjustments(applyAutoAllocation(amount, baseAdjustments));
+      } else if (adjustmentMode === 'direct') {
+        setBillAdjustments(baseAdjustments.map(b => ({ ...b, paid: '' })));
+      } else {
+        setBillAdjustments(baseAdjustments);
+      }
     } else {
       setBillAdjustments([]);
     }
   }, [selectedParty, partyBookings, payments, editingPayment]);
 
   const totalAdjusted = billAdjustments.reduce((sum, b) => sum + (parseFloat(b.paid) || 0), 0);
+  const displayAmount = adjustmentMode === 'direct' 
+    ? parseFloat(amount || "0") 
+    : (adjustmentMode === 'auto' ? parseFloat(amount || "0") : totalAdjusted);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto mt-12 mb-20 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black uppercase tracking-tight">Receive Payment</h2>
-          <p className="text-blue-100 text-xs font-bold uppercase tracking-widest mt-1 italic">Bill-wise Payment Adjustment</p>
+          <p className="text-blue-100 text-xs font-bold uppercase tracking-widest mt-1 italic">Payment Receipts</p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-black text-blue-100 uppercase tracking-widest">Total Adjustment</p>
-          <p className="text-2xl font-black text-white">₹ {(totalAdjusted || 0).toLocaleString()}</p>
+          <p className="text-[10px] font-black text-blue-100 uppercase tracking-widest">Total Received</p>
+          <p className="text-2xl font-black text-white">₹ {(displayAmount || 0).toLocaleString()}</p>
         </div>
       </div>
       
@@ -6957,28 +7156,33 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
           alert("Please select a party");
           return;
         }
-        if (totalAdjusted <= 0) {
-          alert("Please enter adjustment amount against at least one bill");
+        if (displayAmount <= 0) {
+          alert("Please enter a valid payment amount greater than zero");
           return;
         }
+
+        const finalAdjustments = (adjustmentMode === 'direct')
+          ? []
+          : billAdjustments.filter(b => (parseFloat(b.paid) || 0) > 0).map(b => ({
+              billId: b.billId,
+              billNumber: b.billNumber as string,
+              amount: parseFloat(b.paid)
+            }));
+
         onSave({ 
           id: editingPayment?.id,
           partyId: selectedId, 
-          amount: totalAdjusted,
+          amount: displayAmount,
           date: new Date(date).toISOString(),
           chequeNumber,
           chequeDate,
           notes,
-          billAdjustments: billAdjustments.filter(b => (parseFloat(b.paid) || 0) > 0).map(b => ({
-            billId: b.billId,
-            billNumber: b.billNumber as string,
-            amount: parseFloat(b.paid)
-          }))
+          billAdjustments: finalAdjustments
         });
       }} className="p-10 space-y-10">
         
         {/* Section 1: Party Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Search & Select Sale Party</label>
@@ -7017,35 +7221,89 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
               className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all"
             />
           </div>
-          
-          {selectedParty && (
-            <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex justify-between items-center">
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Payment Amount (₹)</label>
+            <input 
+              type="number"
+              step="any"
+              placeholder="0.00"
+              value={amount}
+              onChange={e => handleAmountChange(e.target.value)}
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all text-lg"
+            />
+          </div>
+        </div>
+
+        {selectedParty && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50 p-6 rounded-2xl border border-slate-200/60 shadow-sm animate-fadeIn">
+            {/* Mode Selector */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Adjustment / Settle Mode</label>
+              <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('direct')}
+                  className={`py-3 px-2 rounded-lg font-black text-[11px] uppercase tracking-wider transition-all cursor-pointer ${
+                    adjustmentMode === 'direct' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  Direct Settle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('auto')}
+                  className={`py-3 px-2 rounded-lg font-black text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    adjustmentMode === 'auto' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  ⚡ Auto-Adjust
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('manual')}
+                  className={`py-3 px-2 rounded-lg font-black text-[11px] uppercase tracking-wider transition-all cursor-pointer ${
+                    adjustmentMode === 'manual' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  Manual Settle
+                </button>
+              </div>
+            </div>
+
+            {/* Balances Display */}
+            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100/80 flex justify-between items-center h-full">
               <div>
                 <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Pending Ledger Balance</div>
-                <div className={`text-xl font-black ${((selectedParty.totalSales || 0) - (selectedParty.totalPaid || 0)) > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                <div className={`text-2xl font-black ${((selectedParty.totalSales || 0) - (selectedParty.totalPaid || 0)) > 0 ? 'text-red-500' : 'text-green-600'}`}>
                   ₹ {((selectedParty.totalSales || 0) - (selectedParty.totalPaid || 0)).toLocaleString()}
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Total Sales</div>
-                <div className="text-sm font-bold text-slate-600">₹ {(selectedParty.totalSales || 0).toLocaleString()}</div>
+                <div className="text-lg font-bold text-slate-600">₹ {(selectedParty.totalSales || 0).toLocaleString()}</div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Section 2: Bill Wise Adjustment */}
-        {selectedParty && (
+        {selectedParty && adjustmentMode !== 'direct' && (
           <div className="space-y-4">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2">Adjust Against Bills</h3>
-            <div className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
+            <div className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <th className="px-6 py-4">Bill No.</th>
                     <th className="px-6 py-4">Bill Total</th>
                     <th className="px-6 py-4">Pending (Balance)</th>
-                    <th className="px-6 py-4 text-right">Adjustment Amount</th>
+                    <th className="px-6 py-4 text-right">Adjust Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -7059,12 +7317,9 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
                           type="number"
                           step="any"
                           value={b.paid || ''}
-                          onChange={(e) => {
-                            const newAdjustments = [...billAdjustments];
-                            newAdjustments[idx].paid = e.target.value === '' ? '' : (parseFloat(e.target.value) || '') as any;
-                            setBillAdjustments(newAdjustments);
-                          }}
-                          className="w-full text-right px-4 py-2 border border-slate-100 rounded-lg font-black text-blue-600 outline-none focus:border-blue-500"
+                          disabled={adjustmentMode === 'auto'}
+                          onChange={(e) => handleBillPaidChange(idx, e.target.value)}
+                          className="w-full text-right px-4 py-2 border border-slate-150 rounded-lg font-black text-blue-600 outline-none focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
                           placeholder="0.00"
                         />
                       </td>
@@ -7120,7 +7375,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
           <div className="flex gap-4 w-full md:w-auto">
             <button 
               type="submit"
-              disabled={totalAdjusted <= 0 || isSyncing}
+              disabled={displayAmount <= 0 || isSyncing}
               className="flex-1 md:min-w-[300px] bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-black py-5 px-12 rounded-2xl text-xl shadow-xl shadow-blue-100 transition-all active:scale-[0.98] flex items-center justify-center gap-4"
             >
               {isSyncing ? (
@@ -7129,7 +7384,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
                 </>
               ) : (
                 <>
-                  <Save size={24} /> {editingPayment ? 'Update Payment' : 'Confirm Payment'} (₹ {(totalAdjusted || 0).toLocaleString()})
+                  <Save size={24} /> {editingPayment ? 'Update Payment' : 'Confirm Payment'} (₹ {(displayAmount || 0).toLocaleString()})
                 </>
               )}
             </button>
