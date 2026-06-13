@@ -11489,6 +11489,7 @@ function TransportMasterView({ transports, onSave }: any) {
 function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSave: (e: Expense[]) => void, onBack: () => void, key?: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchPayee, setSearchPayee] = useState('');
   const [formData, setFormData] = useState<Partial<Expense>>({
     date: new Date().toISOString().split('T')[0],
     category: '',
@@ -11505,6 +11506,21 @@ function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSav
     'Travel', 'Stationery', 'Professional Fees', 'Marketing', 'Refreshments', 
     'Repair', 'Transport', 'Others'
   ];
+
+  const filteredExpenses = useMemo(() => {
+    const term = searchPayee.trim().toLowerCase();
+    if (!term) return expenses;
+    return expenses.filter(exp => {
+      const payee = (exp.payeeName || '').toLowerCase();
+      const cat = (exp.category || '').toLowerCase();
+      const desc = (exp.description || '').toLowerCase();
+      return payee.includes(term) || cat.includes(term) || desc.includes(term);
+    });
+  }, [expenses, searchPayee]);
+
+  const filteredTotal = useMemo(() => {
+    return filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  }, [filteredExpenses]);
 
   const calculateGst = (amount: number, rate: number, included: boolean) => {
     if (included) {
@@ -11692,6 +11708,38 @@ function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSav
         )}
       </AnimatePresence>
 
+      {/* Name / Payee Search Section */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl space-y-4">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full md:max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              type="text"
+              value={searchPayee}
+              onChange={e => setSearchPayee(e.target.value)}
+              placeholder="Search Payee Name (e.g. Ramesh, Sharma)..."
+              className="w-full pl-12 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] focus:bg-white transition-all text-slate-700"
+            />
+          </div>
+          {searchPayee.trim() && (
+            <div className="w-full md:w-auto bg-emerald-50 px-6 py-3.5 rounded-2xl border border-emerald-100 flex justify-between items-center gap-6">
+              <div>
+                <div className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Total Given to "{searchPayee}"</div>
+                <div className="text-xl font-black text-emerald-600 mt-0.5">
+                  ₹{filteredTotal.toLocaleString()}
+                </div>
+              </div>
+              <button 
+                onClick={() => setSearchPayee('')} 
+                className="text-emerald-500 hover:text-emerald-700 font-extrabold text-xs bg-white hover:bg-emerald-100/55 px-3 py-1.5 rounded-lg border border-emerald-200 transition-all active:scale-95 cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white rounded-[40px] border border-slate-200 shadow-xl overflow-hidden">
         <table className="w-full text-left">
           <thead>
@@ -11706,7 +11754,7 @@ function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSav
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
+            {filteredExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
               <tr key={exp.id} className="hover:bg-slate-50 transition-colors group">
                 <td className="px-8 py-5 font-bold text-slate-600 italic">
                   {new Date(exp.date).toLocaleDateString()}
@@ -11760,11 +11808,33 @@ function ExpensesView({ expenses, onSave, onBack }: { expenses: Expense[], onSav
                 </td>
               </tr>
             )}
+            {expenses.length > 0 && filteredExpenses.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-8 py-20 text-center">
+                  <div className="bg-slate-50 rounded-[40px] p-20 border-2 border-dashed border-slate-200">
+                    <Search size={64} className="mx-auto text-slate-200 mb-6" />
+                    <h3 className="text-2xl font-black text-slate-300 uppercase tracking-tight">No Matching Expenses</h3>
+                    <p className="text-slate-400 font-bold max-w-xs mx-auto mt-2 leading-relaxed italic">
+                      We couldn't find any expenses paid to or matching "{searchPayee}". Try typing another name!
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
           {expenses.length > 0 && (
             <tfoot>
-              <tr className="bg-slate-50 border-t-2 border-slate-200">
-                <td colSpan={5} className="px-8 py-6 text-right text-slate-900 font-black uppercase text-xs tracking-widest">Total Expenses:</td>
+              {searchPayee.trim() && (
+                <tr className="bg-emerald-50 border-t-2 border-emerald-100/80">
+                  <td colSpan={5} className="px-8 py-6 text-right text-emerald-900 font-black uppercase text-xs tracking-widest">Total for "{searchPayee}":</td>
+                  <td className="px-8 py-6 text-right text-2xl font-black text-[#00b5b5]">
+                    ₹{filteredTotal.toLocaleString()}
+                  </td>
+                  <td></td>
+                </tr>
+              )}
+              <tr className="bg-slate-50 border-t border-slate-200">
+                <td colSpan={5} className="px-8 py-6 text-right text-slate-900 font-black uppercase text-xs tracking-widest">Total Overall Expenses:</td>
                 <td className="px-8 py-6 text-right text-2xl font-black text-red-600">
                   ₹{expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
                 </td>
