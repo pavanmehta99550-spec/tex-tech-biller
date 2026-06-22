@@ -8643,6 +8643,23 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
     [data.id, data.grandTotal, payments]
   );
 
+  const associatedPayments = React.useMemo(() => {
+    return (payments || []).filter(p => 
+      p.billAdjustments?.some(adj => adj.billId === data.id)
+    ).map(p => {
+      const adj = p.billAdjustments?.find(a => a.billId === data.id);
+      return {
+        paymentId: p.id,
+        date: p.date,
+        totalAmount: p.amount,
+        adjustedAmount: adj ? adj.amount : 0,
+        chequeNumber: p.chequeNumber,
+        chequeDate: p.chequeDate,
+        notes: p.notes
+      };
+    });
+  }, [payments, data.id]);
+
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -8663,134 +8680,244 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
-      {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
-      <div id="bill-print-area" className="single-page-invoice w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
-        
-        {/* Buttons */}
-        <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
-          <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
-          <button onClick={onClose} className="bg-gray-200 text-black p-2 font-bold rounded">Close (Esc)</button>
-        </div>
-
-        {/* Content Wrapper */}
-        <div className="flex-grow flex flex-col">
-<div className="flex flex-col" style={{ display: 'contents' }}>
-            {/* Header */}
-            <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
-              || HAR HAR MAHADEV ||
-            </div>
-            
-            <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
-              <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif', fontSize: `${settings?.layoutSettings?.styles?.headerFontSize || 30}px` }}>
-                {settings?.companyName || "ANGAD SILK MILLS"}
-              </h1>
-              <div className="text-[11px] font-bold uppercase mt-1">
-                {settings?.address || "SURAT, GUJARAT"}
-              </div>
-              <div className="text-[11px] font-bold uppercase mt-1">
-                MO: {settings?.mobile || "9988776655"} | GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}
-              </div>
-            </div>
-
-            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('metadata'), display: 'flex', flexDirection: 'column' }}>
-<div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
-              PURCHASE VOUCHER
-            </div>
-
-            {/* Buyer & Invoice Meta */}
-            <div className="grid grid-cols-[60%_40%] border-b border-black">
-              <div className="p-2 border-r border-black font-bold text-[11px] uppercase flex flex-col">
-                <span className="text-slate-500 italic underline text-[10px] mb-1">RECEIVED FROM (SELLER):</span>
-                <span className="text-[13px] font-black">{consigneeName}</span>
-                <span>{consigneeAddress}</span>
-                <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.partyGstin || "-"}</span></span>
-              </div>
-              <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
-                <div className="flex justify-between"><span>VOUCHER NO:</span> <span># {data.billNumber}</span></div>
-                <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
-                <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
-                {data.transportGstin && <div className="flex justify-between"><span>TRANSPORT GST:</span> <span>{data.transportGstin}</span></div>}
-                {data.parcels ? <div className="flex justify-between"><span>PARCELS:</span> <span>{data.parcels}</span></div> : null}
-              </div>
-            </div>
-
-            {/* Table */}
-            </div>
-</div>
-<table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('table') }}>
-              <thead>
-                <tr className="border-b border-black uppercase">
-                  <th className="border-r border-black p-2 w-[40px]">NO</th>
-                  <th className="border-r border-black p-2 text-left">DESCRIPTION OF GOODS</th>
-                  <th className="border-r border-black p-2 w-[60px]">HSN</th>
-                  <th className="border-r border-black p-2 w-[70px]">QTY</th>
-                  <th className="border-r border-black p-2 w-[70px]">RATE</th>
-                  <th className="p-2 w-[90px] text-right">AMOUNT</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data.items || []).map((item: any, idx: number) => (
-                  <tr key={idx} className="border-b border-black/20">
-                    <td className="border-r border-black p-2 align-top">{idx + 1}</td>
-                    <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
-                      <span>{item.name}</span>
-                      {item.color && <span className="text-[10px]">({item.color})</span>}
-                    </td>
-                    <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
-                    <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
-                    <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
-                    <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
-                  </tr>
-                ))}
-                {/* Dynamic Placeholder Rows */}
-                
-              </tbody>
-            </table>
+      <div className="flex flex-col gap-6 max-w-[210mm] w-full my-8 print:my-0">
+        {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
+        <div id="bill-print-area" className="single-page-invoice w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
+          
+          {/* Buttons */}
+          <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
+            <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 font-bold rounded">Print (Enter)</button>
+            <button onClick={onClose} className="bg-gray-200 text-black p-2 font-bold rounded">Close (Esc)</button>
           </div>
-<div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="mt-auto border-t border-black w-full">
-            <div className="grid grid-cols-[60%_40%]">
-              {/* Left Side: Empty/Verification Copy */}
-              <div className="p-2 border-r border-black flex flex-col justify-center items-center font-bold text-[11px] uppercase">
-                <div className="text-slate-500 italic">VERIFICATION COPY FOR ACCOUNTS</div>
+
+          {/* Content Wrapper */}
+          <div className="flex-grow flex flex-col">
+  <div className="flex flex-col" style={{ display: 'contents' }}>
+              {/* Header */}
+              <div className="text-center text-[9px] font-bold tracking-widest uppercase border-b border-black py-1" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('religious') }}>
+                || HAR HAR MAHADEV ||
               </div>
               
-              {/* Right Side: Totals */}
-              <div className="flex flex-col font-bold text-[11px] uppercase">
-                <div className="p-2 space-y-1 flex-grow">
-                  <div className="flex justify-between"><span>TAXABLE VALUE:</span><span>{parseFloat(data.taxableValue?.toString() || data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
-                  {isInterstate ? (
-                    <div className="flex justify-between"><span>IGST:</span><span>{parseFloat(data.igstAmount?.toString() || data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
-                  ) : (
-                    <>
-                      <div className="flex justify-between"><span>CGST:</span><span>{parseFloat(data.cgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span>SGST:</span><span>{parseFloat(data.sgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
-                    </>
-                  )}
-                  {parseFloat(data.globalDiscount?.toString() || "0") > 0 && (
-                    <div className="flex justify-between text-red-600"><span>DISCOUNT:</span><span>-{parseFloat(data.globalDiscount?.toString() || "0").toFixed(2)}</span></div>
+              <div className="flex flex-col items-center justify-center py-4 border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('header') }}>
+                <h1 className="font-black text-3xl uppercase tracking-tight" style={{ fontFamily: 'Georgia, serif', fontSize: `${settings?.layoutSettings?.styles?.headerFontSize || 30}px` }}>
+                  {settings?.companyName || "ANGAD SILK MILLS"}
+                </h1>
+                <div className="text-[11px] font-bold uppercase mt-1">
+                  {settings?.address || "SURAT, GUJARAT"}
+                </div>
+                <div className="text-[11px] font-bold uppercase mt-1">
+                  MO: {settings?.mobile || "9988776655"} | GSTIN: {settings?.gstin || "24AAAAA0000A1Z1"}
+                </div>
+              </div>
+
+              <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('metadata'), display: 'flex', flexDirection: 'column' }}>
+  <div className="text-center font-black text-xl tracking-[0.2em] uppercase bg-black text-white py-1 border-b border-black">
+                PURCHASE VOUCHER
+              </div>
+
+              {/* Buyer & Invoice Meta */}
+              <div className="grid grid-cols-[60%_40%] border-b border-black">
+                <div className="p-2 border-r border-black font-bold text-[11px] uppercase flex flex-col">
+                  <span className="text-slate-500 italic underline text-[10px] mb-1">RECEIVED FROM (SELLER):</span>
+                  <span className="text-[13px] font-black">{consigneeName}</span>
+                  <span>{consigneeAddress}</span>
+                  <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.partyGstin || "-"}</span></span>
+                </div>
+                <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
+                  <div className="flex justify-between"><span>VOUCHER NO:</span> <span># {data.billNumber}</span></div>
+                  <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
+                  <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
+                  {data.transportGstin && <div className="flex justify-between"><span>TRANSPORT GST:</span> <span>{data.transportGstin}</span></div>}
+                  {data.parcels ? <div className="flex justify-between"><span>PARCELS:</span> <span>{data.parcels}</span></div> : null}
+                </div>
+              </div>
+
+              {/* Table */}
+              </div>
+  </div>
+  <table className="w-full text-[11px] font-bold text-center border-collapse border-b border-black" style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('table') }}>
+                <thead>
+                  <tr className="border-b border-black uppercase">
+                    <th className="border-r border-black p-2 w-[40px]">NO</th>
+                    <th className="border-r border-black p-2 text-left">DESCRIPTION OF GOODS</th>
+                    <th className="border-r border-black p-2 w-[60px]">HSN</th>
+                    <th className="border-r border-black p-2 w-[70px]">QTY</th>
+                    <th className="border-r border-black p-2 w-[70px]">RATE</th>
+                    <th className="p-2 w-[90px] text-right">AMOUNT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.items || []).map((item: any, idx: number) => (
+                    <tr key={idx} className="border-b border-black/20">
+                      <td className="border-r border-black p-2 align-top">{idx + 1}</td>
+                      <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
+                        <span>{item.name}</span>
+                        {item.color && <span className="text-[10px]">({item.color})</span>}
+                      </td>
+                      <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
+                      <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
+                      <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
+                      <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {/* Dynamic Placeholder Rows */}
+                  
+                </tbody>
+              </table>
+            </div>
+  <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="mt-auto border-t border-black w-full">
+              <div className="grid grid-cols-[60%_40%]">
+                {/* Left Side: Empty/Verification Copy */}
+                <div className="p-2 border-r border-black flex flex-col justify-between font-bold text-[11px] uppercase">
+                  <div className="text-slate-500 italic">VERIFICATION COPY FOR ACCOUNTS</div>
+                  {paidAmount > 0 && (
+                    <div className="mt-2 border-t border-black/10 pt-2 text-[10px] space-y-1 w-full normal-case">
+                      <div className="font-bold text-slate-500 uppercase">PAYMENT STATUS: <span className="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded text-[8px] font-black">{balance <= 0.5 ? 'FULLY PAID' : 'PARTIALLY PAID'}</span></div>
+                      <div className="grid grid-cols-[110px_1fr] gap-x-2 uppercase text-[9px]">
+                        <span>TOTAL PAID:</span> <span className="font-black text-slate-900">₹ {paidAmount.toLocaleString()}</span>
+                        <span>BALANCE:</span> <span className="font-black text-rose-600">₹ {Math.max(0, balance).toLocaleString()}</span>
+                      </div>
+                      {associatedPayments.length > 0 && (
+                        <div className="mt-1 font-semibold text-slate-600 leading-tight">
+                          Chq/Ref Info: {associatedPayments.map((p, i) => `${p.chequeNumber || 'N/A'} (${p.chequeDate ? new Date(p.chequeDate).toLocaleDateString() : 'N/A'}) - ₹${p.adjustedAmount.toLocaleString()}`).join(', ')}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-                <div className="border-t border-black p-2 bg-black text-white flex justify-between font-black text-lg">
-                  <span>GRAND TOTAL</span>
-                  <span>₹ {parseFloat(data.grandTotal?.toString() || "0").toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                
+                {/* Right Side: Totals */}
+                <div className="flex flex-col font-bold text-[11px] uppercase">
+                  <div className="p-2 space-y-1 flex-grow">
+                    <div className="flex justify-between"><span>TAXABLE VALUE:</span><span>{parseFloat(data.taxableValue?.toString() || data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
+                    {isInterstate ? (
+                      <div className="flex justify-between"><span>IGST:</span><span>{parseFloat(data.igstAmount?.toString() || data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between"><span>CGST:</span><span>{parseFloat(data.cgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>SGST:</span><span>{parseFloat(data.sgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                      </>
+                    )}
+                    {parseFloat(data.globalDiscount?.toString() || "0") > 0 && (
+                      <div className="flex justify-between text-red-600"><span>DISCOUNT:</span><span>-{parseFloat(data.globalDiscount?.toString() || "0").toFixed(2)}</span></div>
+                    )}
+                  </div>
+                  <div className="border-t border-black p-2 bg-black text-white flex justify-between font-black text-lg">
+                    <span>GRAND TOTAL</span>
+                    <span>₹ {parseFloat(data.grandTotal?.toString() || "0").toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Signatory Footer */}
+              <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
+                <div className="flex flex-col justify-end h-full">
+                  <div className="text-[9px] italic text-slate-500">INPUT TAX CREDIT VERIFIED</div>
+                </div>
+                <div className="text-center w-[180px] flex flex-col justify-between h-full">
+                  <div className="h-4"></div>
+                  <div className="border-t border-black pt-1 mt-auto">AUTHORISED RECEIVER</div>
                 </div>
               </div>
             </div>
-            
-            {/* Signatory Footer */}
-            <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
-              <div className="flex flex-col justify-end h-full">
-                <div className="text-[9px] italic text-slate-500">INPUT TAX CREDIT VERIFIED</div>
-              </div>
-              <div className="text-center w-[180px] flex flex-col justify-between h-full">
-                <div className="h-4"></div>
-                <div className="border-t border-black pt-1 mt-auto">AUTHORISED RECEIVER</div>
-              </div>
-            </div>
-          </div>
 
         </div>
-      </motion.div>
+
+        {/* On screen, beautiful detailed payment section */}
+        {associatedPayments.length > 0 && (
+          <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl p-8 print:hidden space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <span className="font-black text-lg">₹</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Payment Settlement History</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-0.5">Details of cheques and receipts linked to this bill</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-6 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100">
+                <div className="text-right">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Amount Settled</div>
+                  <div className="text-xl font-black text-emerald-600 mt-0.5">
+                    ₹ {paidAmount.toLocaleString()}
+                  </div>
+                </div>
+                <div className="h-8 w-px bg-slate-200"></div>
+                <div className="text-right">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Balance Pending</div>
+                  <div className="text-xl font-black text-rose-500 mt-0.5">
+                    ₹ {Math.max(0, balance).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="pb-3">Receipt Date & Time</th>
+                    <th className="pb-3">Voucher Ref ID</th>
+                    <th className="pb-3">Cheque / Ref Number</th>
+                    <th className="pb-3">Cheque Clearance Date</th>
+                    <th className="pb-3 text-right">Adjusted Amount</th>
+                    <th className="pb-3 text-right">Remarks / Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {associatedPayments.map((pm, idx) => (
+                    <tr key={pm.paymentId || idx} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 font-bold text-slate-600 text-sm">
+                        {new Date(pm.date).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </td>
+                      <td className="py-4 font-mono text-xs text-indigo-600 font-bold">
+                        {pm.paymentId || '-'}
+                      </td>
+                      <td className="py-4 font-black text-slate-900 text-sm">
+                        {pm.chequeNumber ? (
+                          <span className="bg-amber-50 text-amber-800 px-3 py-1.5 rounded-xl border border-amber-200">
+                            {pm.chequeNumber}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic font-bold">Other Mode</span>
+                        )}
+                      </td>
+                      <td className="py-4 font-bold text-slate-600 text-sm">
+                        {pm.chequeDate ? (
+                          new Date(pm.chequeDate).toLocaleDateString()
+                        ) : (
+                          <span className="text-slate-400 font-bold">-</span>
+                        )}
+                      </td>
+                      <td className="py-4 font-black text-slate-900 text-right text-base">
+                        ₹ {pm.adjustedAmount.toLocaleString()}
+                      </td>
+                      <td className="py-4 font-bold text-slate-500 text-right text-xs max-w-xs truncate italic">
+                        {pm.notes || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs font-bold text-slate-500">
+              <span className="uppercase tracking-wider">Verification Checklist</span>
+              <span className="text-slate-600">All cheque settlements are synced through multi-device secure Firebase cloud.</span>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </motion.div>
   );
 }
 
@@ -8941,6 +9068,23 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
     [data.id, data.grandTotal, payments, creditNotes, booking.billNumber]
   );
 
+  const associatedPayments = React.useMemo(() => {
+    return (payments || []).filter(p => 
+      p.billAdjustments?.some(adj => adj.billId === data.id)
+    ).map(p => {
+      const adj = p.billAdjustments?.find(a => a.billId === data.id);
+      return {
+        paymentId: p.id,
+        date: p.date,
+        totalAmount: p.amount,
+        adjustedAmount: adj ? adj.amount : 0,
+        chequeNumber: p.chequeNumber,
+        chequeDate: p.chequeDate,
+        notes: p.notes
+      };
+    });
+  }, [payments, data.id]);
+
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -8961,8 +9105,9 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
       exit={{ opacity: 0 }} 
       className="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center p-4 overflow-y-auto print:p-0 print:static print:bg-white"
     >
-      {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
-      <div id="bill-print-area" className="single-page-invoice w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
+      <div className="flex flex-col gap-6 max-w-[210mm] w-full my-8 print:my-0">
+        {/* Print container string matching rules: w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between border border-black print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none */}
+        <div id="bill-print-area" className="single-page-invoice w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between bg-white text-black font-sans shadow-2xl relative print:shadow-none print:m-0 print:p-0 print:bg-white rounded-none border border-black" style={{ paddingTop: `${settings?.layoutSettings?.styles?.paddingTop || 0}px`, paddingBottom: `${settings?.layoutSettings?.styles?.paddingBottom || 0}px` }}>
         
         {/* Buttons */}
         <div className="absolute top-4 right-4 flex gap-2 print:hidden z-50">
@@ -9062,6 +9207,20 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                    <span className="underline italic text-slate-500 text-[10px]">AMOUNT IN WORDS:</span>
                    <div className="mt-0.5 leading-tight">{numberToWords(parseFloat(data.grandTotal?.toString() || "0"))} RUPEES ONLY</div>
                 </div>
+                {paidAmount > 0 && (
+                  <div className="mt-2 border-t border-black/20 pt-2 text-[10px] space-y-1 normal-case">
+                    <div className="font-bold text-slate-500 uppercase">PAYMENT STATUS: <span className="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded text-[8px] font-black">{balance <= 0.5 ? 'FULLY PAID' : 'PARTIALLY PAID'}</span></div>
+                    <div className="grid grid-cols-[110px_1fr] gap-x-2 uppercase">
+                      <span>TOTAL PAID:</span> <span className="font-black text-slate-900">₹ {paidAmount.toLocaleString()}</span>
+                      <span>BALANCE:</span> <span className="font-black text-rose-600">₹ {Math.max(0, balance).toLocaleString()}</span>
+                    </div>
+                    {associatedPayments.length > 0 && (
+                      <div className="mt-1 font-semibold text-slate-600 leading-tight">
+                        Chq/Ref Info: {associatedPayments.map((p, i) => `${p.chequeNumber || 'N/A'} (${p.chequeDate ? new Date(p.chequeDate).toLocaleDateString() : 'N/A'}) - ₹${p.adjustedAmount.toLocaleString()}`).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               
               {/* Right Side: Totals */}
@@ -9102,7 +9261,102 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
           </div>
 
         </div>
-      </motion.div>
+
+        {/* On screen, beautiful detailed payment section */}
+        {associatedPayments.length > 0 && (
+          <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl p-8 print:hidden space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <span className="font-black text-lg">₹</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Payment Settlement History</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-0.5">Details of cheques and receipts linked to this bill</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-6 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100">
+                <div className="text-right">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Amount Settled</div>
+                  <div className="text-xl font-black text-emerald-600 mt-0.5">
+                    ₹ {paidAmount.toLocaleString()}
+                  </div>
+                </div>
+                <div className="h-8 w-px bg-slate-200"></div>
+                <div className="text-right">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Balance Pending</div>
+                  <div className="text-xl font-black text-rose-500 mt-0.5">
+                    ₹ {Math.max(0, balance).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="pb-3">Receipt Date & Time</th>
+                    <th className="pb-3">Voucher Ref ID</th>
+                    <th className="pb-3">Cheque / Ref Number</th>
+                    <th className="pb-3">Cheque Clearance Date</th>
+                    <th className="pb-3 text-right">Adjusted Amount</th>
+                    <th className="pb-3 text-right">Remarks / Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {associatedPayments.map((pm, idx) => (
+                    <tr key={pm.paymentId || idx} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 font-bold text-slate-600 text-sm">
+                        {new Date(pm.date).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </td>
+                      <td className="py-4 font-mono text-xs text-indigo-600 font-bold">
+                        {pm.paymentId || '-'}
+                      </td>
+                      <td className="py-4 font-black text-slate-900 text-sm">
+                        {pm.chequeNumber ? (
+                          <span className="bg-amber-50 text-amber-800 px-3 py-1.5 rounded-xl border border-amber-200">
+                            {pm.chequeNumber}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic font-bold">Other Mode</span>
+                        )}
+                      </td>
+                      <td className="py-4 font-bold text-slate-600 text-sm">
+                        {pm.chequeDate ? (
+                          new Date(pm.chequeDate).toLocaleDateString()
+                        ) : (
+                          <span className="text-slate-400 font-bold">-</span>
+                        )}
+                      </td>
+                      <td className="py-4 font-black text-slate-900 text-right text-base">
+                        ₹ {pm.adjustedAmount.toLocaleString()}
+                      </td>
+                      <td className="py-4 font-bold text-slate-500 text-right text-xs max-w-xs truncate italic">
+                        {pm.notes || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs font-bold text-slate-500">
+              <span className="uppercase tracking-wider">Verification Checklist</span>
+              <span className="text-slate-600">All cheque settlements are synced through multi-device secure Firebase cloud.</span>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </motion.div>
   );
 }
 
