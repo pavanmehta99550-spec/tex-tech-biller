@@ -3659,7 +3659,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                   step="any"
                   value={formData.brokerCommissionRate || ''}
                   onChange={e => setFormData({ ...formData, brokerCommissionRate: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md"
+                  disabled={isLocked && !isOnlyBrokerChanged}
+                  className={`w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${(isLocked && !isOnlyBrokerChanged) ? 'bg-slate-100' : ''}`}
                   placeholder="Rate"
                 />
               </div>
