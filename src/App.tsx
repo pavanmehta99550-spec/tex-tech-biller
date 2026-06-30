@@ -3231,6 +3231,16 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
     return diffDays > 30;
   }, [editingPurchase]);
 
+  const isOnlyBrokerChanged = useMemo(() => {
+    if (!editingPurchase) return false;
+    const relevantFields = ['partyName', 'partyGstin', 'partyAddress', 'parcels', 'partyMobile', 'partyMobile2', 'items', 'basicAmount', 'globalDiscount', 'taxRate', 'taxAmount', 'cgstAmount', 'sgstAmount', 'igstAmount', 'grandTotal', 'taxableValue', 'isInterstate', 'notes', 'partyBillNumber', 'target_length', 'actual_grey_length', 'grey_shortage_perc', 'date', 'billNumber'];
+    return relevantFields.every(field => {
+      const f1 = formData[field];
+      const f2 = editingPurchase[field];
+      return JSON.stringify(f1 ?? '') === JSON.stringify(f2 ?? '');
+    });
+  }, [formData, editingPurchase]);
+
   const addItem = () => {
     setFormData({
       ...formData,
@@ -3625,13 +3635,13 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               <label className="text-[11px] font-black text-indigo-600 uppercase tracking-wider mb-1 block font-black">Broker</label>
               <select
                 value={formData.brokerId || ''}
-                disabled={isLocked}
+                disabled={isLocked && !isOnlyBrokerChanged}
                 onChange={e => {
                   const bId = e.target.value;
                   const b = brokers.find((br: any) => br.id === bId);
                   setFormData({ ...formData, brokerId: bId, brokerCommissionRate: b?.defaultCommission || 0 });
                 }}
-                className={`w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
+                className={`w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${(isLocked && !isOnlyBrokerChanged) ? 'bg-slate-100' : ''}`}
               >
                 <option value="">Select Broker</option>
                 {brokers.map((b: any) => (
@@ -3904,8 +3914,8 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
           )}
           <button 
             type="submit"
-            disabled={isLocked && editingPurchase}
-            className={`flex-[2] bg-indigo-900 hover:bg-indigo-950 text-white font-black py-5 rounded-2xl text-xl transition-all shadow-xl flex items-center justify-center gap-3 ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={isLocked && editingPurchase && !isOnlyBrokerChanged}
+            className={`flex-[2] bg-indigo-900 hover:bg-indigo-950 text-white font-black py-5 rounded-2xl text-xl transition-all shadow-xl flex items-center justify-center gap-3 ${(isLocked && !isOnlyBrokerChanged) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Save size={24} />
             {editingPurchase ? 'Update Purchase Bill' : 'Save Purchase Entry'}

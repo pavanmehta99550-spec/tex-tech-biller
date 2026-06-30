@@ -1,0 +1,16 @@
+2391:                    disabled={isSyncing}
+3398:              disabled={isLocked}
+3628:                disabled={isLocked}
+3827:                        <select disabled={isLocked} value={item.unit} onChange={e => updateItem(item.id, 'unit', e.target.value as any)} onKeyDown={handleEnter} className="w-1/2 px-2 py-2 border border-slate-200 rounded-lg font-bold bg-white text-[10px]">
+3907:            disabled={isLocked && editingPurchase}
+5112:              disabled={isLocked}
+5260:                    disabled={isLocked}
+5400:                    disabled={isLocked}
+5636:              disabled={hasItemDiscount}
+6734:                  disabled={!!editingPayment}
+6852:                          disabled={adjustmentMode === 'auto'}
+6909:              disabled={totalAdjusted <= 0 || isSyncing}
+7203:                  disabled={!!editingPayment}
+7321:                          disabled={adjustmentMode === 'auto'}
+7379:              disabled={displayAmount <= 0 || isSyncing}
+8038:              disabled={isSendingEmail}

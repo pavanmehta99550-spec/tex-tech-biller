@@ -1,0 +1,103 @@
+148:  const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
+154:    const today = new Date();
+723:           updatedAt: new Date().toISOString()
+746:      const last = new Date(lastBackupDate).getTime();
+747:      const now = new Date().getTime();
+820:      date: data.date || new Date().toISOString(),
+860:        date: new Date().toISOString()
+1039:      date: data.date || new Date().toISOString(),
+1083:        date: new Date().toISOString()
+1174:      date: data.date || new Date().toISOString(),
+1243:      date: data.date || new Date().toISOString(),
+1334:                    date: new Date().toISOString(),
+1409:      date: data.date || new Date().toISOString(),
+1516:      date: data.date || new Date().toISOString(),
+1564:      date: data.date || new Date().toISOString(),
+2065:              onBackup={() => setLastBackupDate(new Date().toISOString())}
+2490:            <div className="flex justify-between"><span className="font-bold">Date:</span> <span>{new Date(p.date || Date.now()).toLocaleDateString('en-GB')}</span></div>
+2646:                    {new Date(b.date).toLocaleDateString()}
+2744:                    {new Date(p.date).toLocaleDateString()}
+2837:    const today = new Date();
+2983:                            <div className="text-[10px] text-slate-400 uppercase font-black">{new Date(b.date).toLocaleDateString()}</div>
+3047:                            <div className="text-[10px] text-slate-400 uppercase font-black">{new Date(p.date).toLocaleDateString()}</div>
+3178:      date: editingPurchase?.date || new Date().toISOString(),
+3211:        date: currentEditingPurchase.date || new Date().toISOString(),
+3227:    const bookingDate = new Date(editingPurchase.date);
+3228:    const now = new Date();
+3415:              onChange={e => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })} 
+4011:      date: editingDebitNote?.date || new Date().toISOString()
+4187:              onChange={e => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })} 
+4479:                    {new Date(dn.date).toLocaleDateString()}
+4697:      date: new Date().toISOString(),
+4726:        date: editingBooking.date || new Date().toISOString(),
+4820:    const bookingDate = new Date(editingBooking.date);
+4821:    const now = new Date();
+5505:              onChange={e => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })} 
+5742:              date: new Date().toISOString(),
+5839:      date: editingCreditNote?.date || new Date().toISOString(),
+6015:              onChange={e => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })} 
+6347:                    {new Date(cn.date).toLocaleDateString()}
+6458:                <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
+6540:  const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
+6609:    setDate(new Date().toISOString().split('T')[0]);
+6709:          date: new Date(date).toISOString(),
+6944:            {payments.filter((p: any) => p.partyId === selectedParty.id).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p: any) => (
+6951:                     <p className="text-xs font-bold text-slate-500">{new Date(p.date).toLocaleDateString()}</p>
+7008:  const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
+7077:    setDate(new Date().toISOString().split('T')[0]);
+7177:          date: new Date(date).toISOString(),
+7414:            {payments.filter((p: any) => p.partyId === selectedParty.id).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p: any) => (
+7421:                     <p className="text-xs font-bold text-slate-500">{new Date(p.date).toLocaleDateString()}</p>
+7544:              <p className="text-xl font-black text-slate-900">{new Date(payment.date).toLocaleDateString()}</p>
+7558:              {payment.chequeDate && <p className="text-sm font-bold text-slate-700">Date: {new Date(payment.chequeDate).toLocaleDateString()}</p>}
+7876:    link.download = `smart_gst_backup_${new Date().toISOString().split('T')[0]}.json`;
+7922:    const subject = encodeURIComponent(`Tax Billing Backup - ${new Date().toLocaleDateString()}`);
+7924:      `Hello,\n\nPlease find the data backup attached from the Smart GST Biller Application. \n\nIMPORTANT: Copy this data and save it in a safe place.\n\nEXPORT DATE: ${new Date().toLocaleString()}\n\n---\nDATA CONTENT START\n\n${JSON.stringify(data, null, 2)}\n\nDATA CONTENT END`
+8068:            {Math.floor((new Date().getTime() - new Date(lastBackupDate).getTime()) / (24 * 60 * 60 * 1000))} Days 
+8072:            Last performed on: {new Date(lastBackupDate).toLocaleString()}
+8137:              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Date: {new Date().toLocaleDateString()}</p>
+8167:              {transactions.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).reduce((acc: any[], t: any) => {
+8173:                  <td className="py-3 px-4 font-bold border-r-2 border-slate-900">{new Date(t.date).toLocaleDateString()}</td>
+8274:      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+8284:      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+8291:    transactions.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+8312:    transactions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+8372:                      {new Date(t.date).toLocaleDateString()}
+8540:                setPrintAllTransactions(allTransactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+8729:                  <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
+8783:                          Chq/Ref Info: {associatedPayments.map((p, i) => `${p.chequeNumber || 'N/A'} (${p.chequeDate ? new Date(p.chequeDate).toLocaleDateString() : 'N/A'}) - ₹${p.adjustedAmount.toLocaleString()}`).join(', ')}
+8873:                        {new Date(pm.date).toLocaleString('en-IN', {
+8896:                          new Date(pm.chequeDate).toLocaleDateString()
+8989:                <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
+9154:                <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
+9220:                        Chq/Ref Info: {associatedPayments.map((p, i) => `${p.chequeNumber || 'N/A'} (${p.chequeDate ? new Date(p.chequeDate).toLocaleDateString() : 'N/A'}) - ₹${p.adjustedAmount.toLocaleString()}`).join(', ')}
+9312:                        {new Date(pm.date).toLocaleString('en-IN', {
+9335:                          new Date(pm.chequeDate).toLocaleDateString()
+9365:  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+9366:  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+10691:                        <td className="px-6 py-4 font-bold text-slate-600 text-xs">{new Date(e.date).toLocaleDateString()}</td>
+11749:    date: new Date().toISOString().split('T')[0],
+11795:      date: formData.date || new Date().toISOString().split('T')[0],
+11815:      date: new Date().toISOString().split('T')[0],
+12012:            {filteredExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
+12015:                  {new Date(exp.date).toLocaleDateString()}
+12195:    doc.text(`Date: ${new Date(challan.date).toLocaleDateString()}`, 10, 72);
+12243:    date: new Date().toISOString().split('T')[0],
+12510:      date: new Date().toISOString().split('T')[0],
+12775:                          {autoComparison.target.partyName} | {new Date(autoComparison.target.date).toLocaleDateString()}
+12831:                        <option key={c.id} value={c.challanNumber}>{c.partyName} ({new Date(c.date).toLocaleDateString()})</option>
+12988:                <div className="text-[10px] font-bold text-slate-400">{new Date(c.date).toLocaleDateString()}</div>
+13194:                  <div className="text-xs font-bold text-slate-500 mt-1 italic">#{comparison.mill.challanNumber} | {new Date(comparison.mill.date).toLocaleDateString()}</div>
+13205:                  <div className="text-xs font-bold text-slate-500 mt-1 italic">#{comparison.compareTarget.challanNumber} | {new Date(comparison.compareTarget.date).toLocaleDateString()}</div>
+13682:                          {new Date(bill.date).toLocaleDateString()}
+13970:                 <span className="text-slate-500">Date:</span> <span className="font-black">{new Date(formData.date).toLocaleDateString('en-GB')}</span>
+14094:    date: new Date().toISOString().split('T')[0],
+14151:        date: t.original.billDate || t.original.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+14206:    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+14215:  const [paymentForm, setPaymentForm] = useState({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
+14239:    setPaymentForm({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
+14315:        date: new Date().toISOString()
+14323:      date: new Date().toISOString().split('T')[0],
+14383:                        date: new Date().toISOString().split('T')[0],
+14507:                       setPaymentForm({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
+14556:                      <td className="px-8 py-6 font-bold text-slate-500 text-xs">{new Date(t.date).toLocaleDateString()}</td>

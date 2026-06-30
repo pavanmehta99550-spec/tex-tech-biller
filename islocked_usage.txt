@@ -1,0 +1,98 @@
+3225:  const isLocked = useMemo(() => {
+3369:          {isLocked && (
+3398:              disabled={isLocked}
+3402:              className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all appearance-none ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+3414:              readOnly={isLocked}
+3417:              className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`} 
+3426:               className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+3480:                readOnly={isLocked}
+3499:                className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
+3513:                readOnly={isLocked}
+3532:                className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
+3548:                readOnly={isLocked}
+3551:                className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
+3560:                readOnly={isLocked}
+3563:                className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
+3572:                readOnly={isLocked}
+3575:                className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-indigo-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100' : ''}`}
+3585:                  readOnly={isLocked}
+3588:                  className={`flex-1 px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
+3591:                {!isLocked && (
+3628:                disabled={isLocked}
+3634:                className={`w-full px-4 py-3 border-2 border-indigo-100 rounded-xl font-black bg-white outline-none focus:border-indigo-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
+3721:            {!isLocked && (
+3740:                    readOnly={isLocked} 
+3760:                      readOnly={isLocked} 
+3763:                      onFocus={() => !isLocked && setActiveCalcId(item.id)}
+3767:                    {!isLocked && (
+3786:                        isLocked={isLocked}
+3797:                    readOnly={isLocked} 
+3810:                    readOnly={isLocked} 
+3826:                        <input type="text" readOnly={isLocked} value={item.hsnCode} onChange={e => updateItem(item.id, 'hsnCode', e.target.value)} onKeyDown={handleEnter} className="w-1/2 px-2 py-2 border border-slate-200 rounded-lg font-bold bg-white text-[10px]" placeholder="HSN" />
+3827:                        <select disabled={isLocked} value={item.unit} onChange={e => updateItem(item.id, 'unit', e.target.value as any)} onKeyDown={handleEnter} className="w-1/2 px-2 py-2 border border-slate-200 rounded-lg font-bold bg-white text-[10px]">
+3834:                {!isLocked && formData.items.length > 1 && (
+3854:              readOnly={isLocked}
+3857:              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50' : 'focus:border-indigo-500'}`} 
+3867:              readOnly={isLocked}
+3870:              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all h-24 resize-none ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-indigo-500 focus:bg-white'}`} 
+3907:            disabled={isLocked && editingPurchase}
+3908:            className={`flex-[2] bg-indigo-900 hover:bg-indigo-950 text-white font-black py-5 rounded-2xl text-xl transition-all shadow-xl flex items-center justify-center gap-3 ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+4525:function QtyCalculator({ value, onChange, onApply, onBlur, isLocked }: { value: string, onChange: (v: string) => void, onApply: (sum: number, count: number) => void, onBlur: () => void, isLocked?: boolean }) {
+4552:        readOnly={isLocked}
+4817:  const isLocked = useMemo(() => {
+4827:  const canEditLr = !isLocked || !editingBooking?.lrNumber;
+4828:  const isAllDisabled = isLocked;
+5069:          {isLocked && (
+5112:              disabled={isLocked}
+5116:              className={`w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all appearance-none ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+5183:                    readOnly={isLocked}
+5186:                    className={`w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
+5204:                    readOnly={isLocked}
+5207:                    className={`w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
+5222:                  readOnly={isLocked}
+5225:                  className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
+5235:                    readOnly={isLocked}
+5238:                    className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
+5247:                    readOnly={isLocked}
+5250:                    className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isLocked ? 'bg-slate-100 text-slate-400 opacity-70' : ''}`}
+5260:                    disabled={isLocked}
+5266:                    className={`w-full px-4 py-3 border-2 border-blue-100 rounded-xl font-black bg-white outline-none focus:border-blue-500 transition-all shadow-md ${isLocked ? 'bg-slate-100' : ''}`}
+5297:            {!isLocked && (
+5327:                    readOnly={isLocked} 
+5331:                    className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
+5383:                  <input type="text" readOnly={isLocked} value={item.hsnCode} onChange={e => updateItem(item.id, 'hsnCode', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="HSN" />
+5387:                  <input type="text" readOnly={isLocked} value={item.taka} onChange={e => updateItem(item.id, 'taka', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="No." />
+5391:                  <input type="text" readOnly={isLocked} value={item.color} onChange={e => updateItem(item.id, 'color', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="Red" />
+5395:                  <input type="text" readOnly={isLocked} value={item.grade || ''} onChange={e => updateItem(item.id, 'grade', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="A" />
+5400:                    disabled={isLocked}
+5404:                    className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-bold bg-white outline-none focus:border-blue-500 text-sm shadow-sm appearance-none cursor-pointer ${isLocked ? 'bg-slate-50 text-slate-400 opacity-70' : ''}`}
+5419:                      readOnly={isLocked} 
+5423:                      onFocus={() => !isLocked && setActiveCalcId(item.id)}
+5425:                      className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
+5428:                    {!isLocked && (
+5447:                        isLocked={isLocked}
+5454:                  <input type="number" readOnly={isLocked} step="any" value={item.rate || ''} onChange={e => updateItem(item.id, 'rate', e.target.value)} onKeyDown={handleEnter} className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} placeholder="0.00" />
+5460:                    readOnly={isLocked} 
+5472:                    className={`w-full px-3 py-2.5 border border-slate-200 rounded-lg font-black bg-white outline-none focus:border-blue-500 text-sm shadow-sm ${isLocked ? 'bg-slate-50 text-slate-400' : ''}`} 
+5504:              readOnly={isLocked}
+5507:              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+5517:                readOnly={isLocked}
+5520:                className={`flex-1 px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+5522:              {!isLocked && (
+5554:            {formData.billNumber <= 0 && !isLocked && (
+5575:              readOnly={isLocked}
+5578:              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+5590:              readOnly={isLocked}
+5593:              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+5603:              readOnly={isLocked}
+5606:              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+5620:              readOnly={isLocked}
+5623:              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+5661:              readOnly={isLocked}
+5664:              className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all h-24 resize-none ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
+10857:  const [isLocked, setIsLocked] = useState(!!settings?.bankName || !!settings?.accountNumber);
+10903:      {isLocked ? (
+11015:function AdminRouteWrapper({ isLocked, setIsLocked, children }: any) {
+11032:      {isLocked ? (
+11368:  const [isLocked, setIsLocked] = React.useState(true);
+11370:    <AdminRouteWrapper isLocked={isLocked} setIsLocked={setIsLocked}>
