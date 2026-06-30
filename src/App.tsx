@@ -1039,6 +1039,7 @@ setPreviewBooking(newBooking);
       date: data.date || new Date().toISOString(),
       notes: data.notes || '',
       brokerId: data.brokerId || '',
+      brokerCommissionRate: data.brokerCommissionRate || 0,
       target_length: data.target_length ? parseFloat(data.target_length.toString()) : 0,
       actual_grey_length: data.actual_grey_length ? parseFloat(data.actual_grey_length.toString()) : 0,
       grey_shortage_perc: data.grey_shortage_perc ? parseFloat(data.grey_shortage_perc.toString()) : 0
