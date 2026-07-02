@@ -8996,7 +8996,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                 <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.partyGstin || "-"}</span></span>
               </div>
               <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
-                <div className="flex justify-between"><span>DN NO:</span> <span>{data.noteNumber}</span></div>
+                <div className="flex justify-between"><span>DN NO:</span> <span>{data.noteNumber || 'N/A'}</span></div>
                 <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
               </div>
             </div>
@@ -9161,7 +9161,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                 <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.consigneeGstin || data.partyGstin || "-"}</span></span>
               </div>
               <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
-                <div className="flex justify-between"><span>INVOICE NO:</span> <span># {data.billNumber}</span></div>
+                <div className="flex justify-between"><span>INVOICE NO:</span> <span>{data.billNumber}</span></div>
                 <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
                 <div className="flex justify-between"><span>EWB NO:</span> <span>{data.ewayBill || data.ewbNumber || "-"}</span></div>
                 <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
