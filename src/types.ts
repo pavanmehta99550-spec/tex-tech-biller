@@ -289,3 +289,9 @@ export interface BrokerPayment {
   notes?: string;
   paymentMode: string;
 }
+
+export interface Note {
+  id: string;
+  text: string;
+  createdAt: string;
+}

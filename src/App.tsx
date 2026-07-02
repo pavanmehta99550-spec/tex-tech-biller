@@ -59,9 +59,10 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
-import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem, Broker, BrokerCommission, BrokerPayment } from './types';
+import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem, Broker, BrokerCommission, BrokerPayment, Note } from './types';
 import Login from './components/Login';
 import BillSearch from './components/BillSearch';
+import NotesModal from './components/NotesModal';
 
 // Initial Party Database
 const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
@@ -148,6 +149,7 @@ export default function App() {
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
   const [logoutFocusedIdx, setLogoutFocusedIdx] = useState<number>(-1);
 
   const financialYear = useMemo(() => {
@@ -189,6 +191,7 @@ export default function App() {
   const [brokers, setBrokers] = useState<Broker[]>(() => storage.get('brokers', []));
   const [commissions, setCommissions] = useState<BrokerCommission[]>(() => storage.get('commissions', []));
   const [brokerPayments, setBrokerPayments] = useState<BrokerPayment[]>(() => storage.get('brokerPayments', []));
+  const [notes, setNotes] = useState<Note[]>(() => storage.get('notes', []));
   const [settings, setSettings] = useState<AppSettings | null>(() => storage.get('settings', null));
 
   const stats = useMemo(() => {
@@ -296,6 +299,7 @@ export default function App() {
   useEffect(() => storage.set('brokers', brokers), [brokers]);
   useEffect(() => storage.set('commissions', commissions), [commissions]);
   useEffect(() => storage.set('brokerPayments', brokerPayments), [brokerPayments]);
+  useEffect(() => storage.set('notes', notes), [notes]);
   useEffect(() => storage.set('settings', settings), [settings]);
   useEffect(() => storage.set('lastBackupDate', lastBackupDate), [lastBackupDate]);
 
@@ -598,6 +602,7 @@ export default function App() {
       { key: 'brokers', setter: setBrokers },
       { key: 'commissions', setter: setCommissions },
       { key: 'brokerPayments', setter: setBrokerPayments },
+      { key: 'notes', setter: setNotes },
       { key: 'settings', setter: setSettings },
       { key: 'lastBackupDate', setter: setLastBackupDate },
     ];
@@ -1829,6 +1834,13 @@ setPreviewCreditNote(newCreditNote);
 
         <div className="p-4 border-t border-slate-700 space-y-2">
           <button 
+            onClick={() => setShowNotesModal(true)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-xl transition-all font-bold text-[10px] uppercase tracking-widest"
+          >
+            <FileText size={18} />
+            My Notes
+          </button>
+          <button 
             onClick={() => {
               if(confirm("Are you sure? This will delete all your bills and parties!")) {
                 localStorage.clear();
@@ -2344,6 +2356,7 @@ setPreviewCreditNote(newCreditNote);
       </AnimatePresence>
 
       <AnimatePresence>
+        {showNotesModal && <NotesModal notes={notes} setNotes={setNotes} onClose={() => setShowNotesModal(false)} />}
         {showLogoutConfirm && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6">
             <motion.div 
