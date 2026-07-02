@@ -6465,7 +6465,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
                 <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.partyGstin || "-"}</span></span>
               </div>
               <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
-                <div className="flex justify-between"><span>CN NO:</span> <span># {data.billNumber}</span></div>
+                <div className="flex justify-between"><span>CN NO:</span> <span>{data.noteNumber}</span></div>
                 <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
               </div>
             </div>
@@ -8736,7 +8736,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
                   <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.partyGstin || "-"}</span></span>
                 </div>
                 <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
-                  <div className="flex justify-between"><span>VOUCHER NO:</span> <span># {data.billNumber}</span></div>
+                  <div className="flex justify-between"><span>VOUCHER NO:</span> <span>{data.billNumber}</span></div>
                   <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
                   <div className="flex justify-between"><span>TRANSPORT:</span> <span>{data.transportName || "-"}</span></div>
                   {data.transportGstin && <div className="flex justify-between"><span>TRANSPORT GST:</span> <span>{data.transportGstin}</span></div>}
@@ -8996,7 +8996,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                 <span className="mt-1 flex gap-2"><span>GSTIN:</span> <span>{data.partyGstin || "-"}</span></span>
               </div>
               <div className="p-2 font-bold text-[11px] uppercase flex flex-col gap-1">
-                <div className="flex justify-between"><span>DN NO:</span> <span># {data.billNumber}</span></div>
+                <div className="flex justify-between"><span>DN NO:</span> <span>{data.noteNumber}</span></div>
                 <div className="flex justify-between"><span>DATE:</span> <span>{new Date(data.date).toLocaleDateString('en-GB')}</span></div>
               </div>
             </div>

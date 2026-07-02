@@ -1,0 +1,76 @@
+src/types.ts:export interface DebitNote {
+src/App.tsx:import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, ItemMaster, Transport, Expense, Challan, ChallanItem, Broker, BrokerCommission, BrokerPayment } from './types';
+src/App.tsx:  const [debitNotes, setDebitNotes] = useState<DebitNote[]>(() => storage.get('debit-notes', []));
+src/App.tsx:  const [previewDebitNote, setPreviewDebitNote] = useState<DebitNote | null>(null);
+src/App.tsx:  const [editingDebitNote, setEditingDebitNote] = useState<DebitNote | null>(null);
+src/App.tsx:    setDebitNotes([]);
+src/App.tsx:        if (previewBooking || previewPurchase || previewDebitNote || previewCreditNote) {
+src/App.tsx:          setPreviewDebitNote(null);
+src/App.tsx:        if (editingBooking || editingPurchase || editingDebitNote || editingCreditNote || editingPayment) {
+src/App.tsx:          setEditingDebitNote(null);
+src/App.tsx:            case 'dn': setEditingDebitNote(null); setCurrentView('dn'); break;
+src/App.tsx:  }, [currentView, focusedIdx, views, previewBooking, previewPurchase, previewDebitNote, previewCreditNote, editingBooking, editingPurchase, editingDebitNote, editingCreditNote, editingPayment, showLogoutConfirm, showBackupWarning, logoutFocusedIdx]);
+src/App.tsx:      { key: 'debit-notes', setter: setDebitNotes },
+src/App.tsx:  const handleDeleteDebitNote = (id: string) => {
+src/App.tsx:    setDebitNotes(prev => prev.filter(dn => dn.id !== id));
+src/App.tsx:  const handleSaveDebitNote = (data: Partial<DebitNote>) => {
+src/App.tsx:    const newDebitNote: DebitNote = {
+src/App.tsx:      setDebitNotes(prev => prev.map(b => b.id === data.id ? newDebitNote : b));
+src/App.tsx:            total -= newDebitNote.grandTotal || 0;
+src/App.tsx:      setEditingDebitNote(null);
+src/App.tsx:      setDebitNotes(prev => [newDebitNote, ...prev]);
+src/App.tsx:          ? { ...p, totalPurchases: (p.totalPurchases || 0) - newDebitNote.grandTotal } 
+src/App.tsx:    setPreviewDebitNote(newDebitNote);
+src/App.tsx:    !!(previewBooking || previewPurchase || previewDebitNote || previewCreditNote),
+src/App.tsx:  [previewBooking, previewPurchase, previewDebitNote, previewCreditNote]);
+src/App.tsx:            {currentView === 'dn' && <DebitNoteView 
+src/App.tsx:              key={`dn-${editingDebitNote?.id || 'new'}-${debitNotes.length}`} 
+src/App.tsx:              onSave={handleSaveDebitNote} 
+src/App.tsx:              onEdit={(dn: DebitNote) => {
+src/App.tsx:                setEditingDebitNote(dn);
+src/App.tsx:              onDelete={handleDeleteDebitNote}
+src/App.tsx:              onPreview={(dn: DebitNote) => setPreviewDebitNote(dn)}
+src/App.tsx:              editingDebitNote={editingDebitNote}
+src/App.tsx:                setEditingDebitNote(null);
+src/App.tsx:                if (restoredData.debitNotes) setDebitNotes(restoredData.debitNotes);
+src/App.tsx:                onEditDebitNote={(dn: any) => {
+src/App.tsx:                  setEditingDebitNote(dn);
+src/App.tsx:            {previewDebitNote && (
+src/App.tsx:              <DebitNotePrintPreview 
+src/App.tsx:                debitNote={previewDebitNote} 
+src/App.tsx:                onClose={() => setPreviewDebitNote(null)} 
+src/App.tsx:function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings, debitNotes, purchases, itemsMaster = [], editingDebitNote, onCancel }: any) {
+src/App.tsx:  const filteredDebitNotes = useMemo(() => {
+src/App.tsx:    return (debitNotes || []).filter((dn: DebitNote) => 
+src/App.tsx:      id: editingDebitNote?.id || '',
+src/App.tsx:      noteNumber: editingDebitNote?.noteNumber || nextAutoNum,
+src/App.tsx:      purchaseBillNumber: editingDebitNote?.purchaseBillNumber || '',
+src/App.tsx:      partyGstin: editingDebitNote?.partyGstin || '',
+src/App.tsx:      partyName: editingDebitNote?.partyName || '',
+src/App.tsx:      partyAddress: editingDebitNote?.partyAddress || '',
+src/App.tsx:      partyMobile: editingDebitNote?.partyMobile || '',
+src/App.tsx:      partyMobile2: editingDebitNote?.partyMobile2 || '',
+src/App.tsx:      reason: editingDebitNote?.reason || '',
+src/App.tsx:      notes: editingDebitNote?.notes || '',
+src/App.tsx:      items: (editingDebitNote?.items || [{ id: Math.random().toString(36).substr(2, 9), name: '', color: '', hsnCode: '', taka: '', unit: 'MTR', quantity: 0, rate: 0, discount: 0, amount: 0 }]).map(it => it.id ? it : { ...it, id: Math.random().toString(36).substr(2, 9) }),
+src/App.tsx:      basicAmount: editingDebitNote?.basicAmount || 0,
+src/App.tsx:      globalDiscount: editingDebitNote?.globalDiscount || 0,
+src/App.tsx:      taxRate: editingDebitNote?.taxRate || 5,
+src/App.tsx:      date: editingDebitNote?.date || new Date().toISOString()
+src/App.tsx:            {editingDebitNote ? `Edit Debit Note #${formData.noteNumber}` : 'New Debit Note'}
+src/App.tsx:          {editingDebitNote && (
+src/App.tsx:        <DebitNotePrintPreview 
+src/App.tsx:              {filteredDebitNotes.map((dn: DebitNote) => (
+src/App.tsx:              {filteredDebitNotes.length === 0 && (
+src/App.tsx:function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment, onEditBooking, onEditPurchase, onEditCreditNote, onEditDebitNote, onBack }: any) {
+src/App.tsx:  const [previewDebitNote, setPreviewDebitNote] = useState<any>(null);
+src/App.tsx:  const isLocalPrintOpen = !!(previewBooking || previewPurchase || previewCreditNote || previewDebitNote || previewPayment || showLedgerPrint || printAllTransactions);
+src/App.tsx:        const isPrintOpen = !!(previewBooking || previewPurchase || previewCreditNote || previewDebitNote || previewPayment || showLedgerPrint || printAllTransactions);
+src/App.tsx:          setPreviewDebitNote(null);
+src/App.tsx:  }, [selectedParty, previewBooking, previewPurchase, previewCreditNote, previewDebitNote, previewPayment, showLedgerPrint, printAllTransactions, onBack]);
+src/App.tsx:                      if (t.type === 'DEBIT_NOTE') setPreviewDebitNote(t);
+src/App.tsx:                                if (t.type === 'DEBIT_NOTE') onEditDebitNote(t);
+src/App.tsx:        {previewDebitNote && <DebitNotePrintPreview debitNote={previewDebitNote} settings={settings} onClose={() => setPreviewDebitNote(null)} />}
+src/App.tsx:function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: any) {
+src/App.tsx:    const hasDebitNotes = debitNotes.some((dn: any) => dn.partyGstin === party.gstin);
+src/App.tsx:    if (hasBookings || hasPurchases || hasCreditNotes || hasDebitNotes || hasPayments) {

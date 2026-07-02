@@ -1,0 +1,22 @@
+src/App.tsx:      if (!confirm(`Warning: Bill Number #${data.billNumber} already exists for ${duplicate.consigneeName}. Do you still want to save?`)) {
+src/App.tsx:                    <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg font-black text-xs">#{b.billNumber}</span>
+src/App.tsx:                    <span className="bg-red-50 text-red-700 px-3 py-1 rounded-lg font-black text-xs">#{p.billNumber}</span>
+src/App.tsx:                            <div className="font-bold text-slate-900"># {b.billNumber}</div>
+src/App.tsx:                            <div className="font-bold text-slate-900"># {p.billNumber}</div>
+src/App.tsx:            {editingPurchase ? `Edit Purchase #${formData.billNumber}` : 'New Purchase Bill'}
+src/App.tsx:            {editingBooking ? `Edit Bill #${formData.billNumber}` : 'New Sale Bill'}
+src/App.tsx:                <div className="flex justify-between"><span>CN NO:</span> <span># {data.billNumber}</span></div>
+src/App.tsx:                      <td className="px-6 py-4 font-black text-slate-900"># {b.billNumber}</td>
+src/App.tsx:                            #{ba.billNumber}
+src/App.tsx:                      <td className="px-6 py-4 font-black text-slate-900"># {b.billNumber}</td>
+src/App.tsx:                            #{ba.billNumber}
+src/App.tsx:                    <span className="uppercase">Adjusted against Bill # {adj.billNumber}</span>
+src/App.tsx:                        Settled: {t.billAdjustments.map((ba: any) => `#${ba.billNumber}`).join(', ')}
+src/App.tsx:                                  #{ba.billNumber}
+src/App.tsx:                  <div className="flex justify-between"><span>VOUCHER NO:</span> <span># {data.billNumber}</span></div>
+src/App.tsx:                <div className="flex justify-between"><span>DN NO:</span> <span># {data.billNumber}</span></div>
+src/App.tsx:                <div className="flex justify-between"><span>INVOICE NO:</span> <span># {data.billNumber}</span></div>
+src/App.tsx:          label: `Bill #${p.partyBillNumber || p.billNumber} - ${p.partyName} (Actual Grey: ${actualVal} Mtr)`,
+src/App.tsx:                            <span className="font-black text-slate-900"># {bill.billNumber}</span>
+src/App.tsx:              <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest opacity-60">Bill # {formData.billNumber} | Original Total: ₹ {bill.grandTotal}</p>
+src/App.tsx:                 <span className="text-slate-500">Invoice No:</span> <span className="font-black text-[10pt]"># {formData.billNumber}</span>
