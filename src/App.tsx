@@ -207,6 +207,13 @@ export default function App() {
     
     const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
     
+    const monthlyPurchases = (purchases || []).reduce((acc, p) => {
+      const date = new Date(p.date);
+      const monthYear = `${date.getMonth() + 1}-${date.getFullYear()}`;
+      acc[monthYear] = (acc[monthYear] || 0) + p.grandTotal;
+      return acc;
+    }, {} as Record<string, number>);
+    
     return { 
       grossSales,
       returnsSales,
@@ -215,7 +222,8 @@ export default function App() {
       returnsPurchases,
       netPurchases,
       totalReceived,
-      totalPending: netSales - totalReceived 
+      totalPending: netSales - totalReceived,
+      monthlyPurchases
     };
   }, [bookings, purchases, creditNotes, debitNotes, payments]);
 
@@ -2982,6 +2990,18 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2 p-6">
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-6">Monthly Purchase Summary</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                   {Object.entries(stats.monthlyPurchases).map(([monthYear, total]) => (
+                     <div key={monthYear} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{monthYear}</div>
+                       <div className="text-lg font-black text-slate-900 tracking-tight">₹ {Number(total).toLocaleString()}</div>
+                     </div>
+                   ))}
+                </div>
+              </div>
+
               {/* Recent Sale Bills */}
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center">
