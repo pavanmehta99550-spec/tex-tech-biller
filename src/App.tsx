@@ -150,6 +150,7 @@ export default function App() {
   const [showBackupWarning, setShowBackupWarning] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
+  const [selectedGstReport, setSelectedGstReport] = useState<'GSTR-1' | 'GSTR-2' | 'GSTR-3B'>('GSTR-1');
   const [logoutFocusedIdx, setLogoutFocusedIdx] = useState<number>(-1);
 
   const financialYear = useMemo(() => {
@@ -3241,7 +3242,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - bookingDate.getTime());
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
-    return diffDays > 30;
+    return false;
   }, [editingPurchase]);
 
   const isOnlyBrokerChanged = useMemo(() => {
@@ -4845,7 +4846,7 @@ function BookingView({
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - bookingDate.getTime());
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
-    return diffDays > 30;
+    return false;
   }, [editingBooking, navigatedBillLocked]);
 
   const canEditLr = !isLocked || !editingBooking?.lrNumber;
@@ -10138,6 +10139,49 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
     URL.revokeObjectURL(url);
   };
 
+  const exportSelectedGstReport = () => {
+    if (selectedGstReport === 'GSTR-1') {
+      exportGstr1Pdf();
+    } else if (selectedGstReport === 'GSTR-2') {
+      exportGstr2Pdf();
+    } else {
+      exportAuditPDFReport();
+    }
+  };
+
+  const exportGstr1Pdf = () => {
+    const doc = new jsPDF();
+    doc.text("GSTR-1 Outward Supplies Details", 14, 20);
+    autoTable(doc, {
+      startY: 28,
+      head: [["Inv No", "Date", "Customer Name", "Customer GSTIN", "HSN Code", "MTR Details", "E-Way Bill", "Taxable Value (₹)", "GST %", "Tax (₹)", "Grand Total (₹)"]],
+      body: gstr1Data.map(d => [
+        d.invoiceNo, d.date, d.customer, d.gstin || 'Unregistered',
+        d.hsn, d.mtrDetail, d.ewayBill,
+        Number(d.taxableValue).toFixed(2), d.taxRate + "%", Number(d.totalTax).toFixed(2), Number(d.grandTotal).toFixed(2)
+      ]),
+      headStyles: { fillColor: [40, 44, 52] },
+      styles: { fontSize: 7, cellPadding: 1.5 },
+    });
+    doc.save(`GSTR-1_${startDate}_${endDate}.pdf`);
+  };
+
+  const exportGstr2Pdf = () => {
+    const doc = new jsPDF();
+    doc.text("GSTR-2 Inward Supplies Details", 14, 20);
+    autoTable(doc, {
+      startY: 28,
+      head: [["Inv No", "Date", "Vendor Name", "Vendor GSTIN", "HSN Code", "Taxable Value (₹)", "GST %", "Tax (₹)", "Grand Total (₹)"]],
+      body: gstr2Data.map(d => [
+        d.invoiceNo, d.date, d.vendor, d.gstin || 'Unregistered',
+        d.hsn, Number(d.taxableValue).toFixed(2), d.taxRate + "%", Number(d.totalTax).toFixed(2), Number(d.grandTotal).toFixed(2)
+      ]),
+      headStyles: { fillColor: [40, 44, 52] },
+      styles: { fontSize: 7, cellPadding: 1.5 },
+    });
+    doc.save(`GSTR-2_${startDate}_${endDate}.pdf`);
+  };
+
   const exportAuditPDFReport = () => {
     const doc = new jsPDF();
     doc.setFont("Helvetica", "bold");
@@ -10375,6 +10419,15 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
             </div>
             
             <div className="flex gap-2 border-l border-white/10 pl-4">
+              <select 
+                value={selectedGstReport} 
+                onChange={e => setSelectedGstReport(e.target.value as any)}
+                className="bg-white/10 text-white font-bold text-xs rounded-xl px-4 py-3.5 outline-none border border-white/10"
+              >
+                <option value="GSTR-1" className="text-slate-900">GSTR-1</option>
+                <option value="GSTR-2" className="text-slate-900">GSTR-2</option>
+                <option value="GSTR-3B" className="text-slate-900">GSTR-3B</option>
+              </select>
               <button 
                 onClick={exportDetailedExcel} 
                 className="px-4 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2 uppercase tracking-wider" 
@@ -10397,9 +10450,9 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
                 <FileText size={14} /> Portal JSON
               </button>
               <button 
-                onClick={exportAuditPDFReport} 
+                onClick={exportSelectedGstReport} 
                 className="p-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl shadow-lg transition-all" 
-                title="Print Audit Report"
+                title={`Print ${selectedGstReport} Report`}
               >
                 <Printer size={16} />
               </button>
