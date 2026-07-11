@@ -12851,7 +12851,9 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
                       placeholder="Link to Weaver Challan #"
                     />
                     <datalist id="weaver-challan-suggestions">
-                      {weaverChallans.map((c: any) => (
+                      {weaverChallans
+                        .filter(c => !millChallans.some(m => m.weaverChallanNumber === c.challanNumber))
+                        .map((c: any) => (
                         <option key={c.id} value={c.challanNumber}>{c.partyName} ({new Date(c.date).toLocaleDateString()})</option>
                       ))}
                     </datalist>
