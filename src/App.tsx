@@ -367,21 +367,23 @@ export default function App() {
 
         if (closedSomething) return;
 
-        if (focusedIdx === -1) {
-          // Blur any active input so arrow keys/enter work for sidebar
-          if (activeElement && (activeElement as HTMLElement).blur) {
-            (activeElement as HTMLElement).blur();
-          }
-          // If not focused on sidebar, focus it
-          setFocusedIdx(views.indexOf(currentView));
-          // Scroll to top
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-          // If already in navigation, trigger the stylized logout modal
-          setShowLogoutConfirm(true);
-          setLogoutFocusedIdx(0);
+        if (focusedIdx !== -1) {
+          // If already in navigation, close it (back)
+          setFocusedIdx(-1);
+          return;
         }
+
+        if (currentView !== 'dash') {
+          // If not in dash, go back to dash
+          setCurrentView('dash');
+          return;
+        }
+        
+        // Otherwise, trigger the stylized logout modal
+        setShowLogoutConfirm(true);
+        setLogoutFocusedIdx(0);
         return;
+
       }
 
       if (isInput) return;
