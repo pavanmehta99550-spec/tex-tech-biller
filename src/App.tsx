@@ -213,6 +213,19 @@ export default function App() {
       acc[monthYear] = (acc[monthYear] || 0) + p.grandTotal;
       return acc;
     }, {} as Record<string, number>);
+
+    const monthlySales = (bookings || []).reduce((acc, b) => {
+      const date = new Date(b.date);
+      const monthYear = `${date.getMonth() + 1}-${date.getFullYear()}`;
+      acc[monthYear] = (acc[monthYear] || 0) + b.grandTotal;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    (creditNotes || []).forEach(cn => {
+       const date = new Date(cn.date);
+       const monthYear = `${date.getMonth() + 1}-${date.getFullYear()}`;
+       monthlySales[monthYear] = (monthlySales[monthYear] || 0) - cn.grandTotal;
+    });
     
     return { 
       grossSales,
@@ -223,7 +236,8 @@ export default function App() {
       netPurchases,
       totalReceived,
       totalPending: netSales - totalReceived,
-      monthlyPurchases
+      monthlyPurchases,
+      monthlySales
     };
   }, [bookings, purchases, creditNotes, debitNotes, payments]);
 
@@ -2994,6 +3008,18 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                 <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-6">Monthly Purchase Summary</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                    {Object.entries(stats.monthlyPurchases).map(([monthYear, total]) => (
+                     <div key={monthYear} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{monthYear}</div>
+                       <div className="text-lg font-black text-slate-900 tracking-tight">₹ {Number(total).toLocaleString()}</div>
+                     </div>
+                   ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2 p-6">
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-6">Monthly Sales Summary</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                   {Object.entries(stats.monthlySales).map(([monthYear, total]) => (
                      <div key={monthYear} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{monthYear}</div>
                        <div className="text-lg font-black text-slate-900 tracking-tight">₹ {Number(total).toLocaleString()}</div>
