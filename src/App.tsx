@@ -36,7 +36,8 @@ import {
   Eye,
   EyeOff,
   Mic,
-  History
+  History,
+  ShoppingCart
 } from 'lucide-react';
 import { storage } from './lib/storage';
 import { auth, db, fireStorage } from './lib/firebase';
@@ -2963,6 +2964,13 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                 <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Total Received</h3>
                 <div className="text-3xl font-black tracking-tighter">₹ {stats.totalReceived.toLocaleString()}</div>
                 <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Cash/Bank Receipt</div>
+              </div>
+
+              <div className="bg-amber-500 p-6 rounded-3xl text-white shadow-lg shadow-amber-500/20 relative overflow-hidden group">
+                <ShoppingCart className="absolute -top-4 -right-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Total Purchase</h3>
+                <div className="text-3xl font-black tracking-tighter">₹ {stats.netPurchases.toLocaleString()}</div>
+                <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Excl. Debit Notes</div>
               </div>
 
               <div className="bg-[#ff4757] p-6 rounded-3xl text-white shadow-lg shadow-[#ff4757]/20 relative overflow-hidden group">
