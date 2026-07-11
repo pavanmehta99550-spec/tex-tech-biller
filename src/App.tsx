@@ -8873,11 +8873,11 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
                   <div className="p-2 space-y-1 flex-grow">
                     <div className="flex justify-between"><span>TAXABLE VALUE:</span><span>{parseFloat(data.taxableValue?.toString() || data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
                     {isInterstate ? (
-                      <div className="flex justify-between"><span>IGST:</span><span>{parseFloat(data.igstAmount?.toString() || data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span>IGST ({data.taxRate || 0}%):</span><span>{parseFloat(data.igstAmount?.toString() || data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
                     ) : (
                       <>
-                        <div className="flex justify-between"><span>CGST:</span><span>{parseFloat(data.cgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span>SGST:</span><span>{parseFloat(data.sgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>CGST ({((data.taxRate || 0) / 2)}%):</span><span>{parseFloat(data.cgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>SGST ({((data.taxRate || 0) / 2)}%):</span><span>{parseFloat(data.sgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
                       </>
                     )}
                     {parseFloat(data.globalDiscount?.toString() || "0") > 0 && (
@@ -9310,11 +9310,11 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                 <div className="p-2 space-y-1 flex-grow">
                   <div className="flex justify-between"><span>TAXABLE VALUE:</span><span>{parseFloat(data.taxableValue?.toString() || data.basicAmount?.toString() || "0").toFixed(2)}</span></div>
                   {isInterstate ? (
-                    <div className="flex justify-between"><span>IGST:</span><span>{parseFloat(data.igstAmount?.toString() || data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>IGST ({data.taxRate || 0}%):</span><span>{parseFloat(data.igstAmount?.toString() || data.taxAmount?.toString() || "0").toFixed(2)}</span></div>
                   ) : (
                     <>
-                      <div className="flex justify-between"><span>CGST:</span><span>{parseFloat(data.cgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
-                      <div className="flex justify-between"><span>SGST:</span><span>{parseFloat(data.sgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span>CGST ({((data.taxRate || 0) / 2)}%):</span><span>{parseFloat(data.cgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span>SGST ({((data.taxRate || 0) / 2)}%):</span><span>{parseFloat(data.sgstAmount?.toString() || (Number(data.taxAmount || 0)/2).toString()).toFixed(2)}</span></div>
                     </>
                   )}
                   {parseFloat(data.globalDiscount?.toString() || "0") > 0 && (
