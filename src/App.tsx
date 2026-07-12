@@ -12689,7 +12689,17 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
           <p className="text-slate-500 font-bold text-sm tracking-wide">Record and track {type.toLowerCase()} details</p>
         </div>
         <button 
-          onClick={() => { setShowAdd(true); setEditingId(null); }}
+          onClick={() => { 
+            setShowAdd(true); 
+            setEditingId(null);
+            setFormData({
+              challanNumber: '',
+              date: new Date().toISOString().split('T')[0],
+              partyName: '',
+              items: [],
+              type: type
+            });
+          }}
           className="bg-black text-white px-8 py-4 rounded-3xl font-black text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-slate-800 transition-all shadow-xl active:scale-95"
         >
           <Plus size={18} /> New Challan
