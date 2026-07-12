@@ -12,7 +12,7 @@ export default function Calculator({ onClose }: { onClose: () => void }) {
         return;
       }
       
-      const isNumber = /[0-9]/.test(e.key);
+      const isNumber = /^[0-9]$/.test(e.key);
       const isOperator = ['+', '-', '*', '/', '.'].includes(e.key);
       
       if (isNumber || isOperator) {
