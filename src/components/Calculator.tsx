@@ -46,7 +46,17 @@ export default function Calculator({ onClose }: { onClose: () => void }) {
     } else if (value === 'C') {
       setInput('');
     } else {
-      setInput(prev => prev + value);
+      const operators = ['+', '-', '*', '/'];
+      if (operators.includes(value)) {
+        setInput(prev => {
+          if (prev.length > 0 && operators.includes(prev[prev.length - 1])) {
+            return prev.slice(0, -1) + value;
+          }
+          return prev + value;
+        });
+      } else {
+        setInput(prev => prev + value);
+      }
     }
   };
 
