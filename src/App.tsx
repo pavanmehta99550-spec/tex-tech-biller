@@ -14368,11 +14368,12 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
   const [paymentForm, setPaymentForm] = useState({ amount: 0, date: new Date().toISOString().split('T')[0], notes: '' });
 
   const handleAddPayment = () => {
-    if (!paymentForm.amount || paymentForm.amount <= 0) return alert("Amount must be greater than 0");
+    const amount = parseFloat(paymentForm.amount as any);
+    if (!amount || amount <= 0) return alert("Amount must be greater than 0");
     if (editingPayment) {
       const p = {
         ...editingPayment,
-        amount: paymentForm.amount,
+        amount: amount,
         date: paymentForm.date,
         notes: paymentForm.notes
       };
@@ -14382,7 +14383,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
       const p = {
         id: Math.random().toString(36).substr(2, 9),
         brokerId: selectedBroker.id,
-        amount: paymentForm.amount,
+        amount: amount,
         date: paymentForm.date,
         notes: paymentForm.notes,
         paymentMode: 'Cash'
@@ -14640,7 +14641,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
                <div className="grid grid-cols-2 gap-4">
                  <div className="col-span-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Paid Amount (₹)</label>
-                   <input type="number" value={paymentForm.amount || ''} onChange={e => setPaymentForm({...paymentForm, amount: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+                   <input type="number" value={paymentForm.amount || ''} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
                  </div>
                  <div>
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Payment Date</label>
