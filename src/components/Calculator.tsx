@@ -45,6 +45,19 @@ export default function Calculator({ onClose }: { onClose: () => void }) {
       });
     } else if (value === 'C') {
       setInput('');
+    } else if (value === 'CE') {
+      setInput(prev => {
+        const operators = ['+', '-', '*', '/'];
+        let lastOpIndex = -1;
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (operators.includes(prev[i])) {
+            lastOpIndex = i;
+            break;
+          }
+        }
+        if (lastOpIndex === -1) return '';
+        return prev.slice(0, lastOpIndex + 1);
+      });
     } else {
       const operators = ['+', '-', '*', '/'];
       if (operators.includes(value)) {
@@ -62,7 +75,7 @@ export default function Calculator({ onClose }: { onClose: () => void }) {
 
   const getButtonClass = (btn: string) => {
     const base = "p-4 rounded-2xl font-black text-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-md";
-    if (btn === 'C') return `${base} bg-rose-500 text-white hover:bg-rose-600`;
+    if (btn === 'C' || btn === 'CE') return `${base} bg-rose-500 text-white hover:bg-rose-600`;
     if (['/', '*', '-', '+', '='].includes(btn)) return `${base} bg-indigo-500 text-white hover:bg-indigo-600`;
     return `${base} bg-white text-slate-800 hover:bg-slate-100`;
   };
@@ -80,7 +93,7 @@ export default function Calculator({ onClose }: { onClose: () => void }) {
           {input || '0'}
         </div>
         <div className="grid grid-cols-4 gap-3">
-          {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+', 'C'].map((btn) => (
+          {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+', 'C', 'CE'].map((btn) => (
             <button
               key={btn}
               onClick={() => handleButtonClick(btn)}
