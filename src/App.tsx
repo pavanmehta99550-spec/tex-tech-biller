@@ -2880,7 +2880,7 @@ function NavBtn({ active, onClick, icon: Icon, label, focused, shortcut }: any) 
 function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, onPreviewSale, onEditPurchase, onDeletePurchase, onPreviewPurchase, isSyncing, syncStatus }: any) {
   const [searchTerm, setSearchTerm] = useState('');
   const [lrSearchTerm, setLrSearchTerm] = useState('');
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(() => storage.get('isDataVisible', true));
   
   const financialYear = useMemo(() => {
     const today = new Date();
@@ -2934,7 +2934,11 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
               </span>
             </div>
             <button 
-              onClick={() => setIsVisible(!isVisible)}
+              onClick={() => {
+                const nextValue = !isVisible;
+                setIsVisible(nextValue);
+                storage.set('isDataVisible', nextValue);
+              }}
               className="flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 text-slate-400 border border-slate-100 rounded-lg transition-all active:scale-95 shadow-sm"
             >
               {isVisible ? <EyeOff size={10} /> : <Eye size={10} />}
