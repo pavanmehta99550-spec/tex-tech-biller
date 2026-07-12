@@ -24,16 +24,18 @@ export default function Calculator({ onClose }: { onClose: () => void }) {
 
   const handleButtonClick = (value: string) => {
     if (value === '=') {
-      try {
-        // eslint-disable-next-line no-eval
-        setInput(eval(input).toString());
-      } catch {
-        setInput('Error');
-      }
+      setInput(prev => {
+        try {
+          // eslint-disable-next-line no-new-func
+          return new Function('return ' + prev)().toString();
+        } catch {
+          return 'Error';
+        }
+      });
     } else if (value === 'C') {
       setInput('');
     } else {
-      setInput(input + value);
+      setInput(prev => prev + value);
     }
   };
 
