@@ -8,6 +8,14 @@ export default function Calculator({ onClose }: { onClose: () => void }) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
+      } else if (/[0-9]/.test(e.key) || ['+', '-', '*', '/', '.'].includes(e.key)) {
+        handleButtonClick(e.key);
+      } else if (e.key === 'Enter') {
+        handleButtonClick('=');
+      } else if (e.key === 'Backspace') {
+        setInput(prev => prev.slice(0, -1));
+      } else if (e.key.toLowerCase() === 'c') {
+        handleButtonClick('C');
       }
     };
     window.addEventListener('keydown', handleKeyDown);

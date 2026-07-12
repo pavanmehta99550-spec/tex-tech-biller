@@ -408,10 +408,12 @@ export default function App() {
           setCurrentView('dash');
           return;
         }
-        
-        // Otherwise, trigger the stylized logout modal
-        setShowLogoutConfirm(true);
-        setLogoutFocusedIdx(0);
+
+        // Otherwise, trigger the stylized logout modal ONLY on Ctrl+Escape
+        if (e.ctrlKey) {
+          setShowLogoutConfirm(true);
+          setLogoutFocusedIdx(0);
+        }
         return;
 
       }
