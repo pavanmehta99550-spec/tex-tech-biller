@@ -64,6 +64,7 @@ import { Party, Booking, Payment, AppSettings, Purchase, DebitNote, CreditNote, 
 import Login from './components/Login';
 import BillSearch from './components/BillSearch';
 import NotesModal from './components/NotesModal';
+import AppCalculator from './components/Calculator';
 
 // Initial Party Database
 const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
@@ -150,6 +151,7 @@ export default function App() {
   const [lastBackupDate, setLastBackupDate] = useState<string>(() => storage.get('lastBackupDate', new Date().toISOString()));
   const [showBackupWarning, setShowBackupWarning] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [selectedGstReport, setSelectedGstReport] = useState<'GSTR-1' | 'GSTR-2' | 'GSTR-3B'>('GSTR-1');
   const [logoutFocusedIdx, setLogoutFocusedIdx] = useState<number>(-1);
@@ -359,6 +361,11 @@ export default function App() {
       if (e.key === 'F5') {
         e.preventDefault();
         window.location.reload();
+      }
+
+      if (e.key === 'F4') {
+        e.preventDefault();
+        setShowCalculator(true);
       }
 
       if (e.key === 'Escape') {
@@ -2383,6 +2390,9 @@ setPreviewCreditNote(newCreditNote);
 
       <AnimatePresence>
         {showNotesModal && <NotesModal notes={notes} setNotes={setNotes} onClose={() => setShowNotesModal(false)} />}
+        {showCalculator && (
+          <AppCalculator onClose={() => setShowCalculator(false)} />
+        )}
         {showLogoutConfirm && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6">
             <motion.div 
