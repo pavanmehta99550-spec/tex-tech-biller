@@ -7,14 +7,25 @@ export default function Calculator({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         onClose();
-      } else if (/[0-9]/.test(e.key) || ['+', '-', '*', '/', '.'].includes(e.key)) {
+        return;
+      }
+      
+      const isNumber = /[0-9]/.test(e.key);
+      const isOperator = ['+', '-', '*', '/', '.'].includes(e.key);
+      
+      if (isNumber || isOperator) {
+        e.preventDefault();
         handleButtonClick(e.key);
       } else if (e.key === 'Enter') {
+        e.preventDefault();
         handleButtonClick('=');
       } else if (e.key === 'Backspace') {
+        e.preventDefault();
         setInput(prev => prev.slice(0, -1));
       } else if (e.key.toLowerCase() === 'c') {
+        e.preventDefault();
         handleButtonClick('C');
       }
     };
