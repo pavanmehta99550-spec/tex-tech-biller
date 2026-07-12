@@ -65,6 +65,7 @@ import Login from './components/Login';
 import BillSearch from './components/BillSearch';
 import NotesModal from './components/NotesModal';
 import AppCalculator from './components/Calculator';
+import DashboardCharts from './components/DashboardCharts';
 
 // Initial Party Database
 const INITIAL_PARTIES: Record<string, { name: string; address: string }>= {
@@ -3018,6 +3019,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                 <div className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Pending Balance</div>
               </div>
             </div>
+            <DashboardCharts stats={stats} />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2 p-6">
