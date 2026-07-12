@@ -66,7 +66,7 @@ export default function Calculator({ onClose }: { onClose: () => void }) {
             <X size={24} />
           </button>
         </div>
-        <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl mb-6 text-right text-4xl font-mono font-bold text-white shadow-inner border border-white/5">
+        <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl mb-6 text-right text-4xl font-mono font-bold text-white shadow-inner border border-white/5 overflow-x-auto whitespace-nowrap">
           {input || '0'}
         </div>
         <div className="grid grid-cols-4 gap-3">
