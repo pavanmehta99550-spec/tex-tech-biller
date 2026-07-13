@@ -3983,7 +3983,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
             </>
           )}
           <div className="text-rose-600 font-black text-sm border-t border-indigo-100 pt-2 mt-2">
-            Total Discount: <span className="text-slate-900">₹{Number(formData.items.reduce((sum: number, item: any) => sum + ((parseFloat(item.quantity?.toString() || '0') * parseFloat(item.rate?.toString() || '0')) - (parseFloat(item.amount?.toString() || '0') || 0)), 0) + (parseFloat(formData.globalDiscount?.toString() || '0'))).toFixed(2)}</span>
+            Total Discount: <span className="text-slate-900">₹{Number(formData.items.reduce((sum: number, item: any) => sum + ((parseFloat(item.quantity?.toString() || '0') * parseFloat(item.rate?.toString() || '0')) - (parseFloat(item.amount?.toString() || '0') || 0)), 0) + (parseFloat((formData as any).globalDiscount?.toString() || '0'))).toFixed(2)}</span>
           </div>
           <div className="text-4xl font-black text-slate-900 tracking-tighter">Grand Total: <span className="text-indigo-600">₹{Number(calc.total).toFixed(2)}</span></div>
         </div>
@@ -6604,6 +6604,10 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
                   <div className="underline italic text-slate-500 text-[10px] mb-1">REASON:</div>
                   <div>PURCHASE RETURN / DIFFERENCE IN VALUE</div>
                 </div>
+                <div>
+                   <span className="underline italic text-slate-500 text-[10px]">AMOUNT IN WORDS:</span>
+                   <div className="mt-0.5 leading-tight">{numberToWords(parseFloat(data.grandTotal?.toString() || "0"))} RUPEES ONLY</div>
+                </div>
               </div>
               
               <div className="flex flex-col font-bold text-[11px] uppercase">
@@ -6619,8 +6623,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
             </div>
             
             <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
-              <div className="flex flex-col justify-end h-full">
-              </div>
+              <div className="flex flex-col justify-end h-full text-[8px] leading-tight text-slate-500 w-full text-left"><p>TERMS & CONDITIONS:</p><p>1. GOODS ONCE SOLD WILL NOT BE TAKEN BACK.</p><p>2. SUBJECT TO SURAT JURISDICTION.</p></div>
               <div className="text-center w-[180px] flex flex-col justify-between h-full">
                 <div className="text-[10px] font-black">FOR {settings?.companyName || "ANGAD SILK MILLS"}</div>
                 <div className="border-t border-black pt-1 mt-auto">AUTHORISED SIGNATORY</div>
@@ -8872,7 +8875,10 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
               <div className="grid grid-cols-[60%_40%]">
                 {/* Left Side: Empty/Verification Copy */}
                 <div className="p-2 border-r border-black flex flex-col justify-between font-bold text-[11px] uppercase">
-                  <div className="text-slate-500 italic">VERIFICATION COPY FOR ACCOUNTS</div>
+                  <div>
+                    <span className="underline italic text-slate-500 text-[10px]">AMOUNT IN WORDS:</span>
+                    <div className="mt-0.5 leading-tight">{numberToWords(parseFloat(data.grandTotal?.toString() || "0"))} RUPEES ONLY</div>
+                  </div>
                   {paidAmount > 0 && (
                     <div className="mt-2 border-t border-black/10 pt-2 text-[10px] space-y-1 w-full normal-case">
                       <div className="font-bold text-slate-500 uppercase">PAYMENT STATUS: <span className="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded text-[8px] font-black">{balance <= 0.5 ? 'FULLY PAID' : 'PARTIALLY PAID'}</span></div>
@@ -8914,9 +8920,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
               
               {/* Signatory Footer */}
               <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
-                <div className="flex flex-col justify-end h-full">
-                  <div className="text-[9px] italic text-slate-500">INPUT TAX CREDIT VERIFIED</div>
-                </div>
+                <div className="flex flex-col justify-end h-full text-[8px] leading-tight text-slate-500 w-full text-left"><p>TERMS & CONDITIONS:</p><p>1. GOODS ONCE SOLD WILL NOT BE TAKEN BACK.</p><p>2. SUBJECT TO SURAT JURISDICTION.</p></div>
                 <div className="text-center w-[180px] flex flex-col justify-between h-full">
                   <div className="h-4"></div>
                   <div className="border-t border-black pt-1 mt-auto">AUTHORISED RECEIVER</div>
@@ -9135,6 +9139,10 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                   <div className="underline italic text-slate-500 text-[10px] mb-1">REASON:</div>
                   <div>SALES RETURN / DIFFERENCE IN VALUE</div>
                 </div>
+                <div>
+                   <span className="underline italic text-slate-500 text-[10px]">AMOUNT IN WORDS:</span>
+                   <div className="mt-0.5 leading-tight">{numberToWords(parseFloat(data.grandTotal?.toString() || "0"))} RUPEES ONLY</div>
+                </div>
               </div>
               
               <div className="flex flex-col font-bold text-[11px] uppercase">
@@ -9150,8 +9158,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
             </div>
             
             <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
-              <div className="flex flex-col justify-end h-full">
-              </div>
+              <div className="flex flex-col justify-end h-full text-[8px] leading-tight text-slate-500 w-full text-left"><p>TERMS & CONDITIONS:</p><p>1. GOODS ONCE SOLD WILL NOT BE TAKEN BACK.</p><p>2. SUBJECT TO SURAT JURISDICTION.</p></div>
               <div className="text-center w-[180px] flex flex-col justify-between h-full">
                 <div className="text-[10px] font-black">FOR {settings?.companyName || "ANGAD SILK MILLS"}</div>
                 <div className="border-t border-black pt-1 mt-auto">AUTHORISED SIGNATORY</div>
@@ -9351,11 +9358,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
             
             {/* Signatory Footer */}
             <div style={{ order: (settings?.layoutSettings?.sectionOrder || ['religious', 'header', 'metadata', 'table', 'footer']).indexOf('footer'), marginTop: 'auto' }} className="border-t border-black p-2 h-[80px] flex items-end justify-between font-bold text-[11px] uppercase">
-              <div className="flex flex-col justify-end h-full">
-                <div className="text-[9px] italic text-slate-500">TERMS & CONDITIONS:</div>
-                <div className="text-[9px]">1. GOODS ONCE SOLD WILL NOT BE TAKEN BACK.</div>
-                <div className="text-[9px]">2. SUBJECT TO SURAT JURISDICTION.</div>
-              </div>
+              <div className="flex flex-col justify-end h-full text-[8px] leading-tight text-slate-500 w-full text-left"><p>TERMS & CONDITIONS:</p><p>1. GOODS ONCE SOLD WILL NOT BE TAKEN BACK.</p><p>2. SUBJECT TO SURAT JURISDICTION.</p></div>
               <div className="text-center w-[180px] flex flex-col justify-between h-full">
                 <div className="text-[10px] font-black">FOR {settings?.companyName || "ANGAD SILK MILLS"}</div>
                 <div className="border-t border-black pt-1 mt-auto">AUTHORISED SIGNATORY</div>
@@ -9469,6 +9472,7 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
   const [activeMainTab, setActiveMainTab] = useState<'summary' | 'gstr1' | 'gstr2' | 'expenses'>('summary');
   const [activeGstr1Tab, setActiveGstr1Tab] = useState<'b2b' | 'b2cl' | 'b2cs' | 'cdnr' | 'cdnur' | 'hsn' | 'docs'>('b2b');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGstReport, setSelectedGstReport] = useState<'GSTR-1' | 'GSTR-2' | 'GSTR-3B'>('GSTR-1');
 
   const STATE_CODES: Record<string, string> = {
     "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh", "05": "Uttarakhand",
@@ -9481,6 +9485,7 @@ function GstReportView({ bookings, purchases, creditNotes, debitNotes, expenses,
     "35": "Andaman & Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh (New)", "38": "Ladakh"
   };
 
+  
   const getStateNameFromCode = (code: string) => {
     return STATE_CODES[code] || "Gujarat";
   };
@@ -14654,7 +14659,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
                <div className="grid grid-cols-2 gap-4">
                  <div className="col-span-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Paid Amount (₹)</label>
-                   <input type="number" value={paymentForm.amount || ''} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
+                   <input type="number" value={paymentForm.amount || ''} onChange={e => setPaymentForm({...paymentForm, amount: e.target.value === '' ? 0 : Number(e.target.value)})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500" />
                  </div>
                  <div>
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Payment Date</label>
