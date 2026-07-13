@@ -6571,7 +6571,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
                   <th className="border-r border-black p-2 w-[60px]">HSN</th>
                   <th className="border-r border-black p-2 w-[70px]">QTY</th>
                   <th className="border-r border-black p-2 w-[70px]">RATE</th>
-                  <th className="p-2 w-[90px] text-right">AMOUNT</th>
+                  <th className="border-r border-black p-2 w-[70px]">DISC</th><th className="p-2 w-[90px] text-right">AMOUNT</th>
                 </tr>
               </thead>
               <tbody>
@@ -6585,13 +6585,13 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
                     <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
                     <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
                     <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
-                    <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
+                    <td className="border-r border-black p-2 align-top">{parseFloat(item.discount?.toString() || "0") > 0 ? parseFloat(item.discount).toFixed(2) : "-" }</td><td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
                   </tr>
                 ))}
                 {/* Dynamic Placeholder Rows */}
                 {Array.from({ length: Math.max(0, (settings?.layoutSettings?.styles?.tableRowsCount || 12) - (data.items?.length || 0)) }).map((_, i) => (
                   <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
-                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
                   </tr>
                 ))}
               </tbody>
@@ -8846,7 +8846,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
                     <th className="border-r border-black p-2 w-[60px]">HSN</th>
                     <th className="border-r border-black p-2 w-[70px]">QTY</th>
                     <th className="border-r border-black p-2 w-[70px]">RATE</th>
-                    <th className="p-2 w-[90px] text-right">AMOUNT</th>
+                    <th className="border-r border-black p-2 w-[70px]">DISC</th><th className="p-2 w-[90px] text-right">AMOUNT</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -8860,7 +8860,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
                       <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
                       <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
                       <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
-                      <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
+                      <td className="border-r border-black p-2 align-top">{parseFloat(item.discount?.toString() || "0") > 0 ? parseFloat(item.discount).toFixed(2) : "-" }</td><td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
                     </tr>
                   ))}
                   {/* Dynamic Placeholder Rows */}
@@ -9102,7 +9102,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                   <th className="border-r border-black p-2 w-[60px]">HSN</th>
                   <th className="border-r border-black p-2 w-[70px]">QTY</th>
                   <th className="border-r border-black p-2 w-[70px]">RATE</th>
-                  <th className="p-2 w-[90px] text-right">AMOUNT</th>
+                  <th className="border-r border-black p-2 w-[70px]">DISC</th><th className="p-2 w-[90px] text-right">AMOUNT</th>
                 </tr>
               </thead>
               <tbody>
@@ -9116,13 +9116,13 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                     <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
                     <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
                     <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
-                    <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
+                    <td className="border-r border-black p-2 align-top">{parseFloat(item.discount?.toString() || "0") > 0 ? parseFloat(item.discount).toFixed(2) : "-" }</td><td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
                   </tr>
                 ))}
                 {/* Dynamic Placeholder Rows */}
                 {Array.from({ length: Math.max(0, (settings?.layoutSettings?.styles?.tableRowsCount || 12) - (data.items?.length || 0)) }).map((_, i) => (
                   <tr key={'empty'+i} className="border-b border-black/20" style={{ height: '24px' }}>
-                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
+                    <td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td className="border-r border-black"></td><td></td>
                   </tr>
                 ))}
               </tbody>
@@ -9272,7 +9272,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                   <th className="border-r border-black p-2 w-[60px]">HSN</th>
                   <th className="border-r border-black p-2 w-[70px]">QTY</th>
                   <th className="border-r border-black p-2 w-[70px]">RATE</th>
-                  <th className="p-2 w-[90px] text-right">AMOUNT</th>
+                  <th className="border-r border-black p-2 w-[70px]">DISC</th><th className="p-2 w-[90px] text-right">AMOUNT</th>
                 </tr>
               </thead>
               <tbody>
@@ -9286,7 +9286,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                     <td className="border-r border-black p-2 align-top">{item.hsnCode}</td>
                     <td className="border-r border-black p-2 uppercase align-top">{parseFloat(item.quantity?.toString() || "0").toFixed(2)} {item.unit}</td>
                     <td className="border-r border-black p-2 align-top">{parseFloat(item.rate?.toString() || "0").toFixed(2)}</td>
-                    <td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
+                    <td className="border-r border-black p-2 align-top">{parseFloat(item.discount?.toString() || "0") > 0 ? parseFloat(item.discount).toFixed(2) : "-" }</td><td className="p-2 text-right align-top">{parseFloat(item.amount?.toString() || "0").toFixed(2)}</td>
                   </tr>
                 ))}
                 {/* Dynamic Placeholder Rows */}
