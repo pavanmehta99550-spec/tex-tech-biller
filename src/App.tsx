@@ -6575,7 +6575,7 @@ function CreditNotePrintPreview({ creditNote, settings, payments = [], onClose }
                 </tr>
               </thead>
               <tbody>
-                {(data.items || []).map((item: any, idx: number) => (
+                {(data.items || []).filter((item: any) => parseFloat(item.amount?.toString() || "0") > 0).map((item: any, idx: number) => (
                   <tr key={idx} className="border-b border-black/20">
                     <td className="border-r border-black p-2 align-top">{idx + 1}</td>
                     <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
@@ -8850,7 +8850,7 @@ function PurchasePrintPreview({ purchase, settings, payments = [], onClose }: { 
                   </tr>
                 </thead>
                 <tbody>
-                  {(data.items || []).map((item: any, idx: number) => (
+                  {(data.items || []).filter((item: any) => parseFloat(item.amount?.toString() || "0") > 0).map((item: any, idx: number) => (
                     <tr key={idx} className="border-b border-black/20">
                       <td className="border-r border-black p-2 align-top">{idx + 1}</td>
                       <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
@@ -9106,7 +9106,7 @@ function DebitNotePrintPreview({ debitNote, settings, payments = [], onClose }: 
                 </tr>
               </thead>
               <tbody>
-                {(data.items || []).map((item: any, idx: number) => (
+                {(data.items || []).filter((item: any) => parseFloat(item.amount?.toString() || "0") > 0).map((item: any, idx: number) => (
                   <tr key={idx} className="border-b border-black/20">
                     <td className="border-r border-black p-2 align-top">{idx + 1}</td>
                     <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
@@ -9276,7 +9276,7 @@ function PrintPreview({ booking, settings, payments = [], creditNotes = [], onCl
                 </tr>
               </thead>
               <tbody>
-                {(data.items || []).map((item: any, idx: number) => (
+                {(data.items || []).filter((item: any) => parseFloat(item.amount?.toString() || "0") > 0).map((item: any, idx: number) => (
                   <tr key={idx} className="border-b border-black/20">
                     <td className="border-r border-black p-2 align-top">{idx + 1}</td>
                     <td className="border-r border-black p-2 uppercase text-left align-top flex justify-between">
