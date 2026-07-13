@@ -125,57 +125,48 @@ async function startServer() {
             return res.status(400).json({ error: 'Receiver email is required.' });
         }
 
-        const providerEmail = smtpEmail || process.env.SMTP_EMAIL || 'smartgstbackup@gmail.com';
+        const providerEmail = smtpEmail || process.env.SMTP_EMAIL || '';
         const providerPass = smtpPassword || process.env.SMTP_PASSWORD || '';
 
-        try {
-            let mailSent = false;
-            if (providerEmail && providerPass && providerPass !== '') {
-                const transporter = nodemailer.createTransport({
-                    service: 'gmail',
-                    auth: {
-                        user: providerEmail,
-                        pass: providerPass
-                    }
-                });
-
-                const backupStr = JSON.stringify(backupData, null, 2);
-                const dateStr = new Date().toISOString().split('T')[0];
-                const filename = `smart_gst_backup_${dateStr}.json`;
-
-                const mailOptions = {
-                    from: `"Smart GST Biller Backup" <${providerEmail}>`,
-                    to: backupEmail,
-                    subject: `Smart GST Auto-Backup: ${new Date().toLocaleDateString('en-IN')}`,
-                    text: `Pranam!\n\nPlease find attached the automated data backup of your GST billing system.\n\nDate: ${new Date().toLocaleString('en-IN')}\n\nThis file contains details of all Parties, Purchases, Sales, Debit/Credit Notes, and Configurations as on export. You can restore this data in the "Data Protection Hub" by uploading this .json file.\n\n|| HAR HAR MAHADEV ||`,
-                    attachments: [
-                        {
-                            filename: filename,
-                            content: backupStr,
-                            contentType: 'application/json'
-                        }
-                    ]
-                };
-
-                await transporter.sendMail(mailOptions);
-                mailSent = true;
-                console.log('Backup email sent successfully to', backupEmail);
-            }
-
-            res.json({ 
-                success: true, 
-                mailSent, 
-                message: mailSent ? 'Backup email was sent successfully!' : 'Backup package generated successfully (SMTP credentials not provided, backup secured).' 
+        if (!providerEmail || !providerPass) {
+            return res.status(400).json({ 
+                error: 'Sender Gmail aur Google App Password dono zaroori hain! Kripya Backup Hub ya Settings mein sahi details bharein.' 
             });
+        }
+
+        try {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: providerEmail,
+                    pass: providerPass
+                }
+            });
+
+            const backupStr = JSON.stringify(backupData, null, 2);
+            const dateStr = new Date().toISOString().split('T')[0];
+            const filename = `smart_gst_backup_${dateStr}.json`;
+
+            const mailOptions = {
+                from: `"Smart GST Biller Backup" <${providerEmail}>`,
+                to: backupEmail,
+                subject: `Smart GST Auto-Backup: ${new Date().toLocaleDateString('en-IN')}`,
+                text: `Pranam!\n\nPlease find attached the automated data backup of your GST billing system.\n\nDate: ${new Date().toLocaleString('en-IN')}\n\nThis file contains details of all Parties, Purchases, Sales, Debit/Credit Notes, and Configurations as on export. You can restore this data in the "Data Protection Hub" by uploading this .json file.\n\n|| HAR HAR MAHADEV ||`,
+                attachments: [
+                    {
+                        filename: filename,
+                        content: backupStr,
+                        contentType: 'application/json'
+                    }
+                ]
+            };
+
+            await transporter.sendMail(mailOptions);
+            console.log('Backup email sent successfully to', backupEmail);
+            res.json({ success: true, mailSent: true, message: 'Backup email was sent successfully!' });
         } catch (error: any) {
             console.error('Nodemailer Error:', error);
-            // Graceful fallback so user never encounters an error
-            res.json({ 
-                success: true, 
-                mailSent: false,
-                warning: error.message || 'SMTP service error occurred.',
-                message: 'Backup package generated successfully!' 
-            });
+            res.status(400).json({ error: error.message || 'SMTP Authentication failed. Kripya apna valid Gmail aur 16-character App Password check karein.' });
         }
     });
 

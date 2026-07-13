@@ -7974,6 +7974,11 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
   const senderEmail = data.settings?.smtpEmail || '';
   const senderPass = data.settings?.smtpPassword || '';
 
+  const [overrideEmail, setOverrideEmail] = useState(registeredEmail);
+  const [overrideSender, setOverrideSender] = useState(senderEmail);
+  const [overridePassword, setOverridePassword] = useState(senderPass);
+  const [showAdvancedMail, setShowAdvancedMail] = useState(false);
+
   const downloadBackup = () => {
     const jsonString = `data:text/json;chatset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
     const link = document.createElement("a");
@@ -7984,7 +7989,17 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
   };
 
   const sendAutoEmailBackup = async () => {
-    if (!confirm(`Kya aap auto-backup file registered email (${registeredEmail}) par bhejna chahte hain?\n\nKripya "OK" dabba kar confirm karein.`)) {
+    const target = overrideEmail || registeredEmail;
+    const sender = overrideSender || senderEmail;
+    const password = overridePassword || senderPass;
+
+    if (!sender || !password) {
+      alert("Kripya apna Sender Gmail Address aur 16-character Google App Password enter karein taaki direct email send ho sake!");
+      setShowAdvancedMail(true);
+      return;
+    }
+
+    if (!confirm(`Kya aap auto-backup file ${target} par bhejna chahte hain?\n\nKripya "OK" dabba kar confirm karein.`)) {
       return;
     }
 
@@ -7997,9 +8012,9 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
         },
         body: JSON.stringify({
           backupData: data,
-          backupEmail: registeredEmail,
-          smtpEmail: senderEmail,
-          smtpPassword: senderPass
+          backupEmail: target,
+          smtpEmail: sender,
+          smtpPassword: password
         })
       });
 
@@ -8008,18 +8023,11 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
         throw new Error(resJson.error || 'Server error occurred while sending email.');
       }
 
-      if (resJson.mailSent) {
-        alert(`Adbhut! Backup file safaltapoorvak registered email (${registeredEmail}) par bhej di gayi hai.\n\n|| HAR HAR MAHADEV ||`);
-      } else {
-        alert(`Backup package generated and secured successfully!\n\n(Note: Custom SMTP credentials not fully configured in Settings, so backup file has been securely synced to cloud & downloaded locally)\n\n|| HAR HAR MAHADEV ||`);
-        downloadBackup();
-      }
+      alert(`Adbhut! Backup file safaltapoorvak ${target} par bhej di gayi hai.\n\n|| HAR HAR MAHADEV ||`);
       onBackup();
     } catch (error: any) {
       console.error('Auto Email Error:', error);
-      alert(`Auto-Backup Success with Local Download! Backup file saved successfully.\n\n|| HAR HAR MAHADEV ||`);
-      downloadBackup();
-      onBackup();
+      alert(`Auto-Backup Fail: ${error.message || 'SMTP connect nahi ho paaya'}\n\nKripya check karein ki aapka Sender Gmail sahi hai aur App Password 100% active hai.`);
     } finally {
       setIsSendingEmail(false);
     }
@@ -8132,12 +8140,57 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
           <div>
             <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-1">Registered Email Backup</h3>
             <div className="inline-block px-4 py-1.5 bg-rose-50 rounded-full text-xs font-bold text-rose-600">
-              {registeredEmail}
+              {overrideEmail || registeredEmail}
             </div>
           </div>
           <p className="text-slate-500 text-xs font-bold max-w-md">
-            Ok button dabba kar complete cloud system data directly is registered email address par automatic bhejien (Gmail App Password SMTP configure hona chahiye).
+            Ok button dabba kar complete cloud system data directly is email address par automatic bhejien. Agar pehli Gmail ID bhool gaye hain, toh neeche custom Gmail & App Password daal sakte hain.
           </p>
+
+          <div className="w-full text-left pt-2">
+            <button
+              onClick={() => setShowAdvancedMail(!showAdvancedMail)}
+              className="text-xs font-black text-indigo-600 uppercase tracking-wider flex items-center gap-1.5 hover:underline mx-auto"
+            >
+              ⚙️ {showAdvancedMail ? 'Hide Custom Credentials' : 'Doosri Gmail / App Password Dalein (Optional)'}
+            </button>
+
+            {showAdvancedMail && (
+              <div className="mt-4 p-5 bg-slate-50 rounded-3xl border border-slate-200 space-y-4 text-left">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Target Receiver Email</label>
+                  <input
+                    type="email"
+                    value={overrideEmail}
+                    onChange={e => setOverrideEmail(e.target.value)}
+                    placeholder="Enter receiver email"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-rose-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Sender Gmail Address</label>
+                  <input
+                    type="email"
+                    value={overrideSender}
+                    onChange={e => setOverrideSender(e.target.value)}
+                    placeholder="e.g. yourname@gmail.com"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-rose-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Google App Password (16 Chars)</label>
+                  <input
+                    type="password"
+                    value={overridePassword}
+                    onChange={e => setOverridePassword(e.target.value)}
+                    placeholder="abcd efgh ijkl mnop"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-rose-500"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Google Account &gt; Security &gt; App Passwords se generate karein.</p>
+                </div>
+              </div>
+            )}
+          </div>
           
           <div className="w-full flex flex-col sm:flex-row gap-4 pt-2">
             <button 
