@@ -3982,6 +3982,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
               <div className="text-slate-500 font-bold text-sm">SGST ({formData.taxRate / 2}%): <span className="text-slate-900">₹{Number(calc.sgst).toFixed(2)}</span></div>
             </>
           )}
+          <div className="text-slate-500 font-bold text-sm">Discount: <span className="text-slate-900">₹{Number(formData.items.reduce((sum: number, item: any) => sum + ((parseFloat(item.quantity?.toString() || '0') * parseFloat(item.rate?.toString() || '0')) - (parseFloat(item.amount?.toString() || '0') || 0)), 0) + (parseFloat(formData.globalDiscount?.toString() || '0'))).toFixed(2)}</span></div>
           <div className="text-4xl font-black text-slate-900 tracking-tighter">Grand Total: <span className="text-indigo-600">₹{Number(calc.total).toFixed(2)}</span></div>
         </div>
 
