@@ -8019,12 +8019,15 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
         })
       });
 
+      const text = await response.text();
       let resJson: any = {};
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        resJson = await response.json();
-      } else {
-        throw new Error("offline_app_mode");
+      try {
+        resJson = JSON.parse(text);
+      } catch (e) {
+        if (window.location.protocol === 'file:') {
+          throw new Error("offline_app_mode");
+        }
+        throw new Error(`API Error: ${text.substring(0, 40)}... (Is vajah se JSON parse nahi hua)`);
       }
 
       if (!response.ok) {
@@ -8037,9 +8040,9 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
       console.error('Auto Email Error:', error);
       let errorMsg = error.message?.toLowerCase() || '';
       
-      // Handle APK/Offline App Wrapper Scenario silently
-      if (errorMsg.includes('failed to fetch') || errorMsg.includes('network') || errorMsg.includes('load failed') || errorMsg.includes('offline_app_mode') || errorMsg.includes('unexpected token') || errorMsg.includes('json') || window.location.protocol === 'file:') {
-        alert("📱 Mobile App Mode: Direct server access nahi hai.\n\nAapka backup file ready hai! Ise turant apne Gmail ya WhatsApp par save karne ke liye share dialog open ho raha hai.\n\n|| HAR HAR MAHADEV ||");
+      // Handle APK/Offline App Wrapper or Local HTML file Scenario silently
+      if (errorMsg.includes('failed to fetch') || errorMsg.includes('offline_app_mode') || window.location.protocol === 'file:') {
+        alert("⚠️ Offline/Local Mode Detected\n\nAap is app ko bina server ke chala rahe hain (Jaise downloaded HTML file ya Mobile APK). Bina server ke automatic Email send karna possible nahi hota.\n\nChinta na karein! Aapka backup file ready hai. Hum ise turant aapke system me Download (ya Share) kar rahe hain taaki aap ise safe rakh sakein.\n\n|| HAR HAR MAHADEV ||");
         if (navigator.share && /Mobi|Android/i.test(navigator.userAgent)) {
             shareToMobile();
         } else {
@@ -11291,18 +11294,44 @@ const DEFAULT_INVOICE_LAYOUT = {
 };
 
 
-function AdminRouteWrapper({ isLocked, setIsLocked, children }: any) {
+function AdminRouteWrapper({ isLocked, setIsLocked, settings, onSave, children }: any) {
   const [password, setPassword] = React.useState('');
   const [showPassError, setShowPassError] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
 
+  const [isChangingPass, setIsChangingPass] = React.useState(false);
+  const [newPassword, setNewPassword] = React.useState('');
+  const [newPasswordVisible, setNewPasswordVisible] = React.useState(false);
+  const [showForgot, setShowForgot] = React.useState(false);
+
+  const actualPassword = settings?.adminPassword || 'ASM@SURAT_2026';
+
   const handleUnlock = () => {
-    if (password === 'ASM@SURAT_2026') {
+    if (password === actualPassword) {
       setIsLocked(false);
       setShowPassError(false);
       setPassword('');
+      setShowForgot(false);
     } else {
       setShowPassError(true);
+    }
+  };
+
+  const handleForgot = () => {
+    alert(`Aapka current Master Password hai:\n\n👉 ${actualPassword} 👈\n\nKripya ise dhyan rakhein.`);
+    setShowForgot(false);
+  };
+
+  const handleChangePassword = () => {
+    if (newPassword.trim().length < 4) {
+      alert("Password must be at least 4 characters long.");
+      return;
+    }
+    if (onSave) {
+      onSave({ ...(settings || {}), adminPassword: newPassword.trim() });
+      alert("Master Password successfully updated! Kripya naya password yaad rakhein.");
+      setIsChangingPass(false);
+      setNewPassword('');
     }
   };
 
@@ -11346,17 +11375,65 @@ function AdminRouteWrapper({ isLocked, setIsLocked, children }: any) {
             >
               Verify & Enter
             </button>
+            <button
+              onClick={() => setShowForgot(true)}
+              className="text-slate-400 text-xs font-bold hover:text-white transition-colors mt-4 block mx-auto underline"
+            >
+              Forgot Password?
+            </button>
           </div>
+          
+          {showForgot && (
+             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 p-4 bg-slate-800 rounded-xl border border-slate-700 text-left">
+               <p className="text-xs text-slate-300 mb-4 font-medium leading-relaxed text-center">In an offline environment, we can't send a reset email. Click below to securely reveal your password. Make sure no one is watching.</p>
+               <button onClick={handleForgot} className="w-full px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg font-black text-xs hover:bg-red-500 hover:text-white transition-all uppercase tracking-wider flex justify-center items-center gap-2 shadow-lg shadow-red-500/10 active:scale-95">
+                 <Eye size={16} /> Show Password Now
+               </button>
+             </motion.div>
+          )}
         </motion.div>
       ) : (
         <div className="w-full max-w-4xl space-y-6">
-          <div className="flex justify-end w-full max-w-2xl mx-auto mb-4">
-            <button 
-              onClick={() => setIsLocked(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl font-bold text-sm uppercase tracking-widest transition-all"
-            >
-              <LogOut size={16} /> Exit Admin Mode
-            </button>
+          <div className="flex justify-between items-center w-full max-w-2xl mx-auto mb-4 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+            
+            {isChangingPass ? (
+               <div className="flex items-center gap-2 flex-1 mr-4">
+                 <div className="relative flex-1">
+                   <input
+                     type={newPasswordVisible ? "text" : "password"}
+                     value={newPassword}
+                     onChange={(e) => setNewPassword(e.target.value)}
+                     placeholder="New Master Password"
+                     className="w-full px-4 py-3 bg-slate-800 border-2 border-slate-700 focus:border-[#00cec9] rounded-xl text-white outline-none text-sm font-bold"
+                   />
+                   <button 
+                     type="button" 
+                     onClick={() => setNewPasswordVisible(!newPasswordVisible)}
+                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                   >
+                     {newPasswordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                   </button>
+                 </div>
+                 <button onClick={handleChangePassword} className="px-5 py-3 bg-[#00cec9] text-slate-900 font-bold text-sm rounded-xl hover:bg-[#00b8b4] transition-all shadow-lg active:scale-95">Save</button>
+                 <button onClick={() => { setIsChangingPass(false); setNewPassword(''); }} className="px-5 py-3 bg-slate-800 text-slate-300 font-bold text-sm rounded-xl hover:bg-slate-700 transition-all active:scale-95 border border-slate-700">Cancel</button>
+               </div>
+            ) : (
+               <button
+                 onClick={() => setIsChangingPass(true)}
+                 className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white hover:bg-slate-700 rounded-xl font-bold text-sm uppercase tracking-widest transition-all active:scale-95 border border-slate-700 shadow-lg"
+               >
+                 <Settings size={16} /> Change Password
+               </button>
+            )}
+
+            {!isChangingPass && (
+              <button 
+                onClick={() => setIsLocked(true)}
+                className="flex items-center gap-2 px-5 py-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl font-bold text-sm uppercase tracking-widest transition-all shrink-0 active:scale-95 border border-red-500/20 shadow-lg"
+              >
+                <LogOut size={16} /> Exit Admin Mode
+              </button>
+            )}
           </div>
           {children}
         </div>
@@ -11646,7 +11723,7 @@ function AdminInvoiceConfig({ settings, onSave }: any) {
 function SettingsView({ settings, onSave }: any) {
   const [isLocked, setIsLocked] = React.useState(true);
   return (
-    <AdminRouteWrapper isLocked={isLocked} setIsLocked={setIsLocked}>
+    <AdminRouteWrapper isLocked={isLocked} setIsLocked={setIsLocked} settings={settings} onSave={onSave}>
       <AdminInvoiceConfig settings={settings} onSave={onSave} />
     </AdminRouteWrapper>
   );
