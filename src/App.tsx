@@ -8028,8 +8028,8 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
     } catch (error: any) {
       console.error('Auto Email Error:', error);
       let errorMsg = error.message || 'SMTP connect nahi ho paaya';
-      if (errorMsg.includes("Application-specific password required") || errorMsg.includes("534-5.7.9") || errorMsg.includes("Invalid login")) {
-        errorMsg = "Aapne apna regular Gmail password daala hai.\n\n👉 Naya Niyam: Google ab Email bhejte waqt 'App Password' maangta hai.\n\nKaise Banayein?\n1. Google Account > Security me jayein\n2. '2-Step Verification' ON karein\n3. Wahi neeche 'App passwords' par click karein\n4. Waha se 16-letter ka password generate karein aur yahan daalein.";
+      if (errorMsg.includes("Application-specific password required") || errorMsg.includes("534-5.7.9") || errorMsg.includes("Invalid login") || errorMsg.includes("535-5.7.8")) {
+        errorMsg = "Aapne apna regular Gmail password daala hai (ya password galat hai).\n\n👉 Naya Niyam: Google ab Email bhejte waqt 'App Password' maangta hai.\n\nKaise Banayein?\n1. Google Account > Security me jayein\n2. '2-Step Verification' ON karein\n3. Wahi neeche 'App passwords' par click karein\n4. Waha se 16-letter ka password generate karein aur yahan daalein.";
       }
       alert(`Email Backup Fail!\n\n${errorMsg}\n\nChinta na karein, email fail hone ke kaaran hum aapka backup turant computer/mobile me Download kar rahe hain!\n\n|| HAR HAR MAHADEV ||`);
       downloadBackup();

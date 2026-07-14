@@ -165,7 +165,7 @@ async function startServer() {
             console.log('Backup email sent successfully to', backupEmail);
             res.json({ success: true, mailSent: true, message: 'Backup email was sent successfully!' });
         } catch (error: any) {
-            console.error('Nodemailer Error:', error);
+            console.warn('Nodemailer SMTP Auth/Connection Issue:', error.message);
             res.status(400).json({ error: error.message || 'SMTP Authentication failed. Kripya apna valid Gmail aur 16-character App Password check karein.' });
         }
     });
