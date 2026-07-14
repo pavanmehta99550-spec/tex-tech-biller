@@ -8028,13 +8028,24 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
       onBackup();
     } catch (error: any) {
       console.error('Auto Email Error:', error);
-      let errorMsg = error.message || 'SMTP connect nahi ho paaya';
-      if (errorMsg === 'Failed to fetch') {
-        errorMsg = "Server API se connect nahi ho paya (Mobile App me auto-email kaam nahi karega bina backend ke). Kripya 'Mobile Share / Save' button ka istemaal karein!";
-      } else if (errorMsg.includes("Application-specific password required") || errorMsg.includes("534-5.7.9") || errorMsg.includes("Invalid login") || errorMsg.includes("535-5.7.8")) {
-        errorMsg = "Aapne apna regular Gmail password daala hai (ya password galat hai).\n\n👉 Naya Niyam: Google ab Email bhejte waqt 'App Password' maangta hai.\n\nKaise Banayein?\n1. Google Account > Security me jayein\n2. '2-Step Verification' ON karein\n3. Wahi neeche 'App passwords' par click karein\n4. Waha se 16-letter ka password generate karein aur yahan daalein.";
+      let errorMsg = error.message?.toLowerCase() || '';
+      
+      // Handle APK/Offline App Wrapper Scenario silently
+      if (errorMsg.includes('failed to fetch') || errorMsg.includes('network') || errorMsg.includes('load failed') || window.location.protocol === 'file:') {
+        alert("📱 Mobile App Mode: Direct server access nahi hai.\n\nAapka backup file ready hai! Ise turant apne Gmail ya WhatsApp par save karne ke liye share dialog open ho raha hai.\n\n|| HAR HAR MAHADEV ||");
+        if (navigator.share && /Mobi|Android/i.test(navigator.userAgent)) {
+            shareToMobile();
+        } else {
+            downloadBackup();
+        }
+        return;
       }
-      alert(`Email Backup Fail!\n\n${errorMsg}\n\nChinta na karein, email fail hone ke kaaran hum aapka backup turant computer/mobile me Download/Share kar rahe hain!\n\n|| HAR HAR MAHADEV ||`);
+
+      let displayError = error.message || 'SMTP connect nahi ho paaya';
+      if (displayError.includes("Application-specific password required") || displayError.includes("534-5.7.9") || displayError.includes("Invalid login") || displayError.includes("535-5.7.8")) {
+        displayError = "Aapne apna regular Gmail password daala hai (ya password galat hai).\n\n👉 Naya Niyam: Google ab Email bhejte waqt 'App Password' maangta hai.\n\nKaise Banayein?\n1. Google Account > Security me jayein\n2. '2-Step Verification' ON karein\n3. Wahi neeche 'App passwords' par click karein\n4. Waha se 16-letter ka password generate karein aur yahan daalein.";
+      }
+      alert(`Email Backup Fail!\n\n${displayError}\n\nChinta na karein, email fail hone ke kaaran hum aapka backup turant computer/mobile me Download/Share kar rahe hain!\n\n|| HAR HAR MAHADEV ||`);
       
       // Auto fallback to share API if on mobile, else download
       if (navigator.share && /Mobi|Android/i.test(navigator.userAgent)) {
