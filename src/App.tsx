@@ -200,6 +200,63 @@ export default function App() {
   const [notes, setNotes] = useState<Note[]>(() => storage.get('notes', []));
   const [settings, setSettings] = useState<AppSettings | null>(() => storage.get('settings', null));
 
+  // 6 PM Auto-Backup Logic
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      if (now.getHours() === 18 && now.getMinutes() === 0) {
+        const lastAutoBackup = storage.get('lastAutoBackupDate', '');
+        const todayStr = now.toISOString().split('T')[0];
+        
+        if (lastAutoBackup !== todayStr) {
+          storage.set('lastAutoBackupDate', todayStr);
+          executeSilentBackup();
+        }
+      }
+    }, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [saleParties, purchaseParties, itemsMaster, settings, bookings, purchases, debitNotes, creditNotes, payments]);
+
+  const executeSilentBackup = async () => {
+    const backupEmail = settings?.backupEmail || 'pavanmehta99550@gmail.com';
+    const smtpEmail = settings?.smtpEmail;
+    const smtpPassword = settings?.smtpPassword;
+
+    if (!smtpEmail || !smtpPassword) {
+      console.warn("Auto Backup at 6 PM skipped: SMTP details not configured.");
+      return; 
+    }
+
+    const dataToBackup = {
+      saleParties, purchaseParties, itemsMaster, settings,
+      bookings, purchases, debitNotes, creditNotes, payments
+    };
+
+    try {
+      const response = await fetch('/api/send-email-backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          backupData: dataToBackup,
+          backupEmail: backupEmail,
+          smtpEmail: smtpEmail,
+          smtpPassword: smtpPassword
+        })
+      });
+
+      if (response.ok) {
+        const todayStr = new Date().toISOString();
+        setLastBackupDate(todayStr);
+        storage.set('lastBackupDate', todayStr);
+        console.log("6 PM Auto Backup sent successfully.");
+      } else {
+        console.warn("6 PM Auto Backup failed to send via server.");
+      }
+    } catch (error) {
+      console.error("6 PM Auto Backup failed:", error);
+    }
+  };
+
   const stats = useMemo(() => {
     const grossSales = bookings.reduce((sum, b) => sum + b.grandTotal, 0);
     const returnsSales = creditNotes.reduce((sum, cn) => sum + cn.grandTotal, 0);
