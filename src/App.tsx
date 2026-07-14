@@ -23,6 +23,7 @@ import {
   Settings,
   Search,
   Download,
+  Share2,
   Trash2,
   Mail,
   AlertTriangle,
@@ -8028,14 +8029,48 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
     } catch (error: any) {
       console.error('Auto Email Error:', error);
       let errorMsg = error.message || 'SMTP connect nahi ho paaya';
-      if (errorMsg.includes("Application-specific password required") || errorMsg.includes("534-5.7.9") || errorMsg.includes("Invalid login") || errorMsg.includes("535-5.7.8")) {
+      if (errorMsg === 'Failed to fetch') {
+        errorMsg = "Server API se connect nahi ho paya (Mobile App me auto-email kaam nahi karega bina backend ke). Kripya 'Mobile Share / Save' button ka istemaal karein!";
+      } else if (errorMsg.includes("Application-specific password required") || errorMsg.includes("534-5.7.9") || errorMsg.includes("Invalid login") || errorMsg.includes("535-5.7.8")) {
         errorMsg = "Aapne apna regular Gmail password daala hai (ya password galat hai).\n\n👉 Naya Niyam: Google ab Email bhejte waqt 'App Password' maangta hai.\n\nKaise Banayein?\n1. Google Account > Security me jayein\n2. '2-Step Verification' ON karein\n3. Wahi neeche 'App passwords' par click karein\n4. Waha se 16-letter ka password generate karein aur yahan daalein.";
       }
-      alert(`Email Backup Fail!\n\n${errorMsg}\n\nChinta na karein, email fail hone ke kaaran hum aapka backup turant computer/mobile me Download kar rahe hain!\n\n|| HAR HAR MAHADEV ||`);
-      downloadBackup();
+      alert(`Email Backup Fail!\n\n${errorMsg}\n\nChinta na karein, email fail hone ke kaaran hum aapka backup turant computer/mobile me Download/Share kar rahe hain!\n\n|| HAR HAR MAHADEV ||`);
+      
+      // Auto fallback to share API if on mobile, else download
+      if (navigator.share && /Mobi|Android/i.test(navigator.userAgent)) {
+          shareToMobile();
+      } else {
+          downloadBackup();
+      }
     } finally {
       setIsSendingEmail(false);
     }
+  };
+
+  const shareToMobile = async () => {
+    const jsonString = JSON.stringify(data, null, 2);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const fileName = `smart_gst_backup_${dateStr}.json`;
+
+    if (navigator.share && navigator.canShare) {
+      try {
+        const file = new File([jsonString], fileName, { type: 'application/json' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: 'Smart GST Backup',
+            text: 'Mera Smart GST App ka data backup file.',
+            files: [file]
+          });
+          onBackup();
+          return;
+        }
+      } catch (err) {
+        console.error('Share error:', err);
+      }
+    }
+    
+    // Fallback if sharing is cancelled or not supported
+    downloadBackup();
   };
 
   const sendToGmail = () => {
@@ -8216,6 +8251,13 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
               )}
             </button>
             
+            <button 
+              onClick={shareToMobile}
+              className="flex-1 py-5 bg-emerald-500 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Share2 size={16} />
+              SHARE / SAVE APP DATA
+            </button>
             <button 
               onClick={sendToGmail}
               className="py-5 px-6 border border-slate-200 text-slate-700 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95"
