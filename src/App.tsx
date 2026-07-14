@@ -8019,7 +8019,14 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
         })
       });
 
-      const resJson = await response.json();
+      let resJson: any = {};
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        resJson = await response.json();
+      } else {
+        throw new Error("offline_app_mode");
+      }
+
       if (!response.ok) {
         throw new Error(resJson.error || 'Server error occurred while sending email.');
       }
@@ -8031,7 +8038,7 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
       let errorMsg = error.message?.toLowerCase() || '';
       
       // Handle APK/Offline App Wrapper Scenario silently
-      if (errorMsg.includes('failed to fetch') || errorMsg.includes('network') || errorMsg.includes('load failed') || window.location.protocol === 'file:') {
+      if (errorMsg.includes('failed to fetch') || errorMsg.includes('network') || errorMsg.includes('load failed') || errorMsg.includes('offline_app_mode') || errorMsg.includes('unexpected token') || errorMsg.includes('json') || window.location.protocol === 'file:') {
         alert("📱 Mobile App Mode: Direct server access nahi hai.\n\nAapka backup file ready hai! Ise turant apne Gmail ya WhatsApp par save karne ke liye share dialog open ho raha hai.\n\n|| HAR HAR MAHADEV ||");
         if (navigator.share && /Mobi|Android/i.test(navigator.userAgent)) {
             shareToMobile();
