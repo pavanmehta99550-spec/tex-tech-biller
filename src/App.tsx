@@ -200,20 +200,25 @@ export default function App() {
   const [notes, setNotes] = useState<Note[]>(() => storage.get('notes', []));
   const [settings, setSettings] = useState<AppSettings | null>(() => storage.get('settings', null));
 
-  // 6 PM Auto-Backup Logic
+  // 6 PM Auto-Backup Logic (With Catch-up if app was closed)
   useEffect(() => {
-    const interval = setInterval(() => {
+    const checkAndRunBackup = () => {
       const now = new Date();
-      if (now.getHours() === 18 && now.getMinutes() === 0) {
-        const lastAutoBackup = storage.get('lastAutoBackupDate', '');
-        const todayStr = now.toISOString().split('T')[0];
-        
-        if (lastAutoBackup !== todayStr) {
-          storage.set('lastAutoBackupDate', todayStr);
-          executeSilentBackup();
-        }
+      const todayStr = now.toISOString().split('T')[0];
+      const lastAutoBackup = storage.get('lastAutoBackupDate', '');
+      
+      // Agar sham ke 6 baj gaye hain (ya uske baad ka time hai) aur aaj ka auto-backup nahi hua hai
+      if (now.getHours() >= 18 && lastAutoBackup !== todayStr) {
+        storage.set('lastAutoBackupDate', todayStr);
+        executeSilentBackup();
       }
-    }, 60000); // Check every minute
+    };
+
+    // Run once on app start
+    checkAndRunBackup();
+
+    // Then check every minute
+    const interval = setInterval(checkAndRunBackup, 60000); 
     return () => clearInterval(interval);
   }, [saleParties, purchaseParties, itemsMaster, settings, bookings, purchases, debitNotes, creditNotes, payments]);
 
