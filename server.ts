@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import nodemailer from 'nodemailer';
+import axios from 'axios';
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from "firebase/app";
@@ -167,6 +168,118 @@ async function startServer() {
         } catch (error: any) {
             console.warn('Nodemailer SMTP Auth/Connection Issue:', error.message);
             res.status(400).json({ error: error.message || 'SMTP Authentication failed. Kripya apna valid Gmail aur 16-character App Password check karein.' });
+        }
+    });
+
+    // --- NIC E-WAY BILL INTEGRATION (MOCK/MIDDLEWARE) ---
+    // Memory Cache for NIC Auth Token
+    let nicAuthToken: string | null = null;
+    let nicTokenExpiry: number = 0;
+
+    app.post('/api/nic-auth', async (req, res) => {
+        const { username, password, gstin } = req.body;
+        if (!username || !password || !gstin) {
+            return res.status(400).json({ error: 'Username, password and GSTIN are required.' });
+        }
+
+        try {
+            // Simulated Authentication against NIC
+            // In a real scenario, this would call NIC's /auth API and handle encryption
+            console.log(`Authenticating with NIC E-way API for GSTIN: ${gstin}`);
+            
+            if (username === 'test' && password === 'test') {
+                return res.status(401).json({ error: 'Invalid Credentials (Simulated)' });
+            }
+
+            // Simulate Successful Auth
+            nicAuthToken = 'NIC-AUTH-TOKEN-SIMULATED-' + Date.now();
+            nicTokenExpiry = Date.now() + 6 * 60 * 60 * 1000; // 6 hours
+
+            return res.json({ success: true, message: 'Authentication Successful', token: nicAuthToken });
+        } catch (error: any) {
+            console.error('NIC Auth Error:', error);
+            return res.status(500).json({ error: 'Failed to connect to NIC API.' });
+        }
+    });
+
+    app.post('/api/generate-eway', async (req, res) => {
+        const { invoiceData, username, password, gstin, distance, vehicleNo } = req.body;
+        
+        if (!invoiceData || !username || !password || !gstin || !distance || !vehicleNo) {
+            return res.status(400).json({ error: 'Missing required parameters.' });
+        }
+
+        try {
+            // Check if token exists and is valid
+            if (!nicAuthToken || Date.now() > nicTokenExpiry) {
+                // Re-authenticate (Simulated)
+                console.log('NIC Auth Token expired or missing, re-authenticating...');
+                nicAuthToken = 'NIC-AUTH-TOKEN-SIMULATED-' + Date.now();
+                nicTokenExpiry = Date.now() + 6 * 60 * 60 * 1000;
+            }
+
+            // Map Invoice Data to NIC JSON Format
+            const ewayPayload = {
+                supplyType: "O", // Outward
+                subSupplyType: 1, // Supply
+                docType: "INV",
+                docNo: invoiceData.billNumber.toString(),
+                docDate: new Date(invoiceData.date).toLocaleDateString('en-GB').replace(/\//g, '/'), // DD/MM/YYYY
+                fromGstin: gstin,
+                fromTrdName: "My Company", // Should come from settings
+                fromStateCode: parseInt(gstin.substring(0,2)),
+                toGstin: invoiceData.consigneeGstin || "URP",
+                toTrdName: invoiceData.consigneeName,
+                toStateCode: parseInt((invoiceData.consigneeGstin || "24").substring(0,2)),
+                totalValue: invoiceData.taxableValue || invoiceData.basicAmount,
+                cgstValue: invoiceData.cgstAmount || 0,
+                sgstValue: invoiceData.sgstAmount || 0,
+                igstValue: invoiceData.igstAmount || 0,
+                cessValue: 0,
+                transMode: 1, // Road
+                transDistance: parseInt(distance),
+                transporterId: invoiceData.transportGstin || "",
+                transporterName: invoiceData.transportName || "",
+                vehicleNo: vehicleNo,
+                itemList: invoiceData.items.map((item: any) => ({
+                    productName: item.name,
+                    desc: item.name,
+                    hsnCode: parseInt(item.hsnCode),
+                    quantity: item.quantity,
+                    qtyUnit: item.unit,
+                    cgstRate: invoiceData.isInterstate ? 0 : item.gstRate / 2,
+                    sgstRate: invoiceData.isInterstate ? 0 : item.gstRate / 2,
+                    igstRate: invoiceData.isInterstate ? item.gstRate : 0,
+                    cessRate: 0,
+                    cessNonAdvol: 0,
+                    taxableAmount: item.amount
+                }))
+            };
+
+            console.log('Sending Payload to NIC E-way Bill API:', JSON.stringify(ewayPayload, null, 2));
+
+            // In a real application, you would make an axios.post to NIC API here
+            // const response = await axios.post('https://api.ewaybillnic.nic.in/api/EwayBill', ewayPayload, { headers: { AuthToken: nicAuthToken } });
+            
+            // Simulate API Response Delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Fake Success Response
+            const fakeEwbNumber = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+            const fakeEwayBillDate = new Date().toLocaleString('en-GB');
+
+            return res.json({
+                success: true,
+                ewayBillNo: fakeEwbNumber,
+                ewayBillDate: fakeEwayBillDate,
+                validUpto: new Date(Date.now() + 24*60*60*1000).toLocaleString('en-GB'),
+                message: 'E-Way Bill generated successfully (Simulated)'
+            });
+
+        } catch (error: any) {
+            console.error('Generate E-Way Bill Error:', error);
+            // Example of mapping validation error
+            return res.status(500).json({ error: 'NIC API Validation Failed: Invalid HSN Code or GSTIN.' });
         }
     });
 

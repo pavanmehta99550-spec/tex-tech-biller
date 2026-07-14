@@ -2072,12 +2072,14 @@ setPreviewCreditNote(newCreditNote);
             {currentView === 'salehistory' && <SaleHistoryView 
               key="salehistory"
               bookings={bookings}
+              settings={settings}
               onEditSale={(b: Booking) => {
                 setEditingBooking(b);
                 setCurrentView('inv');
               }}
               onDeleteSale={handleDeleteBooking}
               onPreviewSale={(b: Booking) => setPreviewBooking(b)}
+              onUpdateSale={handleSaveBooking}
             />}
             {currentView === 'purchasehistory' && <PurchaseHistoryView 
               key="purchasehistory"
@@ -2710,9 +2712,64 @@ function BillTemplate({ booking, settings, payments = [], creditNotes = [] }: an
 }
 
 
-function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale }: any) {
+function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale, onUpdateSale, settings }: any) {
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [generatingEwayFor, setGeneratingEwayFor] = useState<Booking | null>(null);
+  const [distance, setDistance] = useState('');
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateEway = async () => {
+    if (!distance || !vehicleNo) {
+      alert('Please fill both Distance and Vehicle No.');
+      return;
+    }
+    
+    if (!settings?.nicUsername || !settings?.nicPassword || !settings?.nicGstin) {
+      alert('NIC Credentials missing! Please configure them in Settings -> NIC E-Way Bill Integration.');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const res = await fetch('/api/generate-eway', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceData: generatingEwayFor,
+          username: settings.nicUsername,
+          password: settings.nicPassword,
+          gstin: settings.nicGstin,
+          distance,
+          vehicleNo
+        })
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        if (onUpdateSale && generatingEwayFor) {
+          onUpdateSale({
+            ...generatingEwayFor,
+            ewbNumber: data.ewayBillNo
+          });
+          alert(`E-Way Bill Generated Successfully!\n\nE-Way Bill No: ${data.ewayBillNo}\nValid Upto: ${data.validUpto}`);
+        }
+        
+        setGeneratingEwayFor(null);
+        setDistance('');
+        setVehicleNo('');
+      } else {
+        alert("Failed to generate E-Way Bill: " + data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network Error generating E-Way Bill.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const filteredBookings = useMemo(() => {
     return bookings.filter((b: Booking) => 
       b.billNumber?.toString().includes(searchTerm) || 
@@ -2777,6 +2834,9 @@ function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale }: 
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => setGeneratingEwayFor(b)} className="p-2.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all" title="Generate E-Way Bill">
+                        <Truck size={18} />
+                      </button>
                       <button onClick={() => onPreviewSale(b)} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="View/Print">
                         <Printer size={18} />
                       </button>
@@ -2804,6 +2864,81 @@ function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale }: 
           </table>
         </div>
       </div>
+
+      <AnimatePresence>
+        {generatingEwayFor && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200"
+            >
+              <div className="p-6 bg-green-50 border-b border-green-100 flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-black text-green-900 uppercase tracking-tight">Generate E-Way Bill</h3>
+                  <p className="text-xs font-bold text-green-600 mt-1 uppercase tracking-widest">For Invoice #{generatingEwayFor.billNumber}</p>
+                </div>
+                <button onClick={() => setGeneratingEwayFor(null)} className="p-2 text-green-600 hover:bg-green-100 rounded-xl transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                   <div className="flex justify-between text-xs">
+                     <span className="font-bold text-slate-500">Transporter:</span>
+                     <span className="font-black text-slate-900">{generatingEwayFor.transportName}</span>
+                   </div>
+                   <div className="flex justify-between text-xs">
+                     <span className="font-bold text-slate-500">Consignee:</span>
+                     <span className="font-black text-slate-900">{generatingEwayFor.consigneeName}</span>
+                   </div>
+                   <div className="flex justify-between text-xs">
+                     <span className="font-bold text-slate-500">Amount:</span>
+                     <span className="font-black text-slate-900">₹ {generatingEwayFor.grandTotal}</span>
+                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Vehicle Number</label>
+                  <input 
+                    type="text" 
+                    value={vehicleNo}
+                    onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-green-500 transition-all uppercase"
+                    placeholder="e.g. GJ05 XX 1234"
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Approx Distance (KM)</label>
+                  <input 
+                    type="number" 
+                    value={distance}
+                    onChange={(e) => setDistance(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-green-500 transition-all"
+                    placeholder="e.g. 250"
+                  />
+                </div>
+
+                <div className="pt-4 flex gap-4">
+                  <button onClick={() => setGeneratingEwayFor(null)} className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-black text-xs uppercase tracking-widest transition-all">
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleGenerateEway} 
+                    disabled={isGenerating}
+                    className="flex-1 py-4 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-green-200 transition-all active:scale-95"
+                  >
+                    {isGenerating ? 'Generating...' : 'Generate'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -11713,6 +11848,76 @@ function AdminInvoiceConfig({ settings, onSave }: any) {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="p-8 border-t-2 border-dashed border-slate-200 space-y-6 bg-slate-50">
+            <h3 className="text-lg font-black text-slate-800 uppercase flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"><Truck size={16} /></span>
+              NIC E-Way Bill Integration
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">NIC API Username</label>
+                <input 
+                  type="text" 
+                  value={formData.nicUsername || ''}
+                  onChange={e => setFormData({ ...formData, nicUsername: e.target.value })}
+                  className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-emerald-500 transition-all"
+                  placeholder="e.g. USER123"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">NIC API Password</label>
+                <input 
+                  type="password" 
+                  value={formData.nicPassword || ''}
+                  onChange={e => setFormData({ ...formData, nicPassword: e.target.value })}
+                  className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-emerald-500 transition-all font-mono"
+                  placeholder="••••••••"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">GSTIN for E-Way Bill</label>
+                <input 
+                  type="text" 
+                  value={formData.nicGstin || ''}
+                  onChange={e => setFormData({ ...formData, nicGstin: e.target.value.toUpperCase() })}
+                  className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-emerald-500 transition-all uppercase"
+                  placeholder="24AAAA..."
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!formData.nicUsername || !formData.nicPassword || !formData.nicGstin) {
+                  alert("Please fill all NIC credentials to test connection.");
+                  return;
+                }
+                try {
+                  const res = await fetch('/api/nic-auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      username: formData.nicUsername,
+                      password: formData.nicPassword,
+                      gstin: formData.nicGstin
+                    })
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    alert("NIC Connection Successful! Auth Token Generated.");
+                  } else {
+                    alert("Connection Failed: " + data.error);
+                  }
+                } catch (err) {
+                  alert("Network Error testing NIC connection.");
+                }
+              }}
+              className="px-6 py-3 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-xl text-xs uppercase tracking-widest transition-all shadow-sm"
+            >
+              Test NIC Connection
+            </button>
           </div>
 
           <div className="p-8 border-t-2 border-dashed border-slate-200 space-y-6 bg-slate-50">

@@ -92,6 +92,9 @@ export interface AppSettings {
   backupEmail?: string;
   smtpEmail?: string;
   smtpPassword?: string;
+  nicUsername?: string;
+  nicPassword?: string;
+  nicGstin?: string;
   layoutSettings?: {
     styles: {
       tableRowsCount: number;
