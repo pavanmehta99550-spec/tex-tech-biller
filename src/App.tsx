@@ -870,7 +870,7 @@ export default function App() {
     }
 
     // Auto-increment logic for billNumber
-    const maxBillNum = bookings.reduce((max, b) => Math.max(max, b.billNumber || 0), 0);
+    const maxBillNum = bookings.reduce((max, b) => Math.max(max, parseInt(b.billNumber as any) || 0), 0);
     const nextBillNum = data.billNumber || (maxBillNum + 1);
 
     // Check and add Consignee if not in list (Sale Party)
@@ -1093,7 +1093,7 @@ setPreviewBooking(newBooking);
   const handleSavePurchase = (data: Partial<Purchase>) => {
     let updatedParties = [...purchaseParties];
     
-    const maxBillNum = purchases.reduce((max, b) => Math.max(max, b.billNumber || 0), 0);
+    const maxBillNum = purchases.reduce((max, b) => Math.max(max, parseInt(b.billNumber as any) || 0), 0);
     const nextBillNum = data.billNumber || (maxBillNum + 1);
 
     // Check and add Party if not in list
@@ -1246,7 +1246,7 @@ setPreviewBooking(newBooking);
   const handleSaveDebitNote = (data: Partial<DebitNote>) => {
     let updatedParties = [...purchaseParties];
     
-    const maxNoteNum = debitNotes.reduce((max, b) => Math.max(max, b.noteNumber || 0), 0);
+    const maxNoteNum = debitNotes.reduce((max, b) => Math.max(max, parseInt(b.noteNumber as any) || 0), 0);
     const nextNoteNum = data.noteNumber || (maxNoteNum + 1);
 
     const isUpdate = !!data.id && debitNotes.some(b => b.id === data.id);
@@ -1315,7 +1315,7 @@ setPreviewBooking(newBooking);
   const handleSaveCreditNote = async (data: Partial<CreditNote>) => {
     let updatedParties = [...saleParties];
     
-    const maxNoteNum = creditNotes.reduce((max, b) => Math.max(max, b.noteNumber || 0), 0);
+    const maxNoteNum = creditNotes.reduce((max, b) => Math.max(max, parseInt(b.noteNumber as any) || 0), 0);
     const nextNoteNum = data.noteNumber || (maxNoteNum + 1);
 
     const isUpdate = !!data.id && creditNotes.some(b => b.id === data.id);
@@ -1495,9 +1495,9 @@ setPreviewCreditNote(newCreditNote);
 
   const handleSaveChallan = (data: Partial<Challan>) => {
     const isUpdate = !!data.id;
-    const millMaxSerial = millChallans.length > 0 ? Math.max(...millChallans.map(c => c.serialNo || 0)) : 0;
-    const partyMaxSerial = partyChallans.length > 0 ? Math.max(...partyChallans.map(c => c.serialNo || 0)) : 0;
-    const weaverMaxSerial = weaverChallans.length > 0 ? Math.max(...weaverChallans.map(c => c.serialNo || 0)) : 0;
+    const millMaxSerial = millChallans.length > 0 ? Math.max(...millChallans.map(c => parseInt(c.serialNo as any) || 0)) : 0;
+    const partyMaxSerial = partyChallans.length > 0 ? Math.max(...partyChallans.map(c => parseInt(c.serialNo as any) || 0)) : 0;
+    const weaverMaxSerial = weaverChallans.length > 0 ? Math.max(...weaverChallans.map(c => parseInt(c.serialNo as any) || 0)) : 0;
 
     // Calculate broker amount if mill challan
     let brokerAmount = 0;
@@ -3446,7 +3446,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
     }
   };
   const [formData, setFormData] = useState(() => {
-    const nextAutoNum = (purchases || []).reduce((max: number, b: any) => Math.max(max, b.billNumber || 0), 0) + 1;
+    const nextAutoNum = (purchases || []).reduce((max: number, b: any) => Math.max(max, parseInt(b.billNumber as any) || 0), 0) + 1;
     return {
       id: editingPurchase?.id || '',
       billNumber: editingPurchase?.billNumber || nextAutoNum,
@@ -4292,7 +4292,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
   };
 
   const [formData, setFormData] = useState(() => {
-    const nextAutoNum = (debitNotes || []).reduce((max: number, b: any) => Math.max(max, b.noteNumber || 0), 0) + 1;
+    const nextAutoNum = (debitNotes || []).reduce((max: number, b: any) => Math.max(max, parseInt(b.noteNumber as any) || 0), 0) + 1;
     return {
       id: editingDebitNote?.id || '',
       noteNumber: editingDebitNote?.noteNumber || nextAutoNum,
@@ -4971,7 +4971,7 @@ function BookingView({
   const [calcValues, setCalcValues] = useState<{ [key: string]: string }>({});
 
   const getEmptyBookingState = () => {
-    const nextAutoNum = bookings.reduce((max: number, b: any) => Math.max(max, b.billNumber || 0), 0) + 1;
+    const nextAutoNum = bookings.reduce((max: number, b: any) => Math.max(max, parseInt(b.billNumber as any) || 0), 0) + 1;
     return {
       id: '',
       billNumber: nextAutoNum,
@@ -6120,7 +6120,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
     }
   };
   const [formData, setFormData] = useState(() => {
-    const nextAutoNum = (creditNotes || []).reduce((max: number, b: any) => Math.max(max, b.noteNumber || 0), 0) + 1;
+    const nextAutoNum = (creditNotes || []).reduce((max: number, b: any) => Math.max(max, parseInt(b.noteNumber as any) || 0), 0) + 1;
     return {
       id: editingCreditNote?.id || '',
       noteNumber: editingCreditNote?.noteNumber || nextAutoNum,
@@ -11877,7 +11877,7 @@ function AdminInvoiceConfig({ settings, onSave }: any) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">GSTIN for E-Way Bill</label>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Your Company GSTIN (For NIC)</label>
                 <input 
                   type="text" 
                   value={formData.nicGstin || ''}
@@ -12861,7 +12861,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
   };
 
   const [formData, setFormData] = useState<Partial<Challan>>({
-    serialNo: (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 1,
+    serialNo: (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => parseInt(c.serialNo as any) || 0)) : 0) + 1,
     challanNumber: '',
     date: new Date().toISOString().split('T')[0],
     partyName: '',
@@ -13126,7 +13126,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
     const totalMtrs = (formData.items || []).reduce((sum, item) => sum + (parseFloat(item.quantity.toString()) || 0), 0);
     const brokerAmount = Math.round(totalMtrs * (formData.brokerRate || 0));
     onSave({ ...formData, type, brokerAmount });
-    const nextSerial = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => c.serialNo || 0)) : 0) + 2; 
+    const nextSerial = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => parseInt(c.serialNo as any) || 0)) : 0) + 2; 
     setFormData({
       serialNo: nextSerial,
       challanNumber: '',
