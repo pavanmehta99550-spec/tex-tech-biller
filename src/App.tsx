@@ -12860,28 +12860,31 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
     doc.save(`${type}_Challan_${challan.challanNumber}.pdf`);
   };
 
-  const [formData, setFormData] = useState<Partial<Challan>>({
-    serialNo: (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => parseInt(c.serialNo as any) || 0)) : 0) + 1,
-    challanNumber: '',
-    date: new Date().toISOString().split('T')[0],
-    partyName: '',
-    type: type,
-    items: [],
-    notes: '',
-    weaverChallanNumber: '',
-    brokerId: '',
-    brokerRate: 0,
-    brokerAmount: 0,
-    target_length: 0,
-    actual_grey_length: 0,
-    grey_shortage_perc: 0,
-    grey_purchase_id: '',
-    grey_received_length: 0,
-    party_shortage_perc: 0,
-    finished_length: 0,
-    folding_length: 0,
-    process_loss_perc: 0,
-    folding_variance_perc: 0
+  const [formData, setFormData] = useState<Partial<Challan>>(() => {
+    const initSerial = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => parseInt(c.serialNo as any) || 0)) : 0) + 1;
+    return {
+      serialNo: initSerial,
+      challanNumber: initSerial.toString(),
+      date: new Date().toISOString().split('T')[0],
+      partyName: '',
+      type: type,
+      items: [],
+      notes: '',
+      weaverChallanNumber: '',
+      brokerId: '',
+      brokerRate: 0,
+      brokerAmount: 0,
+      target_length: 0,
+      actual_grey_length: 0,
+      grey_shortage_perc: 0,
+      grey_purchase_id: '',
+      grey_received_length: 0,
+      party_shortage_perc: 0,
+      finished_length: 0,
+      folding_length: 0,
+      process_loss_perc: 0,
+      folding_variance_perc: 0
+    };
   });
 
   const greyReceiptOptions = useMemo(() => {
@@ -13129,7 +13132,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
     const nextSerial = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => parseInt(c.serialNo as any) || 0)) : 0) + 2; 
     setFormData({
       serialNo: nextSerial,
-      challanNumber: '',
+      challanNumber: nextSerial.toString(),
       date: new Date().toISOString().split('T')[0],
       partyName: '',
       type: type,
@@ -13164,8 +13167,10 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
           onClick={() => { 
             setShowAdd(true); 
             setEditingId(null);
+            const nS = (challans.length > 0 ? Math.max(...challans.filter((c: any) => c.type === type).map((c: any) => parseInt(c.serialNo as any) || 0)) : 0) + 1;
             setFormData({
-              challanNumber: '',
+              serialNo: nS,
+              challanNumber: nS.toString(),
               date: new Date().toISOString().split('T')[0],
               partyName: '',
               items: [],
