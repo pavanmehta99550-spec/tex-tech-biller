@@ -7091,6 +7091,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
             <input 
               type="date"
               value={date}
+              onWheel={(e) => e.currentTarget.blur()}
               onChange={e => setDate(e.target.value)}
               className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-red-500 transition-all"
             />
@@ -7227,6 +7228,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
                 <input 
                   type="date" 
                   value={chequeDate || ''}
+                  onWheel={(e) => e.currentTarget.blur()}
                   onChange={e => setChequeDate(e.target.value)}
                   className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-red-500"
                 />
@@ -7599,6 +7601,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
             <input 
               type="date"
               value={date}
+              onWheel={(e) => e.currentTarget.blur()}
               onChange={e => setDate(e.target.value)}
               className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all"
             />
@@ -7736,6 +7739,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
                 <input 
                   type="date" 
                   value={chequeDate || ''}
+                  onWheel={(e) => e.currentTarget.blur()}
                   onChange={e => setChequeDate(e.target.value)}
                   className="w-full px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-blue-500"
                 />
