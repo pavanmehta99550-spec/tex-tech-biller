@@ -6842,6 +6842,18 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
   const [billAdjustments, setBillAdjustments] = useState<any[]>(editingPayment?.billAdjustments || []);
   const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
   const [partySearch, setPartySearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const [adjustmentMode, setAdjustmentMode] = useState<'direct' | 'auto' | 'manual'>(() => {
     if (editingPayment) {
@@ -7022,20 +7034,47 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Search & Select Purchase Party</label>
               <div className="flex gap-2">
-                <div className="relative flex-1">
+                <div className="relative flex-1" ref={dropdownRef}>
                   <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input 
                     type="text"
                     placeholder="Type name or GSTIN..."
                     value={partySearch}
-                    onChange={e => setPartySearch(e.target.value)}
+                    disabled={!!editingPayment}
+                    onFocus={() => setShowDropdown(true)}
+                    onChange={e => {
+                      setPartySearch(e.target.value);
+                      setSelectedId("");
+                      setShowDropdown(true);
+                    }}
                     className="w-full pl-10 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-red-500"
                   />
+                  {showDropdown && filteredParties.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 shadow-xl rounded-xl max-h-60 overflow-y-auto z-50">
+                      {filteredParties.map((p: any) => (
+                        <div 
+                           key={p.id} 
+                           className="p-3 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-700 border-b border-slate-100 last:border-0"
+                           onClick={() => {
+                               setSelectedId(p.id);
+                               setPartySearch(p.name);
+                               setShowDropdown(false);
+                           }}
+                        >
+                          {p.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <select 
                   value={selectedId} 
                   disabled={!!editingPayment}
-                  onChange={e => setSelectedId(e.target.value)}
+                  onChange={e => {
+                    setSelectedId(e.target.value);
+                    const party = parties.find((p: any) => p.id === e.target.value);
+                    if (party) setPartySearch(party.name);
+                  }}
                   className={`w-40 px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-red-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
                 >
                   <option value="">Quick Select</option>
@@ -7310,6 +7349,18 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
   const [billAdjustments, setBillAdjustments] = useState<any[]>(editingPayment?.billAdjustments || []);
   const [date, setDate] = useState(editingPayment?.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
   const [partySearch, setPartySearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const [adjustmentMode, setAdjustmentMode] = useState<'direct' | 'auto' | 'manual'>(() => {
     if (editingPayment) {
@@ -7491,20 +7542,47 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Search & Select Sale Party</label>
               <div className="flex gap-2">
-                <div className="relative flex-1">
+                <div className="relative flex-1" ref={dropdownRef}>
                   <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input 
                     type="text"
                     placeholder="Type name or GSTIN..."
                     value={partySearch}
-                    onChange={e => setPartySearch(e.target.value)}
+                    disabled={!!editingPayment}
+                    onFocus={() => setShowDropdown(true)}
+                    onChange={e => {
+                      setPartySearch(e.target.value);
+                      setSelectedId("");
+                      setShowDropdown(true);
+                    }}
                     className="w-full pl-10 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-blue-500"
                   />
+                  {showDropdown && filteredParties.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 shadow-xl rounded-xl max-h-60 overflow-y-auto z-50">
+                      {filteredParties.map((p: any) => (
+                        <div 
+                           key={p.id} 
+                           className="p-3 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-700 border-b border-slate-100 last:border-0"
+                           onClick={() => {
+                               setSelectedId(p.id);
+                               setPartySearch(p.name);
+                               setShowDropdown(false);
+                           }}
+                        >
+                          {p.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <select 
                   value={selectedId} 
                   disabled={!!editingPayment}
-                  onChange={e => setSelectedId(e.target.value)}
+                  onChange={e => {
+                    setSelectedId(e.target.value);
+                    const party = parties.find((p: any) => p.id === e.target.value);
+                    if (party) setPartySearch(party.name);
+                  }}
                   className={`w-40 px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-700 outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer ${editingPayment ? 'opacity-70' : ''}`}
                 >
                   <option value="">Quick Select</option>
