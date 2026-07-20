@@ -2905,7 +2905,7 @@ function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale, on
                   <input 
                     type="text" 
                     value={vehicleNo}
-                    onChange={(e) => setVehicleNo(e.target.value.toUpperCase())}
+                    onChange={(e) => setVehicleNo(e.target.value)} onBlur={(e) => setVehicleNo(e.target.value.toUpperCase())}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-green-500 transition-all uppercase"
                     placeholder="e.g. GJ05 XX 1234"
                   />
@@ -4499,7 +4499,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
               <input 
                 type="text" 
                 value={formData.partyGstin}
-                onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
+                onChange={e => setFormData({ ...formData, partyGstin: e.target.value })} onBlur={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
                 onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-red-500 transition-all shadow-sm"
                 placeholder="24AAAA..."
@@ -5442,7 +5442,7 @@ function BookingView({
                 <input 
                   type="text" 
                   value={formData.consignorGstin}
-                  onChange={e => setFormData({ ...formData, consignorGstin: e.target.value.toUpperCase() })}
+                  onChange={e => setFormData({ ...formData, consignorGstin: e.target.value })} onBlur={e => setFormData({ ...formData, consignorGstin: e.target.value.toUpperCase() })}
                   onKeyDown={handleEnter}
                   readOnly={isConsignorLocked}
                   className={`w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-blue-500 transition-all shadow-sm ${isConsignorLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
@@ -5918,7 +5918,7 @@ function BookingView({
               type="text" 
               value={formData.transportGstin} 
               readOnly={isLocked}
-              onChange={e => setFormData({ ...formData, transportGstin: e.target.value.toUpperCase() })} 
+              onChange={e => setFormData({ ...formData, transportGstin: e.target.value })} onBlur={e => setFormData({ ...formData, transportGstin: e.target.value.toUpperCase() })} 
               onKeyDown={handleEnter}
               className={`w-full px-5 py-4 border-2 border-slate-100 rounded-2xl font-black bg-white outline-none transition-all ${isLocked ? 'bg-slate-50 text-slate-400' : 'focus:border-[#00cec9] focus:bg-white'}`} 
               placeholder="GSTIN" 
@@ -6327,7 +6327,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
               <input 
                 type="text" 
                 value={formData.partyGstin}
-                onChange={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
+                onChange={e => setFormData({ ...formData, partyGstin: e.target.value })} onBlur={e => setFormData({ ...formData, partyGstin: e.target.value.toUpperCase() })}
                 onKeyDown={handleEnter}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl font-bold bg-white outline-none focus:border-green-500 transition-all shadow-sm"
                 placeholder="24AAAA..."
@@ -11520,7 +11520,7 @@ function BankDetailsView({ settings, onUpdateSettings }: any) {
                     type="text" 
                     required 
                     value={formData.ifscCode}
-                    onChange={e => setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })}
+                    onChange={e => setFormData({ ...formData, ifscCode: e.target.value })} onBlur={e => setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:bg-white focus:border-[#00cec9] transition-all"
                     placeholder="HDFC0001234"
                   />
@@ -11812,7 +11812,7 @@ function AdminInvoiceConfig({ settings, onSave }: any) {
                   type="text" 
                   required
                   value={formData.gstin}
-                  onChange={e => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+                  onChange={e => setFormData({ ...formData, gstin: e.target.value })} onBlur={e => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
                   className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-blue-500 transition-all"
                   placeholder="24AAAA..."
                 />
@@ -11963,7 +11963,7 @@ function AdminInvoiceConfig({ settings, onSave }: any) {
                 <input 
                   type="text" 
                   value={formData.nicGstin || ''}
-                  onChange={e => setFormData({ ...formData, nicGstin: e.target.value.toUpperCase() })}
+                  onChange={e => setFormData({ ...formData, nicGstin: e.target.value })} onBlur={e => setFormData({ ...formData, nicGstin: e.target.value.toUpperCase() })}
                   className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-emerald-500 transition-all uppercase"
                   placeholder="24AAAA..."
                 />
@@ -12235,7 +12235,7 @@ function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [],
                 type="text" 
                 required 
                 value={partyForm.gstin}
-                onChange={e => setPartyForm({ ...partyForm, gstin: e.target.value.toUpperCase() })}
+                onChange={e => setPartyForm({ ...partyForm, gstin: e.target.value })} onBlur={e => setPartyForm({ ...partyForm, gstin: e.target.value.toUpperCase() })}
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-[#00cec9] transition-all"
                 placeholder="24AAAA..."
               />
@@ -12388,7 +12388,7 @@ function TransportMasterView({ transports, onSave }: any) {
                   <input 
                     type="text" 
                     value={formData.gstin}
-                    onChange={e => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+                    onChange={e => setFormData({ ...formData, gstin: e.target.value })} onBlur={e => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold outline-none focus:border-[#00cec9] transition-all"
                     placeholder="24AAAA..."
                   />
@@ -15141,7 +15141,7 @@ function BrokerLedgerView({ brokers, commissions, payments, onSavePayment, onSav
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Party Name</label>
-                    <input type="text" value={commForm.partyName} onChange={e => setCommForm({ ...commForm, partyName: e.target.value.toUpperCase() })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-indigo-500 uppercase" />
+                    <input type="text" value={commForm.partyName} onChange={e => setCommForm({ ...commForm, partyName: e.target.value })} onBlur={e => setCommForm({ ...commForm, partyName: e.target.value.toUpperCase() })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-indigo-500 uppercase" />
                   </div>
                   <div className="grid grid-cols-3 gap-6">
                     <div>
