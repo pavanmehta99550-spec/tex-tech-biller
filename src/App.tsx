@@ -8593,9 +8593,9 @@ function BackupView({ data, lastBackupDate, onBackup, onRestore }: any) {
   );
 }
 
-function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
+function LedgerPrintPreview({ party, transactions, settings, onClose, startDate, endDate, openingBalance = 0 }: any) {
   const printRef = useRef<HTMLDivElement>(null);
-  const runningBalance = transactions.reduce((acc: number, t: any) => acc + t.amount, 0);
+  const runningBalance = transactions.length > 0 ? transactions[0].balance : openingBalance;
 
   const handleDownloadPDF = async () => {
     if (!printRef.current) return;
@@ -8654,7 +8654,11 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
             <div className="grid grid-cols-2 gap-8">
               <div>
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Statement Period</h4>
-                <p className="text-sm font-bold text-slate-900 uppercase tracking-widest">All Previous Records</p>
+                <p className="text-sm font-bold text-slate-900 uppercase tracking-widest">
+                  {startDate || endDate 
+                    ? `${startDate ? new Date(startDate).toLocaleDateString() : 'Start'} to ${endDate ? new Date(endDate).toLocaleDateString() : 'Present'}`
+                    : 'All Previous Records'}
+                </p>
               </div>
               <div className="text-right">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 italic">Net Outstanding (Balance)</h4>
@@ -8676,11 +8680,18 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
               </tr>
             </thead>
             <tbody className="border-b-2 border-slate-900 border-t-2">
-              {transactions.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).reduce((acc: any[], t: any) => {
-                const prevBal = acc.length > 0 ? acc[acc.length - 1].runningBal : 0;
-                acc.push({ ...t, runningBal: prevBal + t.amount });
-                return acc;
-              }, []).map((t: any) => (
+              {(startDate || endDate) && (
+                <tr className="border-b-2 border-slate-900 bg-slate-50">
+                  <td className="py-3 px-4 font-bold border-r-2 border-slate-900">{startDate ? new Date(startDate).toLocaleDateString() : '-'}</td>
+                  <td className="py-3 px-4 border-r-2 border-slate-900 font-bold uppercase" colSpan={3}>
+                    Opening Balance Before Date Range
+                  </td>
+                  <td className="py-3 px-4 text-right font-black">
+                    {Math.abs(Math.round(openingBalance)).toLocaleString()} {openingBalance >= 0 ? 'Dr' : 'Cr'}
+                  </td>
+                </tr>
+              )}
+              {transactions.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((t: any) => (
                 <tr key={t.id || Math.random().toString(36)} className="border-b-2 border-slate-900">
                   <td className="py-3 px-4 font-bold border-r-2 border-slate-900">{new Date(t.date).toLocaleDateString()}</td>
                   <td className="py-3 px-4 border-r-2 border-slate-900">
@@ -8701,7 +8712,7 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
                     {t.amount < 0 ? Math.abs(t.amount).toLocaleString() : '-'}
                   </td>
                   <td className="py-3 px-4 text-right font-black">
-                    {Math.abs(t.runningBal).toLocaleString()} {t.runningBal >= 0 ? 'Dr' : 'Cr'}
+                    {Math.abs(t.balance).toLocaleString()} {t.balance >= 0 ? 'Dr' : 'Cr'}
                   </td>
                 </tr>
               ))}
@@ -8758,6 +8769,8 @@ function LedgerView({
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
   const [billFilter, setBillFilter] = useState<'ALL' | 'PAID' | 'UNPAID'>('ALL');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [previewBooking, setPreviewBooking] = useState<any>(null);
   const [previewPurchase, setPreviewPurchase] = useState<any>(null);
   const [previewCreditNote, setPreviewCreditNote] = useState<any>(null);
@@ -8842,6 +8855,28 @@ function LedgerView({
       });
     }
 
+    let openingBalance = 0;
+    if (startDate || endDate) {
+      if (startDate) {
+        // Find opening balance right before startDate
+        const pastTransactions = transactions.filter((t: any) => new Date(t.date) < new Date(startDate));
+        openingBalance = pastTransactions.length > 0 ? pastTransactions[pastTransactions.length - 1].balance : 0;
+      }
+      transactions = transactions.filter((t: any) => {
+        const tDate = new Date(t.date);
+        let include = true;
+        if (startDate) {
+          include = include && tDate >= new Date(startDate);
+        }
+        if (endDate) {
+          const eDate = new Date(endDate);
+          eDate.setHours(23, 59, 59, 999);
+          include = include && tDate <= eDate;
+        }
+        return include;
+      });
+    }
+
     // Sort back to newest first for display
     transactions.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -8875,6 +8910,60 @@ function LedgerView({
               </div>
             </div>
           </header>
+
+          <div className="flex flex-col md:flex-row gap-4 mb-6 print:hidden items-center justify-between">
+            <div className="flex gap-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Start Date</label>
+                <input 
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">End Date</label>
+                <input 
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+              <div className="flex items-end pb-[2px]">
+                {(startDate || endDate) && (
+                  <button 
+                    onClick={() => { setStartDate(''); setEndDate(''); }}
+                    className="px-4 py-2 text-rose-500 hover:bg-rose-50 rounded-xl text-xs font-bold transition-colors uppercase tracking-wider h-10 flex items-center"
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setBillFilter('ALL')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${billFilter === 'ALL' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              >
+                All
+              </button>
+              <button 
+                onClick={() => setBillFilter('UNPAID')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${billFilter === 'UNPAID' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
+              >
+                Unpaid
+              </button>
+              <button 
+                onClick={() => setBillFilter('PAID')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${billFilter === 'PAID' ? 'bg-green-500 text-white shadow-lg shadow-green-500/20' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
+              >
+                Paid
+              </button>
+            </div>
+          </div>
 
         <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
           <div className="overflow-x-auto">
@@ -9012,6 +9101,19 @@ function LedgerView({
                     </td>
                   </tr>
                 ))}
+                {(startDate || endDate) && (
+                  <tr className="bg-slate-100">
+                    <td className="px-8 py-5 font-bold text-slate-500 text-xs">
+                      {startDate ? new Date(startDate).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-8 py-5 font-black text-slate-900 uppercase tracking-widest text-[10px]" colSpan={4}>
+                      Opening Balance Before Date Range
+                    </td>
+                    <td className={`px-8 py-5 text-right font-black ${openingBalance > 0 ? 'text-red-500' : openingBalance < 0 ? 'text-green-600' : 'text-slate-500'}`}>
+                      ₹ {Math.round(openingBalance).toLocaleString()}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -9023,7 +9125,7 @@ function LedgerView({
         {previewPayment && <PaymentPrintPreview payment={previewPayment} settings={settings} onClose={() => setPreviewPayment(null)} />}
         {previewCreditNote && <CreditNotePrintPreview creditNote={previewCreditNote} settings={settings} onClose={() => setPreviewCreditNote(null)} />}
         {previewDebitNote && <DebitNotePrintPreview debitNote={previewDebitNote} settings={settings} onClose={() => setPreviewDebitNote(null)} />}
-        {showLedgerPrint && <LedgerPrintPreview party={selectedParty} transactions={transactions} settings={settings} onClose={() => setShowLedgerPrint(false)} />}
+        {showLedgerPrint && <LedgerPrintPreview party={selectedParty} transactions={transactions} settings={settings} onClose={() => setShowLedgerPrint(false)} startDate={startDate} endDate={endDate} openingBalance={openingBalance} />}
       </motion.div>
     );
   }
