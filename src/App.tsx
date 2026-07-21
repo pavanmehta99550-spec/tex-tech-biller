@@ -2251,6 +2251,11 @@ setPreviewCreditNote(newCreditNote);
                 settings={settings}
                 onBack={() => setCurrentView('dash')}
                 onDeletePayment={handleDeletePayment}
+                onDeletePurchasePayment={handleDeletePurchasePayment}
+                onDeleteBooking={handleDeleteBooking}
+                onDeletePurchase={handleDeletePurchase}
+                onDeleteCreditNote={handleDeleteCreditNote}
+                onDeleteDebitNote={handleDeleteDebitNote}
                 onEditPayment={(p: any) => {
                   setEditingPayment(p);
                   setCurrentView(p.originalType === 'PURCHASE_PAYMENT' ? 'sendpay' : 'pay');
@@ -2844,7 +2849,7 @@ function SaleHistoryView({ bookings, onEditSale, onDeleteSale, onPreviewSale, on
                         <Plus size={18} className="rotate-45" />
                       </button>
                       <button onClick={() => onDeleteSale(b.id)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete">
-                        <AlertCircle size={18} />
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>
@@ -3015,7 +3020,7 @@ function PurchaseHistoryView({ purchases, onEditPurchase, onDeletePurchase, onPr
                         <Plus size={18} className="rotate-45" />
                       </button>
                       <button onClick={() => onDeletePurchase(p.id)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete">
-                        <AlertCircle size={18} />
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>
@@ -3294,7 +3299,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                                 <Edit size={16} />
                               </button>
                               <button onClick={() => onDeleteSale(b.id)} title="Delete" className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                                <AlertCircle size={16} />
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>
@@ -3348,7 +3353,7 @@ function DashboardView({ stats, bookings, purchases, onEditSale, onDeleteSale, o
                                 <Plus size={14} className="rotate-45" />
                               </button>
                               <button onClick={() => onDeletePurchase(p.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                                <AlertCircle size={14} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </td>
@@ -4129,7 +4134,7 @@ function PurchaseView({ onSave, parties, settings, purchases, itemsMaster = [], 
                    </div>
                 </div>
                 {!isLocked && formData.items.length > 1 && (
-                  <button onClick={() => removeItem(item.id)} className="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                  <button onClick={() => removeItem(item.id)} className="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs opacity-100 transition-opacity">×</button>
                 )}
               </div>
             ))}
@@ -4675,7 +4680,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
                 </div>
                 <div className="md:col-span-1">
                    <button onClick={() => removeItem(item.id)} className="w-full aspect-square flex items-center justify-center bg-slate-100 text-red-600 hover:bg-red-100 rounded-lg transition-colors">
-                     <AlertCircle size={16} />
+                     <Trash2 size={16} />
                    </button>
                 </div>
               </div>
@@ -4797,7 +4802,7 @@ function DebitNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings,
                         <Plus size={16} className="rotate-45" />
                       </button>
                       <button onClick={() => onDelete(dn.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                        <AlertCircle size={16} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
@@ -5780,7 +5785,7 @@ function BookingView({
                 {formData.items.length > 1 && (
                   <button 
                     onClick={() => removeItem(item.id)}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-red-600 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold hover:bg-red-600 transition-all shadow-lg opacity-100"
                   >
                     ×
                   </button>
@@ -6543,7 +6548,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
                 </div>
                 <div className="md:col-span-1">
                    <button onClick={() => removeItem(item.id)} className="w-full aspect-square flex items-center justify-center bg-slate-100 text-green-600 hover:bg-green-100 rounded-lg transition-colors">
-                     <AlertCircle size={16} />
+                     <Trash2 size={16} />
                    </button>
                 </div>
               </div>
@@ -6665,7 +6670,7 @@ function CreditNoteView({ onSave, onEdit, onDelete, onPreview, parties, settings
                         <Plus size={16} className="rotate-45" />
                       </button>
                       <button onClick={() => onDelete(cn.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                        <AlertCircle size={16} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
@@ -7298,7 +7303,7 @@ function SendPaymentView({ onSave, parties, purchases, editingPayment, onEdit, o
                    </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 opacity-100 transition-opacity">
                     <button 
                       onClick={() => onEdit(p)}
                       type="button"
@@ -7809,7 +7814,7 @@ function PaymentView({ onSave, parties, bookings, editingPayment, onEdit, onDele
                    </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 opacity-100 transition-opacity">
                     <button 
                       onClick={() => onEdit(p)}
                       type="button"
@@ -7904,11 +7909,11 @@ function PaymentPrintPreview({ payment, settings, onClose }: any) {
         <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
           <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
             <Printer size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Voucher</span>
+            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Voucher</span>
           </button>
           <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
             <Download size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
+            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
         </div>
 
@@ -8138,7 +8143,7 @@ function ItemMasterView({ items, bookings = [], purchases = [], debitNotes = [],
                 <td className="px-8 py-5">
                   <span className="font-bold text-indigo-600">{item.gstRate}%</span>
                 </td>
-                <td className="px-8 py-5 text-right space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <td className="px-8 py-5 text-right space-x-2 opacity-100 transition-opacity">
                   <button onClick={() => handleEdit(item)} className="text-indigo-600 font-bold text-xs uppercase hover:underline">Edit</button>
                   {!isItemUsed(item.name) && (
                     <button onClick={() => handleDelete(item.id)} className="text-red-600 font-bold text-xs uppercase hover:underline">Delete</button>
@@ -8618,11 +8623,11 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
         <div className="fixed bottom-8 left-8 flex flex-col gap-3 print:hidden z-[60]">
           <button onClick={() => window.print()} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-indigo-600 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
             <Printer size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Ledger</span>
+            <span className="absolute left-14 px-2 py-1 bg-indigo-600 text-white text-[10px] rounded opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Print Ledger</span>
           </button>
           <button onClick={handleDownloadPDF} className="w-12 h-12 bg-white hover:bg-slate-50 transition-all text-rose-500 font-bold rounded-2xl shadow-2xl flex items-center justify-center group relative border border-slate-100 active:scale-95">
             <Download size={20} />
-            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
+            <span className="absolute left-14 px-2 py-1 bg-rose-500 text-white text-[10px] rounded opacity-100 transition-opacity pointer-events-none uppercase font-black whitespace-nowrap">Download PDF</span>
           </button>
         </div>
 
@@ -8726,7 +8731,29 @@ function LedgerPrintPreview({ party, transactions, settings, onClose }: any) {
   );
 }
 
-function LedgerView({ parties, purchaseParties, bookings, purchases, payments, purchasePayments, creditNotes, debitNotes, settings, onDeletePayment, onEditPayment, onEditBooking, onEditPurchase, onEditCreditNote, onEditDebitNote, onBack }: any) {
+function LedgerView({ 
+  parties, 
+  purchaseParties, 
+  bookings, 
+  purchases, 
+  payments, 
+  purchasePayments, 
+  creditNotes, 
+  debitNotes, 
+  settings, 
+  onDeletePayment, 
+  onDeletePurchasePayment,
+  onDeleteBooking,
+  onDeletePurchase,
+  onDeleteCreditNote,
+  onDeleteDebitNote,
+  onEditPayment, 
+  onEditBooking, 
+  onEditPurchase, 
+  onEditCreditNote, 
+  onEditDebitNote, 
+  onBack 
+}: any) {
   const [selectedParty, setSelectedParty] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [searchQuery, setSearchQuery] = useState('');
@@ -8896,7 +8923,7 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
                                   e.stopPropagation();
                                   onEditPayment(t);
                                 }}
-                                className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all font-bold text-[10px] uppercase flex items-center gap-1"
+                                className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg opacity-100 transition-all font-bold text-[10px] uppercase flex items-center gap-1"
                                 title="Edit Payment"
                               >
                                 <Edit size={14} /> Edit
@@ -8904,28 +8931,51 @@ function LedgerView({ parties, purchaseParties, bookings, purchases, payments, p
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onDeletePayment(t);
+                                  if (t.originalType === 'PURCHASE_PAYMENT') {
+                                    if (onDeletePurchasePayment) {
+                                      onDeletePurchasePayment(t);
+                                    } else if (onDeletePayment) {
+                                      onDeletePayment(t);
+                                    }
+                                  } else {
+                                    onDeletePayment(t);
+                                  }
                                 }}
-                                className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-100 transition-all"
                                 title="Delete Payment"
                               >
                                 <Trash2 size={16} />
                               </button>
                             </>
                           ) : (
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (t.type === 'SALE') onEditBooking(t);
-                                if (t.type === 'PURCHASE') onEditPurchase(t);
-                                if (t.type === 'CREDIT_NOTE') onEditCreditNote(t);
-                                if (t.type === 'DEBIT_NOTE') onEditDebitNote(t);
-                              }}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all font-bold text-[10px] uppercase flex items-center gap-1"
-                              title="Edit Transaction"
-                            >
-                              <Edit size={14} /> Edit
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (t.type === 'SALE') onEditBooking(t);
+                                  if (t.type === 'PURCHASE') onEditPurchase(t);
+                                  if (t.type === 'CREDIT_NOTE') onEditCreditNote(t);
+                                  if (t.type === 'DEBIT_NOTE') onEditDebitNote(t);
+                                }}
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg opacity-100 transition-all font-bold text-[10px] uppercase flex items-center gap-1"
+                                title="Edit Transaction"
+                              >
+                                <Edit size={14} /> Edit
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (t.type === 'SALE' && onDeleteBooking) onDeleteBooking(t.id);
+                                  if (t.type === 'PURCHASE' && onDeletePurchase) onDeletePurchase(t.id);
+                                  if (t.type === 'CREDIT_NOTE' && onDeleteCreditNote) onDeleteCreditNote(t.id);
+                                  if (t.type === 'DEBIT_NOTE' && onDeleteDebitNote) onDeleteDebitNote(t.id);
+                                }}
+                                className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg opacity-100 transition-all"
+                                title="Delete Transaction"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -12172,13 +12222,16 @@ function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [],
     const hasPayments = payments.some((pay: any) => pay.partyGstin === party.gstin || pay.partyId === party.id);
 
     if (hasBookings || hasPurchases || hasCreditNotes || hasDebitNotes || hasPayments) {
-      alert("Cannot delete this party because it has existing bills or payments in the system.");
-      return;
+      if (!window.confirm("WARNING: This party has existing bills or payments in the system.\n\nAre you absolutely sure you want to FORCE DELETE it anyway? This may cause errors in related transactions.")) {
+        return;
+      }
+    } else {
+      if (!window.confirm(`Are you sure you want to delete ${party.name}?`)) {
+        return;
+      }
     }
 
-    if (window.confirm(`Are you sure you want to delete ${party.name}?`)) {
-      onUpdateParties(parties.filter((p: any) => p.id !== party.id));
-    }
+    onUpdateParties(parties.filter((p: any) => p.id !== party.id));
   };
 
   return (
@@ -12287,28 +12340,28 @@ function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [],
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {parties.map((p: any) => (
               <div key={p.id} className="p-5 bg-white border border-slate-100 rounded-2xl flex justify-between items-center group hover:border-[#00cec9] transition-all shadow-sm hover:shadow-md">
-                <div className="flex-1">
-                  <div className="font-black text-slate-900 uppercase text-sm">{p.name}</div>
-                  <div className="text-[10px] font-bold text-[#00cec9] mb-1">{p.gstin}</div>
+                <div className="flex-1 min-w-0 pr-4">
+                  <div className="font-black text-slate-900 uppercase text-sm truncate">{p.name}</div>
+                  <div className="text-[10px] font-bold text-[#00cec9] mb-1 truncate">{p.gstin}</div>
                   <div className="text-[10px] text-slate-400 font-medium line-clamp-1">{p.address}</div>
-                  {p.mobile && <div className="text-[10px] text-slate-500 font-bold mt-1">{p.mobile}{p.mobile2 ? ` / ${p.mobile2}` : ''}</div>}
+                  {p.mobile && <div className="text-[10px] text-slate-500 font-bold mt-1 truncate">{p.mobile}{p.mobile2 ? ` / ${p.mobile2}` : ''}</div>}
                 </div>
-                <div className="text-right flex flex-col items-end gap-3">
+                <div className="text-right flex flex-col items-end gap-3 flex-shrink-0">
                   <div>
                     <div className="text-[9px] font-black text-slate-400 uppercase">{title === 'Sale Party Entry' ? 'Total Sales' : 'Total Purchases'}</div>
                     <div className="text-lg font-black text-slate-900">₹{(title === 'Sale Party Entry' ? p.totalSales : (p.totalPurchases || 0)).toLocaleString()}</div>
                   </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                  <div className="flex gap-2 transition-all">
                     <button 
                       onClick={() => handleEditParty(p)}
-                      className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                       title="Edit Party"
                     >
                       <Edit size={18} />
                     </button>
                     <button 
                       onClick={() => handleDeleteParty(p)}
-                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                       title="Delete Party"
                     >
                       <Trash2 size={18} />
@@ -13773,7 +13826,7 @@ function ChallanEntryView({ type, challans, onSave, onDelete, parties, itemsMast
               </div>
             ) : null}
 
-            <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+            <div className="absolute bottom-6 right-6 opacity-100 transition-opacity flex gap-2">
                <button 
                 onClick={() => handlePrint(c)}
                 className="bg-indigo-600 text-white p-3 rounded-xl shadow-lg hover:bg-black transition-all"
@@ -14413,7 +14466,7 @@ function AdminDashboardView({ settings }: any) {
                           ₹ {bill.grandTotal.toLocaleString()}
                         </td>
                         <td className="px-8 py-6 text-right">
-                          <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex justify-end gap-3 opacity-100 transition-opacity">
                             <button 
                               onClick={() => setEditingBill(bill)}
                               className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
