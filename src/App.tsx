@@ -8804,10 +8804,40 @@ function LedgerView({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [selectedParty, previewBooking, previewPurchase, previewCreditNote, previewDebitNote, previewPayment, showLedgerPrint, printAllTransactions, onBack]);
 
-  const filteredParties = (activeTab === 'sales' ? (parties || []) : (purchaseParties || [])).filter((p: any) => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.gstin.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const isInRange = (dateStr: string) => {
+    if (!dateStr) return false;
+    const tDate = new Date(dateStr);
+    if (startDate) {
+      if (tDate < new Date(startDate)) return false;
+    }
+    if (endDate) {
+      const eDate = new Date(endDate);
+      eDate.setHours(23, 59, 59, 999);
+      if (tDate > eDate) return false;
+    }
+    return true;
+  };
+
+  const filteredParties = (activeTab === 'sales' ? (parties || []) : (purchaseParties || [])).filter((p: any) => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          p.gstin.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    if (startDate || endDate) {
+      if (activeTab === 'sales') {
+        const hasBookings = (bookings || []).some((b: any) => b.consigneeGstin === p.gstin && isInRange(b.date));
+        const hasPayments = (payments || []).some((pay: any) => (pay.partyGstin === p.gstin || pay.partyId === p.id) && isInRange(pay.date));
+        const hasCNs = (creditNotes || []).some((cn: any) => cn.partyGstin === p.gstin && isInRange(cn.date));
+        return hasBookings || hasPayments || hasCNs;
+      } else {
+        const hasPurchases = (purchases || []).some((pur: any) => pur.partyGstin === p.gstin && isInRange(pur.date));
+        const hasPayments = (purchasePayments || []).some((pay: any) => (pay.partyGstin === p.gstin || pay.partyId === p.id) && isInRange(pay.date));
+        const hasDNs = (debitNotes || []).some((dn: any) => dn.partyGstin === p.gstin && isInRange(dn.date));
+        return hasPurchases || hasPayments || hasDNs;
+      }
+    }
+    return true;
+  });
 
   const getPartyLedger = (party: any) => {
     if (activeTab === 'sales') {
@@ -9236,6 +9266,73 @@ function LedgerView({
         </div>
       </header>
 
+      {/* Date & Month Filters for the Party List */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6 print:hidden items-center justify-between bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Select Month</label>
+            <input 
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedMonth(val);
+                if (val) {
+                  const [year, month] = val.split('-');
+                  const start = `${year}-${month}-01`;
+                  const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+                  const end = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+                  setStartDate(start);
+                  setEndDate(end);
+                } else {
+                  setStartDate('');
+                  setEndDate('');
+                }
+              }}
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Start Date</label>
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setSelectedMonth('');
+              }}
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">End Date</label>
+            <input 
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setSelectedMonth('');
+              }}
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+            />
+          </div>
+          <div className="flex items-end h-14">
+            {(startDate || endDate || selectedMonth) && (
+              <button 
+                onClick={() => { setStartDate(''); setEndDate(''); setSelectedMonth(''); }}
+                className="px-4 py-2 text-rose-500 hover:bg-rose-50 rounded-xl text-xs font-bold transition-colors uppercase tracking-wider flex items-center h-10"
+              >
+                Clear Filter
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Showing</span>
+          <span className="text-lg font-black text-slate-900">{filteredParties.length} Parties</span>
+        </div>
+      </div>
+
       <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -9250,12 +9347,49 @@ function LedgerView({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredParties.map((p: any) => {
-                const partyReturns = (activeTab === 'sales' ? (creditNotes || []) : (debitNotes || []))
-                  .filter((note: any) => note.partyGstin === p.gstin)
-                  .reduce((sum: number, note: any) => sum + note.grandTotal, 0);
-                
-                const grossAmount = (activeTab === 'sales' ? p.totalSales : (p.totalPurchases || 0)) + partyReturns;
-                const netBalance = grossAmount - partyReturns - (p.totalPaid || 0);
+                let grossSalesOrPurchases = 0;
+                let partyReturns = 0;
+                let totalPaidAmount = 0;
+
+                if (startDate || endDate) {
+                  // Filtered dynamic calculations
+                  if (activeTab === 'sales') {
+                    grossSalesOrPurchases = (bookings || [])
+                      .filter((b: any) => b.consigneeGstin === p.gstin && isInRange(b.date))
+                      .reduce((sum: number, b: any) => sum + b.grandTotal, 0);
+                    
+                    partyReturns = (creditNotes || [])
+                      .filter((note: any) => note.partyGstin === p.gstin && isInRange(note.date))
+                      .reduce((sum: number, note: any) => sum + note.grandTotal, 0);
+
+                    totalPaidAmount = (payments || [])
+                      .filter((pay: any) => (pay.partyGstin === p.gstin || pay.partyId === p.id) && isInRange(pay.date))
+                      .reduce((sum: number, pay: any) => sum + pay.amount, 0);
+                  } else {
+                    grossSalesOrPurchases = (purchases || [])
+                      .filter((pur: any) => pur.partyGstin === p.gstin && isInRange(pur.date))
+                      .reduce((sum: number, pur: any) => sum + pur.grandTotal, 0);
+
+                    partyReturns = (debitNotes || [])
+                      .filter((note: any) => note.partyGstin === p.gstin && isInRange(note.date))
+                      .reduce((sum: number, note: any) => sum + note.grandTotal, 0);
+
+                    totalPaidAmount = (purchasePayments || [])
+                      .filter((pay: any) => (pay.partyGstin === p.gstin || pay.partyId === p.id) && isInRange(pay.date))
+                      .reduce((sum: number, pay: any) => sum + pay.amount, 0);
+                  }
+                } else {
+                  // No active date filter: use full values
+                  partyReturns = (activeTab === 'sales' ? (creditNotes || []) : (debitNotes || []))
+                    .filter((note: any) => note.partyGstin === p.gstin)
+                    .reduce((sum: number, note: any) => sum + note.grandTotal, 0);
+                  
+                  grossSalesOrPurchases = activeTab === 'sales' ? (p.totalSales || 0) : (p.totalPurchases || 0);
+                  totalPaidAmount = p.totalPaid || 0;
+                }
+
+                const grossAmount = grossSalesOrPurchases + partyReturns;
+                const netBalance = grossAmount - partyReturns - totalPaidAmount;
                 
                 return (
                   <tr 
@@ -9269,7 +9403,7 @@ function LedgerView({
                     </td>
                     <td className="px-8 py-6 font-bold text-slate-700">₹ {grossAmount.toLocaleString()}</td>
                     <td className={`px-8 py-6 font-bold ${activeTab === 'sales' ? 'text-pink-500' : 'text-red-500'}`}>₹ {partyReturns.toLocaleString()}</td>
-                    <td className="px-8 py-6 font-bold text-green-600">₹ {(p.totalPaid || 0).toLocaleString()}</td>
+                    <td className="px-8 py-6 font-bold text-green-600">₹ {totalPaidAmount.toLocaleString()}</td>
                     <td className={`px-8 py-6 text-right font-black ${netBalance > 0 ? 'text-red-500' : 'text-green-600'} bg-slate-50/50`}>
                       ₹ {netBalance.toLocaleString()}
                     </td>
