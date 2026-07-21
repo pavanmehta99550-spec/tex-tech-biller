@@ -8771,6 +8771,7 @@ function LedgerView({
   const [billFilter, setBillFilter] = useState<'ALL' | 'PAID' | 'UNPAID'>('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
   const [previewBooking, setPreviewBooking] = useState<any>(null);
   const [previewPurchase, setPreviewPurchase] = useState<any>(null);
   const [previewCreditNote, setPreviewCreditNote] = useState<any>(null);
@@ -8912,13 +8913,39 @@ function LedgerView({
           </header>
 
           <div className="flex flex-col md:flex-row gap-4 mb-6 print:hidden items-center justify-between">
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Select Month</label>
+                <input 
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedMonth(val);
+                    if (val) {
+                      const [year, month] = val.split('-');
+                      const start = `${year}-${month}-01`;
+                      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+                      const end = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+                      setStartDate(start);
+                      setEndDate(end);
+                    } else {
+                      setStartDate('');
+                      setEndDate('');
+                    }
+                  }}
+                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                />
+              </div>
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Start Date</label>
                 <input 
                   type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setSelectedMonth('');
+                  }}
                   className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
@@ -8927,14 +8954,17 @@ function LedgerView({
                 <input 
                   type="date"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setSelectedMonth('');
+                  }}
                   className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
               <div className="flex items-end pb-[2px]">
-                {(startDate || endDate) && (
+                {(startDate || endDate || selectedMonth) && (
                   <button 
-                    onClick={() => { setStartDate(''); setEndDate(''); }}
+                    onClick={() => { setStartDate(''); setEndDate(''); setSelectedMonth(''); }}
                     className="px-4 py-2 text-rose-500 hover:bg-rose-50 rounded-xl text-xs font-bold transition-colors uppercase tracking-wider h-10 flex items-center"
                   >
                     Clear Filter
