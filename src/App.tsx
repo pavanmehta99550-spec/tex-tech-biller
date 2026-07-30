@@ -139,6 +139,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<View>('dash');
   const [focusedIdx, setFocusedIdx] = useState<number>(-1);
   const lastWriteTime = useRef<Record<string, number>>({});
+  const isRemoteUpdate = useRef<Record<string, boolean>>({});
   const lastSyncedData = useRef<Record<string, string>>({});
   const loadedKeys = useRef<Set<string>>(new Set());
   const views = useMemo<View[]>(() => {
@@ -726,6 +727,7 @@ export default function App() {
               return;
             }
             lastSyncedData.current[key] = stringified;
+            isRemoteUpdate.current[key] = true;
             setter(data);
           }
         }
@@ -762,10 +764,14 @@ export default function App() {
     Object.keys(data).forEach(key => {
       const currentVal = JSON.stringify(data[key]);
       if (currentVal !== prevData.current[key]) {
-        lastWriteTime.current[key] = Date.now();
+        if (isRemoteUpdate.current[key]) {
+          isRemoteUpdate.current[key] = false;
+        } else {
+          lastWriteTime.current[key] = Date.now();
+          setSyncStatus('pending');
+          hasChanges = true;
+        }
         prevData.current[key] = currentVal;
-        setSyncStatus('pending');
-        hasChanges = true;
       }
     });
 
