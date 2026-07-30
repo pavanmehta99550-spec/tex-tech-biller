@@ -8818,6 +8818,11 @@ function LedgerView({
     return true;
   };
 
+  const isPartyMatch = (party: any, gstin: string, name: string) => {
+    if (party.gstin) return gstin === party.gstin;
+    return name?.toLowerCase() === party.name?.toLowerCase();
+  };
+
   const filteredParties = (activeTab === 'sales' ? (parties || []) : (purchaseParties || [])).filter((p: any) => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           p.gstin.toLowerCase().includes(searchQuery.toLowerCase());
@@ -8825,14 +8830,14 @@ function LedgerView({
 
     if (startDate || endDate) {
       if (activeTab === 'sales') {
-        const hasBookings = (bookings || []).some((b: any) => b.consigneeGstin === p.gstin && isInRange(b.date));
-        const hasPayments = (payments || []).some((pay: any) => (pay.partyGstin === p.gstin || pay.partyId === p.id) && isInRange(pay.date));
-        const hasCNs = (creditNotes || []).some((cn: any) => cn.partyGstin === p.gstin && isInRange(cn.date));
+        const hasBookings = (bookings || []).some((b: any) => isPartyMatch(p, b.consigneeGstin, b.consigneeName) && isInRange(b.date));
+        const hasPayments = (payments || []).some((pay: any) => (pay.partyId === p.id || isPartyMatch(p, pay.partyGstin, pay.partyName)) && isInRange(pay.date));
+        const hasCNs = (creditNotes || []).some((cn: any) => isPartyMatch(p, cn.partyGstin, cn.partyName) && isInRange(cn.date));
         return hasBookings || hasPayments || hasCNs;
       } else {
-        const hasPurchases = (purchases || []).some((pur: any) => pur.partyGstin === p.gstin && isInRange(pur.date));
-        const hasPayments = (purchasePayments || []).some((pay: any) => (pay.partyGstin === p.gstin || pay.partyId === p.id) && isInRange(pay.date));
-        const hasDNs = (debitNotes || []).some((dn: any) => dn.partyGstin === p.gstin && isInRange(dn.date));
+        const hasPurchases = (purchases || []).some((pur: any) => isPartyMatch(p, pur.partyGstin, pur.partyName) && isInRange(pur.date));
+        const hasPayments = (purchasePayments || []).some((pay: any) => (pay.partyId === p.id || isPartyMatch(p, pay.partyGstin, pay.partyName)) && isInRange(pay.date));
+        const hasDNs = (debitNotes || []).some((dn: any) => isPartyMatch(p, dn.partyGstin, dn.partyName) && isInRange(dn.date));
         return hasPurchases || hasPayments || hasDNs;
       }
     }
@@ -8841,9 +8846,9 @@ function LedgerView({
 
   const getPartyLedger = (party: any) => {
     if (activeTab === 'sales') {
-      const partyBookings = (bookings || []).filter((b: any) => b.consigneeGstin === party.gstin);
-      const partyPayments = (payments || []).filter((p: any) => p.partyGstin === party.gstin || p.partyId === party.id);
-      const partyCNs = (creditNotes || []).filter((cn: any) => cn.partyGstin === party.gstin);
+      const partyBookings = (bookings || []).filter((b: any) => isPartyMatch(party, b.consigneeGstin, b.consigneeName));
+      const partyPayments = (payments || []).filter((p: any) => p.partyId === party.id || isPartyMatch(party, p.partyGstin, p.partyName));
+      const partyCNs = (creditNotes || []).filter((cn: any) => isPartyMatch(party, cn.partyGstin, cn.partyName));
 
       return [
         ...partyBookings.map(b => ({ ...b, type: 'SALE', amount: b.grandTotal, date: b.date })),
@@ -8851,9 +8856,9 @@ function LedgerView({
         ...partyCNs.map(cn => ({ ...cn, type: 'CREDIT_NOTE', amount: -cn.grandTotal, date: cn.date }))
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } else {
-      const partyPurchases = (purchases || []).filter((p: any) => p.partyGstin === party.gstin);
-      const partyPayments = (purchasePayments || []).filter((pp: any) => pp.partyGstin === party.gstin || pp.partyId === party.id);
-      const partyDNs = (debitNotes || []).filter((dn: any) => dn.partyGstin === party.gstin);
+      const partyPurchases = (purchases || []).filter((p: any) => isPartyMatch(party, p.partyGstin, p.partyName));
+      const partyPayments = (purchasePayments || []).filter((pp: any) => pp.partyId === party.id || isPartyMatch(party, pp.partyGstin, pp.partyName));
+      const partyDNs = (debitNotes || []).filter((dn: any) => isPartyMatch(party, dn.partyGstin, dn.partyName));
 
       return [
         ...partyPurchases.map(p => ({ ...p, type: 'PURCHASE', amount: p.grandTotal, date: p.date })),
@@ -9351,44 +9356,34 @@ function LedgerView({
                 let partyReturns = 0;
                 let totalPaidAmount = 0;
 
-                if (startDate || endDate) {
-                  // Filtered dynamic calculations
-                  if (activeTab === 'sales') {
-                    grossSalesOrPurchases = (bookings || [])
-                      .filter((b: any) => b.consigneeGstin === p.gstin && isInRange(b.date))
-                      .reduce((sum: number, b: any) => sum + b.grandTotal, 0);
-                    
-                    partyReturns = (creditNotes || [])
-                      .filter((note: any) => note.partyGstin === p.gstin && isInRange(note.date))
-                      .reduce((sum: number, note: any) => sum + note.grandTotal, 0);
-
-                    totalPaidAmount = (payments || [])
-                      .filter((pay: any) => (pay.partyGstin === p.gstin || pay.partyId === p.id) && isInRange(pay.date))
-                      .reduce((sum: number, pay: any) => sum + pay.amount, 0);
-                  } else {
-                    grossSalesOrPurchases = (purchases || [])
-                      .filter((pur: any) => pur.partyGstin === p.gstin && isInRange(pur.date))
-                      .reduce((sum: number, pur: any) => sum + pur.grandTotal, 0);
-
-                    partyReturns = (debitNotes || [])
-                      .filter((note: any) => note.partyGstin === p.gstin && isInRange(note.date))
-                      .reduce((sum: number, note: any) => sum + note.grandTotal, 0);
-
-                    totalPaidAmount = (purchasePayments || [])
-                      .filter((pay: any) => (pay.partyGstin === p.gstin || pay.partyId === p.id) && isInRange(pay.date))
-                      .reduce((sum: number, pay: any) => sum + pay.amount, 0);
-                  }
-                } else {
-                  // No active date filter: use full values
-                  partyReturns = (activeTab === 'sales' ? (creditNotes || []) : (debitNotes || []))
-                    .filter((note: any) => note.partyGstin === p.gstin)
-                    .reduce((sum: number, note: any) => sum + note.grandTotal, 0);
+                // Always calculate dynamically to avoid empty GSTIN corruption
+                if (activeTab === 'sales') {
+                  grossSalesOrPurchases = (bookings || [])
+                    .filter((b: any) => isPartyMatch(p, b.consigneeGstin, b.consigneeName) && isInRange(b.date))
+                    .reduce((sum: number, b: any) => sum + b.grandTotal, 0);
                   
-                  grossSalesOrPurchases = activeTab === 'sales' ? (p.totalSales || 0) : (p.totalPurchases || 0);
-                  totalPaidAmount = p.totalPaid || 0;
+                  partyReturns = (creditNotes || [])
+                    .filter((note: any) => isPartyMatch(p, note.partyGstin, note.partyName) && isInRange(note.date))
+                    .reduce((sum: number, note: any) => sum + note.grandTotal, 0);
+
+                  totalPaidAmount = (payments || [])
+                    .filter((pay: any) => (pay.partyId === p.id || isPartyMatch(p, pay.partyGstin, pay.partyName)) && isInRange(pay.date))
+                    .reduce((sum: number, pay: any) => sum + pay.amount, 0);
+                } else {
+                  grossSalesOrPurchases = (purchases || [])
+                    .filter((pur: any) => isPartyMatch(p, pur.partyGstin, pur.partyName) && isInRange(pur.date))
+                    .reduce((sum: number, pur: any) => sum + pur.grandTotal, 0);
+
+                  partyReturns = (debitNotes || [])
+                    .filter((note: any) => isPartyMatch(p, note.partyGstin, note.partyName) && isInRange(note.date))
+                    .reduce((sum: number, note: any) => sum + note.grandTotal, 0);
+
+                  totalPaidAmount = (purchasePayments || [])
+                    .filter((pay: any) => (pay.partyId === p.id || isPartyMatch(p, pay.partyGstin, pay.partyName)) && isInRange(pay.date))
+                    .reduce((sum: number, pay: any) => sum + pay.amount, 0);
                 }
 
-                const grossAmount = grossSalesOrPurchases + partyReturns;
+                const grossAmount = grossSalesOrPurchases;
                 const netBalance = grossAmount - partyReturns - totalPaidAmount;
                 
                 return (
@@ -12604,7 +12599,24 @@ function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [],
         <div className="space-y-4">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Existing Parties ({parties.length})</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {parties.map((p: any) => (
+            {parties.map((p: any) => {
+              let dynamicTotal = 0;
+              const isMatch = (gstin: string, name: string) => {
+                if (p.gstin) return gstin === p.gstin;
+                return name?.toLowerCase() === p.name?.toLowerCase();
+              };
+
+              if (title === 'Sale Party Entry') {
+                const sales = (bookings || []).filter((b: any) => isMatch(b.consigneeGstin, b.consigneeName)).reduce((sum: number, b: any) => sum + b.grandTotal, 0);
+                const returns = (creditNotes || []).filter((cn: any) => isMatch(cn.partyGstin, cn.partyName)).reduce((sum: number, cn: any) => sum + cn.grandTotal, 0);
+                dynamicTotal = sales - returns;
+              } else if (title === 'Purchase Party Entry') {
+                const buys = (purchases || []).filter((pur: any) => isMatch(pur.partyGstin, pur.partyName)).reduce((sum: number, pur: any) => sum + pur.grandTotal, 0);
+                const returns = (debitNotes || []).filter((dn: any) => isMatch(dn.partyGstin, dn.partyName)).reduce((sum: number, dn: any) => sum + dn.grandTotal, 0);
+                dynamicTotal = buys - returns;
+              }
+
+              return (
               <div key={p.id} className="p-5 bg-white border border-slate-100 rounded-2xl flex justify-between items-center group hover:border-[#00cec9] transition-all shadow-sm hover:shadow-md">
                 <div className="flex-1 min-w-0 pr-4">
                   <div className="font-black text-slate-900 uppercase text-sm truncate">{p.name}</div>
@@ -12614,8 +12626,8 @@ function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [],
                 </div>
                 <div className="text-right flex flex-col items-end gap-3 flex-shrink-0">
                   <div>
-                    <div className="text-[9px] font-black text-slate-400 uppercase">{title === 'Sale Party Entry' ? 'Total Sales' : 'Total Purchases'}</div>
-                    <div className="text-lg font-black text-slate-900">₹{(title === 'Sale Party Entry' ? p.totalSales : (p.totalPurchases || 0)).toLocaleString()}</div>
+                    <div className="text-[9px] font-black text-slate-400 uppercase">{title === 'Sale Party Entry' ? 'Net Sales' : title === 'Purchase Party Entry' ? 'Net Purchases' : ''}</div>
+                    <div className="text-lg font-black text-slate-900">{title === 'Weaver Party Entry' ? '' : `₹${dynamicTotal.toLocaleString()}`}</div>
                   </div>
                   <div className="flex gap-2 transition-all">
                     <button 
@@ -12635,7 +12647,8 @@ function PartyMasterView({ parties, title, onUpdateParties, suggestParties = [],
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
       </div>
       </div>
